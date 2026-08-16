@@ -1,0 +1,376 @@
+/* ==========================================================================
+   admin.css — অ্যাডমিন প্যানেল লেআউট
+   ========================================================================== */
+
+.admin-shell {
+  display: grid;
+  grid-template-columns: 252px 1fr;
+  min-height: calc(100vh - 68px);
+  align-items: start;
+}
+
+/* ---------- সাইডবার ---------- */
+.admin-sidebar {
+  position: sticky; top: 68px;
+  height: calc(100vh - 68px);
+  border-right: 1px solid var(--border);
+  background: var(--bg-elevated);
+  display: flex; flex-direction: column;
+  padding: 22px 14px;
+}
+.admin-sidebar-title {
+  font-family: var(--font-display); font-weight: 700; font-size: 0.95rem;
+  color: var(--text-muted); padding: 0 10px 16px; letter-spacing: 0.3px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.admin-nav { display: flex; flex-direction: column; gap: 3px; flex: 1; }
+.admin-nav-item {
+  display: flex; align-items: center; gap: 12px; text-align: right;
+  padding: 10px 12px; border-radius: var(--radius-sm); font-weight: 600; font-size: 0.93rem;
+  color: var(--text-muted); transition: background .15s, color .15s; width: 100%;
+  flex-direction: row-reverse; justify-content: flex-end; position: relative;
+}
+.admin-nav-item span {
+  font-size: 0.92rem; width: 32px; height: 32px; border-radius: 9px; flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--bg-elevated-2); color: var(--text-muted); transition: background .15s, color .15s;
+}
+.admin-nav-item:hover { background: var(--bg-elevated-2); color: var(--text-primary); }
+.admin-nav-item.active { background: linear-gradient(155deg, rgba(232,163,61,0.18), rgba(232,163,61,0.06)); color: var(--accent-amber-soft); }
+.admin-nav-item.active span { background: linear-gradient(155deg, var(--accent-amber-soft), var(--accent-amber)); color: #201705; }
+.admin-sidebar-back { color: var(--text-muted); font-size: 0.85rem; padding: 12px 10px 0; border-top: 1px solid var(--border); margin-top: 10px; }
+.admin-sidebar-back:hover { color: var(--text-primary); }
+.admin-drawer-close { display: none; color: var(--text-muted); font-size: 1.1rem; }
+
+/* ---------- মোবাইল টপবার (হ্যামবার্গার + সেকশনের নাম) ---------- */
+.admin-mobile-topbar { display: none; }
+.admin-sidebar-backdrop { display: none; }
+
+@media (max-width: 860px) {
+  .admin-shell { grid-template-columns: 1fr; }
+
+  .admin-mobile-topbar {
+    display: flex; align-items: center; gap: 12px;
+    position: sticky; top: 0; z-index: 20;
+    background: var(--bg-elevated); border-bottom: 1px solid var(--border);
+    padding: 14px 16px;
+  }
+  .admin-drawer-toggle {
+    width: 38px; height: 38px; border-radius: var(--radius-sm); flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--bg-elevated-2); color: var(--text-primary); font-size: 1.05rem; border: 1px solid var(--border);
+  }
+  .admin-mobile-topbar-title { font-family: var(--font-display); font-weight: 700; font-size: 1.05rem; color: var(--text-primary); }
+
+  /* সাইডবার এখন স্লাইড-ইন ড্রয়ার */
+  .admin-sidebar {
+    position: fixed; top: 0; bottom: 0; right: 0; z-index: 60;
+    width: min(280px, 82vw); height: 100vh;
+    transform: translateX(100%); transition: transform .24s ease;
+    box-shadow: -18px 0 40px rgba(0,0,0,0.4);
+  }
+  .admin-sidebar.open { transform: translateX(0); }
+  .admin-sidebar-title, .admin-sidebar-back { display: flex; }
+  .admin-drawer-close { display: inline-flex; }
+  .admin-nav { flex-direction: column; gap: 4px; }
+  .admin-nav-item { flex-direction: row-reverse; white-space: normal; }
+
+  .admin-sidebar-backdrop {
+    display: block; position: fixed; inset: 0; z-index: 50; background: rgba(10,12,26,0.6);
+    opacity: 0; pointer-events: none; transition: opacity .2s ease;
+  }
+  .admin-sidebar-backdrop.open { opacity: 1; pointer-events: auto; }
+}
+
+/* ---------- মূল কনটেন্ট ---------- */
+.admin-main { padding: 28px 28px 80px; min-width: 0; }
+@media (max-width: 640px) { .admin-main { padding: 18px 14px 70px; } }
+.admin-section { display: none; }
+.admin-section.active { display: block; animation: modal-fade .18s ease; }
+.admin-section-head { margin-bottom: 20px; padding-bottom: 18px; border-bottom: 1px solid var(--border); position: relative; }
+.admin-section-head h1 { font-size: 1.6rem; margin-bottom: 4px; }
+.admin-section-head .btn { position: absolute; top: 0; left: 0; }
+@media (max-width: 640px) { .admin-section-head .btn { position: static; margin-top: 12px; } }
+
+/* ---------- স্ট্যাট গ্রিড ---------- */
+.stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; }
+.stat-card {
+  background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-md);
+  padding: 18px 20px; border-inline-start: 3px solid var(--accent-amber); transition: transform .15s, border-color .15s;
+}
+.stat-card:hover { transform: translateY(-2px); border-inline-start-color: var(--accent-amber-soft); }
+.stat-card .n { font-family: var(--font-display); font-size: 1.9rem; font-weight: 700; color: var(--accent-amber-soft); }
+.stat-card .l { color: var(--text-muted); font-size: 0.86rem; margin-top: 4px; }
+
+/* ---------- ফিচার্ড ভিডিও লিস্ট (হোমপেজ ম্যানেজার) ---------- */
+.fv-row {
+  display: flex; align-items: center; gap: 12px; padding: 10px; border-radius: var(--radius-sm);
+  background: var(--bg-elevated-2); margin-bottom: 8px;
+}
+.fv-row img { width: 64px; height: 40px; border-radius: 6px; object-fit: cover; background: var(--bg-elevated); flex-shrink: 0; }
+.fv-row .info { flex: 1; min-width: 0; }
+.fv-row .info .t { font-weight: 600; font-size: 0.92rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fv-row .info .s { font-size: 0.78rem; color: var(--text-muted); }
+.fv-row .order-controls { display: flex; flex-direction: column; gap: 2px; }
+.fv-row .order-controls button { font-size: 0.7rem; color: var(--text-muted); }
+.fv-row .order-controls button:hover { color: var(--accent-amber-soft); }
+
+/* ---------- অ্যাডমিন ফর্ম মোডালে দুই-কলাম গ্রিড ---------- */
+.admin-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; }
+@media (max-width: 640px) { .admin-grid { grid-template-columns: 1fr; } }
+
+/* ---------- এক্সাম মোডাল — সেটিংস ⇄ প্রশ্নসমূহ ট্যাব ---------- */
+.exam-tabs { display: flex; gap: 8px; margin-bottom: 18px; border-bottom: 1.5px solid var(--border); }
+.exam-tab-btn {
+  display: inline-flex; align-items: center; gap: 8px; background: none; border: none;
+  color: var(--text-muted); font-family: var(--font-display); font-weight: 700; font-size: 0.92rem;
+  padding: 10px 4px 12px; cursor: pointer; border-bottom: 2.5px solid transparent; margin-bottom: -1.5px;
+  transition: color .15s, border-color .15s;
+}
+.exam-tab-btn:hover { color: var(--text-primary); }
+.exam-tab-btn.active { color: var(--accent-amber-soft); border-bottom-color: var(--accent-amber); }
+.exam-tab-count {
+  display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 20px;
+  background: rgba(232,163,61,0.14); color: var(--accent-amber-soft); border-radius: 20px; padding: 0 6px;
+  font-size: 0.76rem; font-family: var(--font-utility);
+}
+.exam-tab-panel[hidden] { display: none; }
+
+/* ---------- প্রশ্ন বিল্ডার (এক্সাম) — স্মার্ট সিস্টেম ---------- */
+.qb-section { margin-top: 8px; }
+.qb-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+.qb-count { font-size: 0.88rem; color: var(--text-muted); font-weight: 600; }
+.qb-count b, .qb-count span { color: var(--accent-amber-soft); font-family: var(--font-display); }
+
+/* বাল্ক ইম্পোর্ট প্যানেল */
+.qb-bulk-panel { background: var(--bg-elevated-2); border: 1px dashed var(--border-strong); border-radius: var(--radius-sm); padding: 14px; margin-bottom: 14px; animation: modal-fade .15s ease; }
+.qb-bulk-panel textarea { width: 100%; background: var(--bg-elevated); border: 1.5px solid var(--border-strong); color: var(--text-primary); padding: 10px 12px; border-radius: 8px; font-family: var(--font-utility); font-size: 0.9rem; resize: vertical; margin: 8px 0; }
+.qb-bulk-panel textarea:focus { border-color: var(--accent-amber); outline: none; }
+.qb-bulk-example { background: rgba(0,0,0,0.18); border-radius: 8px; padding: 10px 12px; font-size: 0.82rem; color: var(--text-muted); white-space: pre-wrap; line-height: 1.7; border-inline-start: 3px solid var(--accent-teal); }
+.qb-bulk-actions { display: flex; gap: 8px; justify-content: flex-end; }
+
+/* প্রশ্ন কার্ড */
+.q-card {
+  background: var(--bg-elevated-2); border: 1px solid var(--border); border-radius: var(--radius-sm);
+  padding: 14px; margin-bottom: 14px; position: relative; transition: border-color .15s;
+}
+.q-card:focus-within { border-color: var(--border-strong); }
+.q-card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+.q-badge {
+  display: inline-flex; align-items: center; gap: 6px; background: rgba(232,163,61,0.14); color: var(--accent-amber-soft);
+  font-family: var(--font-display); font-weight: 700; font-size: 0.85rem; padding: 4px 12px; border-radius: 20px;
+}
+.q-card-actions { display: flex; gap: 4px; }
+.q-card-actions .icon-btn { width: 30px; height: 30px; font-size: 0.82rem; }
+.q-card-actions .icon-btn:disabled { opacity: 0.3; pointer-events: none; }
+.q-text-input {
+  width: 100%; background: var(--bg-elevated); border: 1.5px solid var(--border-strong); color: var(--text-primary);
+  padding: 10px 12px; border-radius: 8px; resize: vertical; font-size: 0.98rem; line-height: 1.5; margin-bottom: 10px;
+}
+.q-text-input:focus { border-color: var(--accent-amber); outline: none; }
+.q-options { display: flex; flex-direction: column; gap: 8px; }
+
+/* অপশন সারি — টেক্সট বাঁ পাশে, সঠিক-উত্তর নিয়ন্ত্রণ ডান পাশে */
+.option-row {
+  display: flex; align-items: center; gap: 8px; background: var(--bg-elevated); border: 1.5px solid var(--border-strong);
+  border-radius: 8px; padding: 4px 4px 4px 10px; transition: border-color .15s, background .15s;
+}
+.option-row.is-correct { border-color: var(--accent-teal); background: rgba(79,139,135,0.12); }
+.option-letter { flex-shrink: 0; width: 22px; text-align: center; font-family: var(--font-display); font-weight: 700; color: var(--text-muted); font-size: 0.88rem; }
+.option-row.is-correct .option-letter { color: var(--accent-teal); }
+.option-row input[type="text"] { flex: 1; background: transparent; border: none; color: var(--text-primary); padding: 9px 4px; min-width: 0; }
+.option-row input[type="text"]:focus { outline: none; }
+.option-controls { display: flex; align-items: center; gap: 4px; flex-shrink: 0; margin-inline-start: auto; }
+.opt-correct-btn {
+  width: 32px; height: 32px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
+  border: 1.5px solid var(--border-strong); color: transparent; background: var(--bg-elevated-2); transition: all .15s; flex-shrink: 0;
+}
+.opt-correct-btn:hover { border-color: var(--accent-teal); }
+.opt-correct-btn.active { background: var(--accent-teal); border-color: var(--accent-teal); color: #EFFAF8; }
+.opt-remove-btn { width: 28px; height: 28px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 0.8rem; transition: all .15s; flex-shrink: 0; }
+.opt-remove-btn:hover { color: #fff; background: var(--accent-coral); }
+.opt-remove-btn:disabled { opacity: 0.25; pointer-events: none; }
+.add-option-btn {
+  align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; margin-top: 10px; color: var(--accent-amber-soft);
+  font-size: 0.85rem; font-weight: 600; padding: 6px 4px;
+}
+.add-option-btn:hover { color: var(--accent-amber); }
+.add-option-btn:disabled { opacity: 0.35; pointer-events: none; }
+.qb-empty { text-align: center; color: var(--text-muted); font-size: 0.88rem; padding: 20px; border: 1px dashed var(--border-strong); border-radius: var(--radius-sm); }
+
+/* ---------- এক্সাম আচরণ সেটিংস (সুইচ, ব্যাজ) ---------- */
+.switch-row { display: flex; align-items: center; gap: 8px; font-size: 0.9rem; color: var(--text-primary); cursor: pointer; margin-top: 4px; }
+.switch-row input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent-teal); flex-shrink: 0; }
+.settings-badges { display: flex; flex-wrap: wrap; gap: 4px; }
+.settings-badges .badge { white-space: nowrap; font-size: 0.76rem; }
+
+/* ---------- নির্দিষ্ট লেসন(গুলো) বাছাইয়ের চেকবক্স গ্রিড — Exam Scope ---------- */
+.lesson-picker {
+  display: flex; flex-direction: column; gap: 2px; max-height: 220px; overflow-y: auto;
+  background: var(--bg-elevated-2); border: 1.5px solid var(--border-strong); border-radius: var(--radius-sm); padding: 6px;
+}
+.lesson-picker-item {
+  display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 8px; cursor: pointer;
+  font-size: 0.9rem; color: var(--text-primary); transition: background .12s;
+}
+.lesson-picker-item:hover { background: var(--bg-elevated); }
+.lesson-picker-item input[type="checkbox"] { width: 17px; height: 17px; accent-color: var(--accent-amber); flex-shrink: 0; }
+
+/* ---------- পরীক্ষার প্রকাশ-শিডিউল বক্স ---------- */
+.schedule-box {
+  background: var(--bg-elevated-2); border: 1px dashed var(--border-strong); border-radius: var(--radius-sm);
+  padding: 14px 14px 2px; margin-bottom: 18px;
+}
+.schedule-box-title { font-weight: 700; font-size: 0.88rem; color: var(--accent-amber-soft); margin-bottom: 10px; }
+
+/* ---------- মিসক ---------- */
+.pill-toggle { display: inline-flex; align-items: center; gap: 8px; }
+.switch { position: relative; width: 42px; height: 24px; border-radius: 999px; background: var(--bg-elevated-2); border: 1px solid var(--border-strong); flex-shrink: 0; }
+.switch input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; }
+.switch .knob { position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: 50%; background: var(--text-muted); transition: transform .18s, background .18s; }
+.switch input:checked ~ .knob { transform: translateX(18px); background: var(--accent-amber); }
+.switch input:checked { }
+.switch:has(input:checked) { border-color: var(--accent-amber); }
+
+/* ---------- ক্রয় অনুরোধ ব্যাজ ---------- */
+.nav-pending-badge {
+  margin-left: auto; background: var(--accent-coral); color: #fff; font-size: 0.72rem; font-weight: 700;
+  min-width: 20px; height: 20px; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; padding: 0 6px;
+}
+/* ---------- Leaderboard ---------- */
+.lb-toolbar { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
+.lb-avatar {
+  width: 34px; height: 34px; border-radius: 50%; overflow: hidden; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center; background: var(--bg-elevated-2);
+  font-family: var(--font-display); font-weight: 700; color: var(--accent-amber-soft); border: 2px solid var(--accent-amber);
+}
+.lb-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.lb-rank {
+  display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+  min-width: 30px; padding: 4px 9px; border-radius: 999px; font-family: var(--font-display); font-weight: 700;
+  font-size: 0.85rem; color: var(--text-muted); background: var(--bg-elevated-2); border: 1px solid var(--border);
+}
+.lb-rank-1 { color: #4A3200; background: linear-gradient(155deg, #FFE9A8, #E8A33D); border-color: transparent; }
+.lb-rank-2 { color: #2E2E36; background: linear-gradient(155deg, #F1F1F5, #C6C8D2); border-color: transparent; }
+.lb-rank-3 { color: #3B1F0E; background: linear-gradient(155deg, #E7B98C, #C97A3D); border-color: transparent; }
+
+/* ---------- Leaderboard — thin tap-to-expand rows ----------
+   Collapsed: rank + avatar + name/email + score badge, all in one slim row
+   so the full board fits without side-scrolling. Tapping a row expands a
+   detail grid underneath with the rest of the breakdown (correct/wrong/
+   time/attempt/submitted, or the combined-view totals). ---------- */
+.lb-card { padding: 8px; }
+.lb-list { display: flex; flex-direction: column; }
+.lb-row { border-bottom: 1px solid var(--border); }
+.lb-row:last-child { border-bottom: none; }
+
+.lb-row-main {
+  width: 100%; display: flex; align-items: center; gap: 12px;
+  padding: 10px 10px; border: none; background: transparent; cursor: pointer;
+  font-family: inherit; text-align: left; border-radius: var(--radius-sm);
+  transition: background 0.15s ease;
+}
+.lb-row-main:hover { background: var(--bg-elevated-2); }
+.lb-row.open .lb-row-main { background: var(--bg-elevated-2); }
+
+.lb-row-main .lb-avatar { width: 30px; height: 30px; font-size: 0.8rem; border-width: 1.5px; }
+
+.lb-row-id { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.lb-row-name { font-weight: 600; font-size: 0.88rem; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lb-row-email { font-size: 0.75rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.lb-score-badge {
+  flex-shrink: 0; font-family: var(--font-display); font-size: 0.82rem; font-weight: 600;
+  color: var(--text-primary); background: var(--bg-elevated-2); border: 1px solid var(--border);
+  padding: 4px 10px; border-radius: 999px; white-space: nowrap;
+}
+.lb-score-badge b { color: var(--accent-amber-soft); font-weight: 700; }
+.lb-score-badge .pct { color: var(--text-muted); font-weight: 500; font-size: 0.78rem; margin-inline-start: 2px; }
+
+.lb-row-caret { flex-shrink: 0; font-size: 0.78rem; color: var(--text-muted); transition: transform 0.2s ease; }
+.lb-row.open .lb-row-caret { transform: rotate(180deg); color: var(--accent-amber-soft); }
+
+.lb-row-detail { padding: 2px 10px 14px 68px; }
+.lb-detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; }
+.lb-detail-item {
+  display: flex; flex-direction: column; gap: 2px; background: var(--bg-elevated-2);
+  border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 10px;
+}
+.lb-detail-item .l { font-size: 0.68rem; font-weight: 700; letter-spacing: 0.3px; color: var(--text-muted); text-transform: uppercase; }
+.lb-detail-item .v { font-size: 0.9rem; font-weight: 600; color: var(--text-primary); }
+
+@media (max-width: 560px) {
+  .lb-row-main { gap: 8px; padding: 9px 6px; }
+  .lb-row-email { display: none; }
+  .lb-score-badge { font-size: 0.76rem; padding: 3px 8px; }
+  .lb-row-detail { padding-left: 12px; }
+}
+
+.purchase-detail-list { font-size: 0.85rem; line-height: 1.7; }
+.purchase-detail-list b { color: var(--text-primary); }
+
+/* ---------- ইউজার সারি (ক্লিক করলে ডিভাইস তথ্য দেখা যায়) ---------- */
+#users-table tbody tr.user-row { cursor: pointer; }
+.device-warning-badge {
+  display: inline-flex; align-items: center; gap: 5px; margin-inline-start: 6px;
+  font-size: 0.72rem; padding: 3px 9px; vertical-align: middle; white-space: nowrap;
+}
+
+/* ---------- ডিভাইস তালিকা মোডাল ---------- */
+.device-warning-banner {
+  display: flex; align-items: center; gap: 10px; background: rgba(225,95,82,0.12); color: #F0938A;
+  border: 1px solid rgba(225,95,82,0.35); border-radius: var(--radius-sm); padding: 10px 14px;
+  font-size: 0.85rem; line-height: 1.5; margin-bottom: 14px;
+}
+.device-warning-banner i { flex-shrink: 0; font-size: 1rem; }
+.device-list { display: flex; flex-direction: column; gap: 10px; }
+.device-item {
+  display: flex; align-items: flex-start; gap: 12px; background: var(--bg-elevated-2);
+  border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 14px;
+}
+.device-item-icon {
+  width: 38px; height: 38px; border-radius: 10px; background: var(--bg-elevated); flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center; color: var(--accent-amber-soft); font-size: 1rem;
+}
+.device-item-body { min-width: 0; }
+.device-item-title { font-weight: 600; font-size: 0.92rem; color: var(--text-primary); margin-bottom: 3px; }
+.device-item-meta { font-size: 0.78rem; color: var(--text-muted); line-height: 1.6; }
+
+/* ==========================================================================
+   রেসপন্সিভ টেবিল → কার্ড (ছোট স্ক্রিনে ডানে-বামে স্ক্রল না করে সবকিছু সোজা নিচে দেখাবে)
+   ========================================================================== */
+@media (max-width: 700px) {
+  .table-wrap { overflow: visible; }
+  .data-table.table-scroll-x,
+  #exams-table.table-scroll-x { min-width: 0; width: 100%; }
+
+  .data-table thead { display: none; }
+  .data-table, .data-table tbody, .data-table tr, .data-table td { display: block; width: 100%; }
+
+  .data-table tbody tr {
+    background: var(--bg-elevated-2); border: 1px solid var(--border); border-radius: var(--radius-md);
+    padding: 4px 14px; margin-bottom: 12px;
+  }
+  .data-table tbody tr:hover td { background: none; }
+
+  .data-table td {
+    display: flex; align-items: center; justify-content: space-between; gap: 14px;
+    padding: 11px 0; border-bottom: 1px solid var(--border); text-align: left;
+  }
+  .data-table td:last-child { border-bottom: none; }
+
+  .data-table td::before {
+    content: attr(data-label); font-size: 0.74rem; font-weight: 700; color: var(--text-muted);
+    flex-shrink: 0; text-align: left; letter-spacing: 0.2px;
+  }
+  .data-table td[data-label=""]::before { display: none; }
+  .data-table td[data-label=""] { justify-content: flex-end; }
+
+  /* যে কলামে অ্যাভাটার/থাম্বনেইল + শিরোনাম থাকে (যেমন ইউজার, কোর্স, লেসন) — এটা কার্ডের হেডার হিসেবে দেখানো, আলাদা লেবেল ছাড়াই */
+  .data-table td:has(.cell-title) {
+    display: block; padding: 14px 0 12px; border-bottom: 1px solid var(--border-strong);
+  }
+  .data-table td:has(.cell-title)::before { display: none; }
+
+  .data-table .row-actions { justify-content: flex-end; }
+}

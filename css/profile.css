@@ -1,0 +1,55 @@
+.profile-header { display: flex; align-items: center; gap: 22px; padding: 36px 0 10px; flex-wrap: wrap; }
+.admin-shortcut { margin-inline-start: auto; }
+.profile-meta { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 8px; font-size: 0.84rem; color: var(--text-muted); }
+.profile-meta span { display: inline-flex; align-items: center; gap: 6px; }
+.profile-meta .badge { font-size: 0.72rem; padding: 3px 10px; }
+
+/* ---------- দ্রুত পরিসংখ্যান ---------- */
+.profile-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin: 22px 0 6px; }
+@media (max-width: 640px) { .profile-stats { grid-template-columns: 1fr; } }
+.stat-card { display: flex; align-items: center; gap: 14px; padding: 18px 20px; }
+.stat-card i { font-size: 1.3rem; color: var(--accent-amber-soft); width: 40px; height: 40px; border-radius: 12px;
+  background: rgba(232,163,61,0.12); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.stat-card b { display: block; font-family: var(--font-display); font-size: 1.3rem; line-height: 1.2; }
+.stat-card span { display: block; font-size: 0.82rem; color: var(--text-muted); margin-top: 2px; }
+.profile-avatar {
+  width: 84px; height: 84px; border-radius: 50%; overflow: hidden; border: 3px solid var(--accent-amber);
+  display: flex; align-items: center; justify-content: center; background: var(--bg-elevated-2);
+  font-family: var(--font-display); font-size: 2rem; color: var(--accent-amber-soft); flex-shrink: 0; position: relative;
+}
+.profile-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.avatar-edit-btn {
+  position: absolute; bottom: -2px; right: -2px; width: 28px; height: 28px; border-radius: 50%;
+  background: var(--accent-amber); color: #201705; display: flex; align-items: center; justify-content: center; font-size: 0.8rem;
+  border: 2px solid var(--bg);
+}
+.profile-name h1 { font-size: 1.5rem; }
+.profile-name p { color: var(--text-muted); margin-top: 4px; }
+
+.tab-row { display: flex; gap: 6px; margin: 28px 0 24px; border-bottom: 1px solid var(--border); overflow-x: auto; }
+.tab-btn { padding: 12px 20px; font-weight: 600; color: var(--text-muted); border-bottom: 2px solid transparent; white-space: nowrap; }
+.tab-btn.active { color: var(--accent-amber-soft); border-color: var(--accent-amber); }
+
+.tab-panel { padding-bottom: 70px; }
+
+.my-course-row { display: flex; align-items: center; gap: 16px; padding: 16px; margin-bottom: 12px; }
+.my-course-row img { width: 64px; height: 64px; border-radius: 10px; object-fit: cover; background: var(--bg-elevated-2); }
+.my-course-row .info { flex: 1; }
+.my-course-row .info h4 { font-size: 0.98rem; margin-bottom: 6px; }
+
+.result-row { display: flex; align-items: center; justify-content: space-between; padding: 16px 18px; margin-bottom: 10px; }
+.result-row .score { font-family: var(--font-display); font-weight: 700; font-size: 1.2rem; color: var(--accent-amber-soft); }
+
+.purchase-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 16px 18px; margin-bottom: 10px; flex-wrap: wrap; }
+.purchase-row .info h4 { font-size: 0.98rem; margin-bottom: 4px; }
+
+/* ---------- সেটিংস / নিরাপত্তা প্যানেল ---------- */
+.panel-title { display: flex; align-items: center; gap: 10px; font-size: 1.05rem; margin-bottom: 8px; }
+.panel-title i { color: var(--accent-amber-soft); }
+.panel-desc { font-size: 0.86rem; margin-bottom: 18px; line-height: 1.6; }
+
+.security-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; align-items: start; }
+@media (max-width: 860px) { .security-grid { grid-template-columns: 1fr; } }
+
+.danger-zone { border-color: rgba(225,95,82,0.35); }
+.danger-zone .panel-title i { color: var(--accent-coral); }

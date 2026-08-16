@@ -1,0 +1,30 @@
+.auth-wrap {
+  min-height: calc(100vh - 68px);
+  display: flex; align-items: center; justify-content: center;
+  padding: 40px 20px;
+}
+.auth-card {
+  width: 100%; max-width: 420px;
+  position: relative;
+}
+.auth-card::before {
+  content: "";
+  position: absolute; inset: -30px -30px auto -30px; height: 220px;
+  background: radial-gradient(ellipse at 50% 0%, rgba(232,163,61,0.22), transparent 70%);
+  pointer-events: none; z-index: -1;
+}
+.auth-head { text-align: center; margin-bottom: 28px; }
+.auth-head .brand-mark { margin: 0 auto 16px; }
+.auth-head h1 { font-size: 1.6rem; margin-bottom: 6px; }
+.auth-head p { color: var(--text-muted); font-size: 0.95rem; }
+.auth-divider { display: flex; align-items: center; gap: 12px; margin: 20px 0; color: var(--text-muted); font-size: 0.85rem; }
+.auth-divider::before, .auth-divider::after { content: ""; flex: 1; height: 1px; background: var(--border); }
+.auth-switch { text-align: center; margin-top: 20px; font-size: 0.92rem; color: var(--text-muted); }
+.auth-switch a { color: var(--accent-amber-soft); font-weight: 700; }
+.auth-forgot-link { font-size: 0.82rem; font-weight: 600; color: var(--accent-amber-soft); }
+.auth-forgot-link:hover { text-decoration: underline; }
+.btn-google {
+  display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%;
+  background: var(--surface); color: var(--text-on-surface); font-weight: 700; padding: 12px;
+  border-radius: 999px;
+}

@@ -1,0 +1,213 @@
+.course-header { padding: 32px 0 22px; }
+.course-header-box {
+  max-width: 760px;
+  margin: 0 auto;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 28px 32px;
+  text-align: center;
+}
+.breadcrumb { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 8px; color: var(--text-muted); font-size: 0.85rem; margin-bottom: 16px; }
+.breadcrumb a { display: inline-flex; align-items: center; gap: 6px; color: var(--text-muted); transition: color .15s; }
+.breadcrumb a i { font-size: 0.78em; opacity: .85; }
+.breadcrumb a:hover { color: var(--accent-amber-soft); }
+.breadcrumb .crumb-sep { font-size: 0.55rem; opacity: .45; }
+.breadcrumb .crumb-current { color: var(--text-primary); font-weight: 600; max-width: 60vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.course-title-row { display: flex; align-items: center; justify-content: center; gap: 20px; flex-wrap: wrap; }
+.course-title-row h1 {
+  font-size: clamp(1.5rem, 4.4vw, 2.1rem);
+  line-height: 1.28;
+  letter-spacing: -0.01em;
+  font-weight: 800;
+}
+.course-title-row p { color: var(--text-muted); margin-top: 12px; line-height: 1.65; }
+.course-enroll-pill {
+  display: inline-flex; align-items: center; gap: 8px; margin-top: 14px;
+  background: var(--text-on-surface); color: #4BE3A5; font-size: 0.85rem; font-weight: 700;
+  padding: 7px 16px; border-radius: 999px;
+}
+.course-enroll-pill i { color: var(--accent-amber-soft); }
+
+@media (max-width: 560px) {
+  .course-header { padding: 26px 0 20px; }
+  .course-header-box { padding: 22px 18px; border-radius: var(--radius-md); }
+  .breadcrumb { font-size: 0.8rem; margin-bottom: 14px; }
+  .breadcrumb .crumb-current { max-width: 55vw; }
+}
+
+.course-layout { display: grid; grid-template-columns: 1fr 320px; gap: 26px; padding: 24px 0 70px; align-items: start; }
+@media (max-width: 940px) { .course-layout { grid-template-columns: 1fr; } }
+
+/* ---------- মিডিয়া প্যানেল ---------- */
+.media-panel { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
+.video-frame { position: relative; width: 100%; aspect-ratio: 16/9; background: #000; }
+.video-frame iframe, .video-frame video { width: 100%; height: 100%; border: none; }
+.media-tabs { display: flex; gap: 4px; padding: 14px 18px 0; border-bottom: 1px solid var(--border); }
+.media-tab { padding: 10px 18px; border-radius: 10px 10px 0 0; font-weight: 600; font-size: 0.92rem; color: var(--text-muted); display: inline-flex; align-items: center; gap: 7px; }
+.media-tab.active { color: var(--text-primary); background: var(--bg-elevated-2); }
+.tab-count-badge {
+  display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; padding: 0 5px;
+  border-radius: 999px; background: var(--accent-amber); color: #201705; font-size: 0.68rem; font-weight: 800;
+}
+.media-body { padding: 20px; }
+.lesson-desc { color: var(--text-muted); line-height: 1.7; }
+
+/* যে লেসনটির নিজস্ব এক্সাম আছে, সেটির ভিডিও/স্লাইড ট্যাবের নিচে একটি ছোট্ট ব্যানার দেখায় */
+.lesson-exam-banner {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  background: linear-gradient(155deg, rgba(31,158,147,0.16), rgba(31,158,147,0.05));
+  border: 1px solid rgba(31,158,147,0.35); border-radius: var(--radius-md); padding: 12px 16px; margin-top: 16px;
+}
+.lesson-exam-banner .lb-text { display: flex; align-items: center; gap: 10px; font-size: 0.88rem; color: var(--text-primary); }
+.lesson-exam-banner .lb-text i { color: #5FD4C6; font-size: 1rem; }
+
+/* ---------- এক্সাম ট্যাব (কোর্স পেজ) ---------- */
+#exam-panel .exam-grid { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); padding: 0; }
+#exam-panel .exam-section-title {
+  display: flex; align-items: center; gap: 8px; font-size: 0.85rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.03em; color: var(--text-muted); margin: 22px 0 12px;
+}
+#exam-panel .exam-section-title:first-child { margin-top: 0; }
+.exam-lesson-tag { align-self: flex-start; font-size: 0.74rem; }
+
+/* ---------- স্লাইড ভিউয়ার ---------- */
+.slide-viewer { position: relative; }
+.slide-frame {
+  aspect-ratio: 16/10; background: var(--surface); border-radius: var(--radius-md); overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+}
+.slide-frame img { width: 100%; height: 100%; object-fit: contain; }
+.slide-controls { display: flex; align-items: center; justify-content: space-between; margin-top: 14px; }
+.slide-dots { display: flex; gap: 6px; }
+.slide-dots span { width: 7px; height: 7px; border-radius: 50%; background: var(--border-strong); }
+.slide-dots span.active { background: var(--accent-amber); width: 20px; border-radius: 4px; transition: all .2s; }
+.slide-empty { text-align: center; color: var(--text-muted); padding: 40px 0; }
+
+/* ---------- স্লাইড সাব-ট্যাব (পিডিএফ ↔ ছবি) ---------- */
+.slide-subtabs { display: flex; gap: 6px; margin-bottom: 14px; }
+.slide-subtab {
+  padding: 8px 16px; border-radius: 999px; font-size: 0.85rem; font-weight: 600;
+  background: var(--bg-elevated-2); color: var(--text-muted); border: 1px solid transparent; transition: all .15s;
+}
+.slide-subtab.active { color: var(--accent-amber-soft); border-color: rgba(124,92,252,0.3); background: rgba(124,92,252,0.1); }
+
+/* ---------- পিডিএফ ভিউয়ার (গুগল ড্রাইভ / সরাসরি লিংক) ---------- */
+.pdf-viewer {
+  background: var(--surface); border-radius: var(--radius-md); overflow: hidden;
+  height: min(78vh, 720px);
+}
+.pdf-viewer iframe { width: 100%; height: 100%; border: none; }
+@media (max-width: 640px) { .pdf-viewer { height: 62vh; } }
+
+/* ---------- লেসন সাইডবার ---------- */
+.lesson-sidebar { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 18px; position: sticky; top: 86px; }
+.lesson-sidebar h3 { font-size: 1rem; margin-bottom: 4px; }
+.lesson-sidebar .sub { color: var(--text-muted); font-size: 0.82rem; margin-bottom: 14px; }
+
+/* "এখন চলছে" কার্ড — সবসময় সবার উপরে স্থির থাকে, স্ক্রল হয় না */
+.now-playing-card {
+  background: linear-gradient(155deg, rgba(124,92,252,0.16), rgba(124,92,252,0.05));
+  border: 1px solid rgba(124,92,252,0.35); border-radius: var(--radius-md);
+  padding: 12px; margin-bottom: 14px;
+}
+.now-playing-badge {
+  display: inline-flex; align-items: center; gap: 7px; font-size: 0.72rem; font-weight: 700;
+  color: var(--accent-amber-soft); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 10px;
+}
+.now-playing-dot {
+  width: 7px; height: 7px; border-radius: 50%; background: var(--accent-amber);
+  box-shadow: 0 0 0 0 rgba(124,92,252,0.55);
+  animation: now-playing-pulse 1.7s ease-out infinite;
+}
+@keyframes now-playing-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(124,92,252,0.55); }
+  70% { box-shadow: 0 0 0 7px rgba(124,92,252,0); }
+  100% { box-shadow: 0 0 0 0 rgba(124,92,252,0); }
+}
+.now-playing-body { display: flex; gap: 12px; align-items: flex-start; }
+.now-playing-card .lesson-num { background: var(--accent-amber); color: #FFFFFF; }
+.now-playing-card .lesson-info h4 { color: var(--text-primary); }
+
+/* অটো-স্ক্রলিং "আপ নেক্সট" তালিকা — উপরের দিকে অনবরত চলতে থাকে, হাত/মাউস দিয়েও স্ক্রল করা যায় */
+.lesson-marquee {
+  max-height: min(48vh, 420px); overflow-y: auto; overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch; scrollbar-width: none; -ms-overflow-style: none;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 22px, #000 calc(100% - 22px), transparent 100%);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 22px, #000 calc(100% - 22px), transparent 100%);
+  cursor: grab;
+}
+.lesson-marquee::-webkit-scrollbar { display: none; }
+.lesson-marquee:active { cursor: grabbing; }
+.lesson-marquee.no-scroll { cursor: default; -webkit-mask-image: none; mask-image: none; }
+.lesson-marquee-track { display: flex; flex-direction: column; gap: 8px; padding: 8px 2px; }
+.lesson-marquee-empty { text-align: center; color: var(--text-muted); font-size: 0.85rem; padding: 24px 8px; }
+
+.lesson-item {
+  display: flex; gap: 12px; align-items: center; padding: 12px 10px; border-radius: 10px; cursor: pointer;
+  transition: background .18s, border-color .18s, transform .18s; border: 1px solid transparent;
+}
+.lesson-item:hover { background: var(--bg-elevated-2); border-color: var(--border); transform: translateX(-2px); }
+.lesson-num {
+  flex-shrink: 0; width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  font-size: 0.75rem; font-family: var(--font-utility); font-weight: 700; background: var(--bg-elevated-2); color: var(--text-muted);
+}
+.lesson-item.done .lesson-num { background: var(--accent-teal); color: #EFFAF8; }
+.lesson-info { min-width: 0; flex: 1; }
+.lesson-info h4 { font-size: 0.9rem; font-weight: 600; line-height: 1.4; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lesson-info span { display: inline-flex; align-items: center; gap: 5px; font-size: 0.76rem; color: var(--text-muted); margin-top: 2px; }
+.lesson-info span i { font-size: 0.7rem; opacity: 0.8; }
+.lesson-exam-flag { color: #5FD4C6 !important; opacity: 1 !important; }
+.lesson-play-hint {
+  flex-shrink: 0; width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  color: var(--accent-amber-soft); background: rgba(124,92,252,0.12); font-size: 0.68rem;
+  opacity: 0; transform: scale(0.7); transition: opacity .18s, transform .18s;
+}
+.lesson-item:hover .lesson-play-hint { opacity: 1; transform: scale(1); }
+
+.complete-bar { display: flex; align-items: center; justify-content: space-between; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border); }
+
+/* ---------- কোর্স কেনার প্যানেল (লকড কোর্স) ---------- */
+.buy-panel { text-align: center; }
+.buy-lock-icon {
+  width: 56px; height: 56px; border-radius: 50%; margin: 0 auto 12px;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(124,92,252,0.14); color: var(--accent-amber-soft); font-size: 1.4rem;
+}
+.buy-price-row { display: flex; align-items: baseline; justify-content: center; gap: 10px; margin-top: 4px; }
+.buy-price-old { color: var(--text-muted); text-decoration: line-through; font-size: 0.95rem; }
+.buy-price-new { color: var(--accent-amber-soft); font-family: var(--font-display); font-weight: 700; font-size: 1.6rem; }
+.purchase-status-pill {
+  margin-top: 14px; padding: 10px 12px; border-radius: var(--radius-sm); font-size: 0.82rem; text-align: left;
+  display: flex; align-items: flex-start; gap: 8px; line-height: 1.5;
+}
+.purchase-status-pill.pending { background: rgba(124,92,252,0.12); color: var(--accent-amber-soft); }
+.purchase-status-pill.approved { background: rgba(31,158,147,0.16); color: #5FD4C6; }
+
+/* ---------- ইতিমধ্যে কেনা হয়েছে — সতর্কতা পপআপ ---------- */
+.already-purchased-box { text-align: center; padding: 6px 4px 4px; }
+.already-purchased-box .buy-lock-icon { background: rgba(31,158,147,0.16); font-size: 1.6rem; }
+.already-purchased-box p { color: var(--text-muted); font-size: 0.9rem; line-height: 1.6; }
+.purchase-status-pill.rejected { background: rgba(225,95,82,0.14); color: #F0938A; }
+/* ---------- অ্যাক্সেস কোড পপ-আপ (কোর্স আনলক করার একমাত্র উপায়) ---------- */
+.access-modal-overlay .modal-box { max-width: 440px; padding: 18px; }
+.access-modal-close { position: absolute; top: 14px; right: 14px; z-index: 1; }
+.access-modal-surface {
+  text-align: center; padding: 34px 26px 30px; margin: 0;
+}
+.access-modal-title { font-size: 1.5rem; margin-bottom: 10px; }
+.access-modal-sub { color: var(--text-on-surface-muted); font-size: 0.95rem; margin-bottom: 24px; }
+.access-modal-input {
+  width: 100%; background: #FFFFFF; border: none; border-radius: 999px;
+  padding: 16px 22px; font-size: 1rem; text-align: center; color: var(--text-on-surface);
+  margin-bottom: 20px; box-shadow: 0 2px 10px rgba(20,15,50,0.08);
+}
+.access-modal-input::placeholder { color: var(--text-on-surface-muted); }
+.access-modal-input:focus { outline: 2px solid var(--accent-amber); }
+.access-modal-submit { padding: 15px 24px; font-size: 1.02rem; }
+.pay-numbers-box { display: flex; flex-direction: column; gap: 8px; }
+.pay-number-item {
+  display: flex; align-items: center; gap: 8px; background: var(--surface); color: var(--text-on-surface);
+  padding: 10px 12px; border-radius: var(--radius-sm); font-size: 0.88rem;
+}
+.pay-number-item i { color: var(--accent-teal); }
