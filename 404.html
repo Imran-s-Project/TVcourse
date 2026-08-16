@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<script src="js/theme.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Page Not Found — Tech Verse Course</title>
+<meta name="description" content="The page you're looking for couldn't be found.">
+<meta name="robots" content="noindex">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#14182B">
+<link rel="icon" href="assets/icons/icon-192.png">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/error.css">
+</head>
+<body>
+  <div id="toast-root"></div>
+
+  <nav class="topnav">
+    <div class="container">
+      <a href="index.html" class="brand"><img src="assets/logo.png" alt="TVcourse" class="brand-logo"></a>
+      <div class="nav-links" id="nav-links"></div>
+      <div class="flex items-center gap-12">
+        <button type="button" class="theme-toggle-btn" id="theme-toggle-btn" aria-label="Toggle theme"><i class="fa-solid fa-sun"></i></button>
+        <div class="nav-user" id="nav-user"></div>
+        <button class="hamburger" id="hamburger"><span></span><span></span><span></span></button>
+      </div>
+    </div>
+  </nav>
+
+  <main class="container error-wrap">
+    <div class="error-lamp"><i class="fa-solid fa-book-open"></i></div>
+    <div class="error-code">404</div>
+    <h1 class="error-title">This page isn't in the book</h1>
+    <p class="error-desc">The link may be outdated, or the address may be mistyped. No worries — you can start again from any of the options below.</p>
+    <div class="error-actions">
+      <a href="index.html" class="btn btn-primary"><i class="fa-solid fa-house"></i> Back to Home</a>
+      <a href="index.html#course-grid" class="btn btn-outline"><i class="fa-solid fa-book"></i> Browse Courses</a>
+      <a href="index.html#/exam" class="btn btn-outline"><i class="fa-solid fa-file-pen"></i> Take an Exam</a>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-grid">
+      <div class="footer-brand">
+        <a href="index.html"><img src="assets/logo.png" alt="Tech Verse Course" class="footer-logo"></a>
+        <p class="footer-about">Tech Verse Course is an all-in-one learning platform where video lessons, slides, and exams live together — organized, accessible, and built to help you actually finish what you start.</p>
+        <div class="footer-social">
+          <a href="https://www.facebook.com/irnahmed360" target="_blank" rel="noopener" aria-label="Facebook"><i class="fa-brands fa-facebook-f"></i></a>
+          <a href="https://www.youtube.com/@imran.ahmedd" target="_blank" rel="noopener" aria-label="YouTube"><i class="fa-brands fa-youtube"></i></a>
+          <a href="https://wa.me/8801957329211" target="_blank" rel="noopener" aria-label="WhatsApp"><i class="fa-brands fa-whatsapp"></i></a>
+        </div>
+      </div>
+
+      <div class="footer-col">
+        <h4>Quick Links</h4>
+        <ul>
+          <li><a href="about.html">About Us</a></li>
+          <li><a href="privacy.html">Privacy Policy</a></li>
+          <li><a href="terms.html">Terms &amp; Conditions</a></li>
+          <li><a href="help.html">Help &amp; Support</a></li>
+          <li><a href="credits.html">Credits</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-col">
+        <h4>Contact Us</h4>
+        <ul class="footer-contact">
+          <li><a href="https://www.facebook.com/irnahmed360" target="_blank" rel="noopener"><i class="fa-brands fa-facebook-f"></i> Facebook</a></li>
+          <li><a href="https://www.youtube.com/@imran.ahmedd" target="_blank" rel="noopener"><i class="fa-brands fa-youtube"></i> YouTube Channel</a></li>
+          <li><a href="https://wa.me/8801957329211" target="_blank" rel="noopener"><i class="fa-brands fa-whatsapp"></i> WhatsApp</a></li>
+          <li><a href="mailto:project.developer.tech@gmail.com"><i class="fa-solid fa-envelope"></i> project.developer.tech@gmail.com</a></li>
+          <li><a href="tel:+8801957329211"><i class="fa-solid fa-phone"></i> +880 1957-329211</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="footer-bottom container">
+      <span>© <span class="js-year"></span> Tech Verse Course. All rights reserved.</span>
+      <span class="footer-credit">Designed &amp; developed by <a href="https://www.facebook.com/irnahmed360" target="_blank" rel="noopener">Imran Ahmed</a></span>
+    </div>
+  </footer>
+
+  <script type="module" src="js/error.js"></script>
+  <script>document.querySelectorAll('.js-year').forEach(function (el) { el.textContent = new Date().getFullYear(); });</script>
+</body>
+</html>

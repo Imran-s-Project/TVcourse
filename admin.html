@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<script src="js/theme.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin Panel — Tech Verse Course</title>
+<meta name="robots" content="noindex">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#14182B">
+<link rel="icon" href="assets/icons/icon-192.png">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/admin.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+</head>
+<body>
+  <div id="toast-root"></div>
+
+  <nav class="topnav">
+    <div class="container">
+      <a href="index.html" class="brand"><img src="assets/logo.png" alt="TVcourse" class="brand-logo"></a>
+      <div class="nav-links" id="nav-links"></div>
+      <div class="flex items-center gap-12">
+        <button type="button" class="theme-toggle-btn" id="theme-toggle-btn" aria-label="Toggle theme"><i class="fa-solid fa-sun"></i></button>
+        <div class="nav-user" id="nav-user"></div>
+        <button class="hamburger" id="hamburger"><span></span><span></span><span></span></button>
+      </div>
+    </div>
+  </nav>
+
+  <div id="admin-gate" class="loading-screen"><span class="spinner"></span> Verifying...</div>
+
+  <div class="admin-shell hidden" id="admin-shell">
+    <!-- Mobile top bar: menu button + current section name -->
+    <div class="admin-mobile-topbar">
+      <button class="admin-drawer-toggle" id="admin-drawer-toggle" aria-label="Open menu"><i class="fa-solid fa-bars"></i></button>
+      <span class="admin-mobile-topbar-title" id="admin-mobile-topbar-title">Overview</span>
+    </div>
+    <div class="admin-sidebar-backdrop" id="admin-sidebar-backdrop"></div>
+
+    <aside class="admin-sidebar" id="admin-sidebar">
+      <div class="admin-sidebar-title">Control Center <button class="admin-drawer-close" id="admin-drawer-close" aria-label="Close menu"><i class="fa-solid fa-xmark"></i></button></div>
+      <nav class="admin-nav" id="admin-nav">
+        <button class="admin-nav-item active" data-section="overview" data-label="Overview"><span><i class="fa-solid fa-chart-pie"></i></span> Overview</button>
+        <button class="admin-nav-item" data-section="homepage" data-label="Homepage & Videos"><span><i class="fa-solid fa-house"></i></span> Homepage & Videos</button>
+        <button class="admin-nav-item" data-section="courses" data-label="Courses"><span><i class="fa-solid fa-book"></i></span> Courses</button>
+        <button class="admin-nav-item" data-section="lessons" data-label="Lessons / Videos"><span><i class="fa-solid fa-video"></i></span>Videos</button>
+        <button class="admin-nav-item" data-section="exams" data-label="Exams"><span><i class="fa-solid fa-file-pen"></i></span> Exams</button>
+        <button class="admin-nav-item" data-section="leaderboard" data-label="Leaderboard"><span><i class="fa-solid fa-trophy"></i></span> Leaderboard</button>
+        <button class="admin-nav-item" data-section="purchases" data-label="Purchase Requests"><span><i class="fa-solid fa-money-bill-wave"></i></span> Purchase Requests <span class="nav-pending-badge hidden" id="nav-pending-badge">0</span></button>
+        <button class="admin-nav-item" data-section="users" data-label="Users"><span><i class="fa-solid fa-users"></i></span> Users</button>
+      </nav>
+      <a href="index.html" class="admin-sidebar-back"><i class="fa-solid fa-arrow-left"></i> Back to Website</a>
+    </aside>
+
+    <main class="admin-main">
+      <!-- Overview -->
+      <section class="admin-section active" id="section-overview">
+        <div class="admin-section-head">
+          <h1>Overview</h1>
+          <p class="muted">A snapshot of the whole site's stats</p>
+        </div>
+        <div class="stat-grid" id="stat-grid">
+          <div class="loading-screen"><span class="spinner"></span></div>
+        </div>
+        <div class="card mt-24" id="recent-results-card">
+          <h3 class="mb-12">Recent Exam Results</h3>
+          <div class="table-wrap"><table class="data-table table-scroll-x" id="recent-results-table">
+            <thead><tr><th>User</th><th>Exam</th><th>Score</th><th>Date</th></tr></thead>
+            <tbody><tr><td colspan="4"><div class="loading-screen"><span class="spinner"></span></div></td></tr></tbody>
+          </table></div>
+        </div>
+      </section>
+
+      <!-- Homepage & smart video section -->
+      <section class="admin-section" id="section-homepage">
+        <div class="admin-section-head">
+          <h1>Homepage & Smart Video Section</h1>
+          <p class="muted">Control the homepage hero text and the featured videos shown on the homepage</p>
+        </div>
+
+        <div class="card">
+          <h3 class="mb-12">Hero Section</h3>
+          <form id="hero-settings-form">
+            <div class="field"><label>One-Line Badge Text</label><input type="text" id="hero-eyebrow-input" placeholder="New courses every week"></div>
+            <div class="field"><label>Main Title</label><input type="text" id="hero-title-input" placeholder="By the light of a desk lamp, let learning be organized"></div>
+            <div class="field"><label>Subtext</label><textarea id="hero-subtitle-input" rows="2"></textarea></div>
+            <button type="submit" class="btn btn-primary" id="hero-settings-save-btn">Save</button>
+          </form>
+        </div>
+
+        <div class="card mt-24">
+          <div class="flex items-center justify-between mb-12" style="flex-wrap:wrap; gap:10px;">
+            <div>
+              <h3>Featured Videos (Homepage Smart Video Section)</h3>
+              <p class="muted" style="font-size:0.88rem;">Videos chosen here will be shown on the homepage in order. If none are chosen, the newest videos will be shown automatically.</p>
+            </div>
+            <button class="btn btn-outline btn-sm" id="add-featured-video-btn">+ Add Video</button>
+          </div>
+          <div id="featured-video-list"><div class="loading-screen"><span class="spinner"></span></div></div>
+        </div>
+      </section>
+
+      <!-- Courses -->
+      <section class="admin-section" id="section-courses">
+        <div class="admin-section-head">
+          <h1>Course Management</h1>
+          <p class="muted">Create, edit, and delete courses</p>
+          <button class="btn btn-primary" id="add-course-btn-top">+ New Course</button>
+        </div>
+        <div class="card">
+          <div class="table-wrap"><table class="data-table table-scroll-x" id="courses-table">
+            <thead><tr><th>Course</th><th>Category</th><th>Lessons</th><th>Created</th><th></th></tr></thead>
+            <tbody><tr><td colspan="5"><div class="loading-screen"><span class="spinner"></span></div></td></tr></tbody>
+          </table></div>
+        </div>
+      </section>
+
+      <!-- Lessons / Videos -->
+      <section class="admin-section" id="section-lessons">
+        <div class="admin-section-head">
+          <h1>Lesson / Video Management</h1>
+          <p class="muted">Control the videos and slides for each course</p>
+        </div>
+        <div class="card">
+          <div class="flex items-center gap-12" style="flex-wrap:wrap;">
+            <div class="field" style="margin:0; flex:1; min-width:220px;">
+              <label>Select Course</label>
+              <select id="lessons-course-select"></select>
+            </div>
+            <button class="btn btn-primary" id="add-lesson-btn-top" style="margin-top:22px;">+ New Lesson</button>
+          </div>
+        </div>
+        <div class="card mt-16">
+          <div class="table-wrap"><table class="data-table table-scroll-x" id="lessons-table">
+            <thead><tr><th>Lesson</th><th>Duration</th><th>Order</th><th></th></tr></thead>
+            <tbody><tr><td colspan="4"><div class="empty-state">Please select a course first</div></td></tr></tbody>
+          </table></div>
+        </div>
+      </section>
+
+      <!-- Exams -->
+      <section class="admin-section" id="section-exams">
+        <div class="admin-section-head">
+          <h1>Exam Management</h1>
+          <p class="muted">Create, edit, and delete exams and questions</p>
+          <button class="btn btn-primary" id="add-exam-btn-top">+ New Exam</button>
+        </div>
+        <div class="card">
+          <div class="table-wrap"><table class="data-table table-scroll-x" id="exams-table">
+            <thead><tr><th>Exam</th><th>Course Tag</th><th>Scope</th><th>Questions</th><th>Time</th><th>Settings</th><th>Schedule</th><th></th></tr></thead>
+            <tbody><tr><td colspan="7"><div class="loading-screen"><span class="spinner"></span></div></td></tr></tbody>
+          </table></div>
+        </div>
+      </section>
+
+      <!-- Leaderboard -->
+      <section class="admin-section" id="section-leaderboard">
+        <div class="admin-section-head">
+          <h1>Leaderboard</h1>
+          <p class="muted">See exactly who scored what, how fast, and where they rank — handy when deciding who gets a gift for an exam</p>
+        </div>
+
+        <div class="card">
+          <div class="lb-toolbar">
+            <div class="field" style="margin:0; flex:1.4; min-width:200px;">
+              <label>Exam</label>
+              <select id="lb-exam-select">
+                <option value="">All Exams (Combined)</option>
+              </select>
+            </div>
+            <div class="field" style="margin:0; flex:1; min-width:170px;">
+              <label>Rank By</label>
+              <select id="lb-sort-select">
+                <option value="smart">Best Score, then Fastest Time</option>
+                <option value="fastest">Fastest Time (score still shown)</option>
+                <option value="recent">Most Recent Submission</option>
+              </select>
+            </div>
+            <div class="field" style="margin:0; flex:1; min-width:170px;">
+              <label>Search User</label>
+              <input type="text" id="lb-search-input" placeholder="Name or email">
+            </div>
+            <button type="button" class="btn btn-outline" id="lb-export-btn" style="margin-top:22px; white-space:nowrap;"><i class="fa-solid fa-download"></i> Export CSV</button>
+            <button type="button" class="btn btn-primary" id="lb-export-pdf-btn" style="margin-top:22px; white-space:nowrap;"><i class="fa-solid fa-file-pdf"></i> Download PDF</button>
+          </div>
+        </div>
+
+        <div class="stat-grid mt-16" id="lb-stat-grid"></div>
+
+        <div class="card mt-16 lb-card">
+          <div id="leaderboard-list" class="lb-list">
+            <div class="loading-screen"><span class="spinner"></span></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Purchase Requests -->
+      <section class="admin-section" id="section-purchases">
+        <div class="admin-section-head">
+          <h1>Purchase Requests</h1>
+          <p class="muted">Review users' course purchase requests — approving sends them an access code by email</p>
+        </div>
+
+        <div class="card">
+          <h3 class="mb-12"><i class="fa-solid fa-mobile-screen"></i> Payment Number Settings</h3>
+          <p class="muted" style="font-size:0.86rem; margin-bottom:14px;">Users will see these numbers when buying a course</p>
+          <form id="payment-settings-form">
+            <div class="admin-grid">
+              <div class="field"><label>bKash Number</label><input type="text" id="ps-bkash" placeholder="01XXXXXXXXX"></div>
+              <div class="field"><label>Nagad Number</label><input type="text" id="ps-nagad" placeholder="01XXXXXXXXX"></div>
+            </div>
+            <div class="admin-grid">
+              <div class="field"><label>Rocket Number</label><input type="text" id="ps-rocket" placeholder="01XXXXXXXXX"></div>
+              <div class="field"><label>Payment Type</label><input type="text" id="ps-type" placeholder="e.g. Send Money"></div>
+            </div>
+            <button type="submit" class="btn btn-primary" id="payment-settings-save-btn">Save</button>
+          </form>
+        </div>
+
+        <div class="card mt-24">
+          <div class="table-wrap"><table class="data-table table-scroll-x" id="purchases-table">
+            <thead><tr><th>User</th><th>Course</th><th>Payment</th><th>Amount</th><th>Status</th><th></th></tr></thead>
+            <tbody><tr><td colspan="6"><div class="loading-screen"><span class="spinner"></span></div></td></tr></tbody>
+          </table></div>
+        </div>
+      </section>
+
+      <!-- Users -->
+      <section class="admin-section" id="section-users">
+        <div class="admin-section-head">
+          <h1>User Management</h1>
+          <p class="muted">Control users' admin privileges</p>
+        </div>
+        <div class="card">
+          <div class="field" style="max-width:320px; margin-bottom:16px;">
+            <input type="text" id="user-search-input" placeholder="Search by name or email">
+          </div>
+          <div class="table-wrap"><table class="data-table table-scroll-x" id="users-table">
+            <thead><tr><th>User</th><th>Enrolled</th><th>Joined</th><th>Admin</th></tr></thead>
+            <tbody><tr><td colspan="4"><div class="loading-screen"><span class="spinner"></span></div></td></tr></tbody>
+          </table></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- EmailJS — for sending access-code emails (client-side, no backend needed) -->
+  <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+  <script type="text/javascript">
+    // Put your EmailJS Public Key here — EmailJS dashboard → Account → General → Public Key
+    emailjs.init({ publicKey: "HNuLVRVPIGRwfvMgn" });
+  </script>
+
+  <script type="module" src="js/admin.js"></script>
+</body>
+</html>

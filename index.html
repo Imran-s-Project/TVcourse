@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<script src="js/theme.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tech Verse Course — A New Destination for Learning</title>
+<meta name="description" content="Video lessons, slides, and exams — all together, all organized.">
+
+<!-- ===== Social sharing preview (Open Graph + Twitter Card) =====
+     Shows a title/description/image card when this link is shared on
+     Facebook, WhatsApp, Messenger, LinkedIn, Twitter/X, Discord, etc.,
+     instead of a bare gray link. og:url below is a placeholder — replace
+     REPLACE_WITH_YOUR_DOMAIN with the site's real live domain once it's
+     deployed (e.g. https://techversecourse.com/), or these previews will
+     point back at the wrong address. For the sharpest-looking card,
+     og:image ideally wants a dedicated 1200×630px image rather than the
+     logo — swap assets/logo.png below for one once you have it. -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Tech Verse Course">
+<meta property="og:title" content="Tech Verse Course — A New Destination for Learning">
+<meta property="og:description" content="Video lessons, slides, and exams — all together, all organized.">
+<meta property="og:image" content="https://REPLACE_WITH_YOUR_DOMAIN/assets/logo.png">
+<meta property="og:url" content="https://REPLACE_WITH_YOUR_DOMAIN/">
+<meta property="og:locale" content="en_US">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Tech Verse Course — A New Destination for Learning">
+<meta name="twitter:description" content="Video lessons, slides, and exams — all together, all organized.">
+<meta name="twitter:image" content="https://REPLACE_WITH_YOUR_DOMAIN/assets/logo.png">
+
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#14182B">
+<link rel="icon" href="assets/icons/icon-192.png">
+<link rel="canonical" href="https://REPLACE_WITH_YOUR_DOMAIN/">
+
+<!-- ===== Preconnect: tells the browser to open the connection to these
+     CDNs immediately instead of waiting until the <link>/<script> tag
+     below is parsed — shaves a bit of load time off every page load. ===== -->
+<link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/dashboard.css">
+<link rel="stylesheet" href="css/course.css">
+<link rel="stylesheet" href="css/exam.css">
+<link rel="stylesheet" href="css/static.css">
+<link rel="stylesheet" href="css/profile.css">
+<link rel="stylesheet" href="css/auth.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body>
+  <div id="toast-root"></div>
+
+  <nav class="topnav">
+    <div class="container">
+      <a href="#/home" class="brand" id="brand-link"><img src="assets/logo.png" alt="TVcourse" class="brand-logo"></a>
+      <div class="nav-links" id="nav-links"></div>
+      <div class="flex items-center gap-12">
+        <button type="button" class="theme-toggle-btn" id="theme-toggle-btn" aria-label="Toggle theme"><i class="fa-solid fa-sun"></i></button>
+        <div class="nav-user" id="nav-user"></div>
+        <button class="hamburger" id="hamburger"><span></span><span></span><span></span></button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ===== HOME PAGE ===== -->
+  <div id="page-home">
+    <header class="hero">
+      <div class="container hero-inner">
+        <span class="eyebrow" id="hero-eyebrow"><i class="fa-solid fa-star"></i> New courses every week</span>
+        <h1 id="hero-title">By the light of a desk lamp, let <em>learning</em> be organized</h1>
+        <p class="lede" id="hero-subtitle">Video lessons, slides with every video, and exams to test yourself — everything in one place, perfectly organized.</p>
+        <div class="hero-search">
+          <input type="text" id="hero-search-input" placeholder="Find courses...">
+          <button class="btn btn-primary" id="hero-search-btn">Search</button>
+        </div>
+        <div class="hero-stats">
+          <div class="stat"><b id="stat-courses">0</b><span>Courses</span></div>
+          <div class="stat"><b>24/7</b><span>Access</span></div>
+          <div class="stat"><b>∞</b><span>Revisions</span></div>
+        </div>
+      </div>
+    </header>
+
+    <main class="container" id="home-main">
+      <section id="featured-video-section" class="hidden">
+        <div class="section-head">
+          <div><h2><i class="fa-solid fa-video"></i> Featured Videos</h2><p>Watch hand-picked top lessons, play them right here</p></div>
+        </div>
+        <div class="video-showcase" id="video-showcase"></div>
+      </section>
+
+      <section id="continue-section" class="hidden">
+        <div class="section-head">
+          <div><h2>Continue Where You Left Off</h2><p>Keep going on your learning journey</p></div>
+        </div>
+        <div class="continue-strip" id="continue-strip"></div>
+      </section>
+
+      <section>
+        <div class="section-head">
+          <div><h2>All Courses</h2><p>Browse lessons picked for you</p></div>
+        </div>
+        <div class="category-row" id="category-row"></div>
+        <div class="course-grid" id="course-grid"></div>
+      </section>
+    </main>
+
+  <div data-footer></div>
+  </div>
+
+  <!-- ===== COURSE PAGE (SPA rendered here) ===== -->
+  <div id="page-course" class="hidden">
+    <div id="toast-root-course"></div>
+
+    <header class="course-header container">
+      <div class="course-header-box">
+        <div class="breadcrumb" id="course-crumb">Home</div>
+        <div class="course-title-row">
+          <div>
+            <h1 id="course-title">Loading...</h1>
+            <p id="course-desc"></p>
+            <div class="course-enroll-pill" id="course-enroll-pill" style="display:none">
+              <i class="fa-solid fa-users"></i> <span id="course-enroll-count">0</span> people are taking this course
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main class="container course-layout" id="course-layout">
+      <div class="media-panel">
+        <div class="video-frame" id="video-frame"></div>
+        <div class="media-tabs">
+          <button class="media-tab active" id="tab-video">Video</button>
+          <button class="media-tab" id="tab-slides">Slides</button>
+          <button class="media-tab" id="tab-exam">Exam</button>
+        </div>
+        <div class="media-body">
+          <div id="video-panel">
+            <p class="lesson-desc" id="lesson-desc"></p>
+            <div id="lesson-exam-banner"></div>
+            <div class="complete-bar">
+              <span class="muted" style="font-size:0.85rem">Mark when the lesson is finished</span>
+              <button class="btn btn-primary" id="complete-btn">Mark Lesson as Complete</button>
+            </div>
+          </div>
+          <div id="slide-panel" class="hidden"></div>
+          <div id="exam-panel" class="hidden"></div>
+        </div>
+      </div>
+
+      <aside class="lesson-sidebar">
+        <h3>Lesson List</h3>
+        <div class="sub" id="sidebar-sub">Loading...</div>
+        <div id="lesson-now-playing"></div>
+        <div class="lesson-marquee" id="lesson-marquee">
+          <div class="lesson-marquee-track" id="lesson-list"></div>
+        </div>
+      </aside>
+    </main>
+
+  <div data-footer></div>
+  </div>
+
+  <!-- ===== EXAM PAGE (SPA rendered here) =====
+       Markup lives directly in this shell (mirroring page-course above,
+       since js/exam.js's DOM ids are wired to it the same way course.js's
+       are); previously exam.html, now removed — this route no longer
+       exists as its own HTML file at all. -->
+  <div id="page-exam" class="hidden">
+    <main class="container">
+      <div id="exam-list-view">
+        <div class="section-head mt-24">
+          <div><h2>Test Yourself</h2><p>Take exams for each course, check your score</p></div>
+        </div>
+        <div class="exam-grid" id="exam-grid"></div>
+      </div>
+
+      <div id="exam-take-view" class="exam-take-wrap hidden">
+        <div class="exam-sticky-bar">
+          <div class="exam-top-bar">
+            <h2 id="exam-take-title">Exam</h2>
+            <div class="exam-timer" id="exam-timer"><i class="fa-solid fa-stopwatch"></i><span class="exam-timer-value">00:00</span></div>
+          </div>
+          <div class="q-progress-track"><div class="q-progress-fill" id="q-progress-fill"></div></div>
+        </div>
+        <form id="exam-submit-form">
+          <div id="question-area"></div>
+          <div class="exam-nav-row">
+            <button type="button" class="btn btn-outline" id="q-prev"><i class="fa-solid fa-arrow-left"></i> Previous</button>
+            <button type="button" class="btn btn-primary" id="q-next">Next <i class="fa-solid fa-arrow-right"></i></button>
+            <button type="submit" class="btn btn-teal hidden" id="q-submit">Submit Exam</button>
+          </div>
+        </form>
+      </div>
+
+      <div id="exam-result-view" class="exam-take-wrap hidden"></div>
+    </main>
+  <div data-footer></div>
+  </div>
+
+  <!-- ===== STATIC PAGES (About / Credits / Help / Privacy / Terms / Login / Signup) =====
+       Content for these routes lives in js/page-about.js, js/page-credits.js,
+       js/page-help.js, js/page-privacy.js, js/page-terms.js — this div is
+       just the mount point the router (js/app.js) renders into. -->
+  <div id="page-static" class="hidden">
+    <div id="static-page-content"></div>
+  <div data-footer></div>
+  </div>
+
+  <!-- ===== PROFILE PAGE (SPA rendered here) =====
+       Markup comes from js/page-profile.js; behavior comes from js/profile.js's
+       exported initProfilePage(), both wired together by the router in js/app.js. -->
+  <div id="page-profile" class="hidden">
+    <div id="profile-page-content"></div>
+  <div data-footer></div>
+  </div>
+  <script src="js/footer.js"></script>
+
+  <script type="module" src="js/app.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+    }
+  </script>
+</body>
+</html>
