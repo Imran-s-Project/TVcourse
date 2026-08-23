@@ -1,0 +1,12 @@
+<svg viewBox="0 0 480 480" xmlns="http://www.w3.org/2000/svg">
+  <!-- Flat background, single solid color -->
+  <rect x="0" y="0" width="480" height="480" rx="90" fill="#161B22"/>
+
+  <!-- Simple flat monogram: T fused with V, single color -->
+  <path d="M150 140 H330 V185 H263 V340 H217 V185 H150 Z" fill="#FFFFFF"/>
+  <path d="M217 240 L240 300 L263 240 L245 240 L240 262 L235 240 Z" fill="#161B22"/>
+
+  <!-- Small orbit dot accent, flat, no glow -->
+  <circle cx="240" cy="90" r="10" fill="#FFFFFF"/>
+  <path d="M240 100 v20" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round"/>
+</svg>
