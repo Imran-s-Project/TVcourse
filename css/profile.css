@@ -42,6 +42,7 @@
 
 .purchase-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 16px 18px; margin-bottom: 10px; flex-wrap: wrap; }
 .purchase-row .info h4 { font-size: 0.98rem; margin-bottom: 4px; }
+.purchase-row-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 
 /* ---------- সেটিংস / নিরাপত্তা প্যানেল ---------- */
 .panel-title { display: flex; align-items: center; gap: 10px; font-size: 1.05rem; margin-bottom: 8px; }
@@ -53,3 +54,19 @@
 
 .danger-zone { border-color: rgba(225,95,82,0.35); }
 .danger-zone .panel-title i { color: var(--accent-coral); }
+
+/* ---------- লিংকড অ্যাকাউন্ট (Google / Facebook / GitHub / Yahoo / Apple) ---------- */
+.linked-accounts-card { margin-bottom: 22px; }
+.linked-accounts-list { display: flex; flex-direction: column; gap: 10px; margin-top: 4px; }
+.linked-account-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 14px 16px; border: 1px solid var(--border); border-radius: 12px; flex-wrap: wrap; }
+.linked-account-info { display: flex; align-items: center; gap: 14px; min-width: 0; }
+.linked-provider-icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.15rem; background: var(--bg-elevated-2); color: var(--text-muted); flex-shrink: 0; }
+.linked-account-row[data-provider="google.com"] .linked-provider-icon { color: #EA4335; }
+.linked-account-row[data-provider="facebook.com"] .linked-provider-icon { color: #1877F2; }
+.linked-account-row[data-provider="github.com"] .linked-provider-icon { color: var(--text); }
+.linked-account-row[data-provider="yahoo.com"] .linked-provider-icon { color: #6001D2; }
+.linked-account-row[data-provider="apple.com"] .linked-provider-icon { color: var(--text); }
+.linked-account-info h4 { font-size: 0.95rem; }
+.linked-account-info .note-tag { font-weight: 400; font-size: 0.76rem; color: var(--text-muted); }
+.linked-status { font-size: 0.8rem; }
+.linked-status.is-connected { color: var(--accent-teal, #2fb894); }
