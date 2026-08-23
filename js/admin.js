@@ -1303,7 +1303,7 @@ function renderUserDetailBody(u) {
   renderCourseAccessPanel(u);
   bindGenerateCodePanel(u);
   loadUserPurchaseHistory(u.id);
-  loadUserDevicesPanel(u);
+  loadUserDevicesPanel(u.id);
 }
 
 /* ---------- Course access: grant/revoke enrolledCourses for this user ---------- */
@@ -1330,14 +1330,6 @@ function renderCourseAccessPanel(u) {
     btn.addEventListener("click", async () => {
       const courseId = btn.dataset.accessCourse;
       const has = btn.dataset.has === "1";
-      const course = courses.find((c) => c.id === courseId);
-      const ok = await confirmAction(
-        has
-          ? `Take away "${course?.title || "this course"}" access from ${u.displayName || u.email}? They'll be locked out immediately.`
-          : `Grant "${course?.title || "this course"}" access to ${u.displayName || u.email}?`,
-        { confirmLabel: has ? "Yes, Revoke" : "Yes, Grant", danger: has }
-      );
-      if (!ok) return;
       btn.disabled = true;
       try {
         await updateDoc(doc(db, "users", u.id), { enrolledCourses: has ? arrayRemove(courseId) : arrayUnion(courseId) });
@@ -1435,45 +1427,13 @@ async function loadUserPurchaseHistory(uid) {
 }
 
 /* ---------- This user's device/login list ---------- */
-// Collapsed behind a "Show Sessions" button by default — the raw device/session
-// list isn't something an admin needs to see on every profile open, so it now
-// only loads and renders once the button is clicked, instead of always showing.
-function loadUserDevicesPanel(u) {
-  const uid = u.id;
+async function loadUserDevicesPanel(uid) {
   const el = document.getElementById("udp-devices");
-  const count = u.deviceCount || 0;
-  el.innerHTML = `
-    <button type="button" class="btn btn-outline btn-sm" id="udp-devices-toggle">
-      <i class="fa-solid fa-mobile-screen"></i> Show Sessions${count ? ` (${count})` : ""}
-    </button>
-    <div id="udp-devices-list" class="mt-16 hidden"></div>
-  `;
-  const toggleBtn = document.getElementById("udp-devices-toggle");
-  const listEl = document.getElementById("udp-devices-list");
-  let loaded = false;
-
-  toggleBtn.addEventListener("click", async () => {
-    const willShow = listEl.classList.contains("hidden");
-    if (willShow && !loaded) {
-      listEl.innerHTML = `<div class="loading-screen"><span class="spinner"></span></div>`;
-      listEl.classList.remove("hidden");
-      await fetchAndRenderDevices(uid, listEl);
-      loaded = true;
-    } else {
-      listEl.classList.toggle("hidden");
-    }
-    toggleBtn.innerHTML = `<i class="fa-solid fa-mobile-screen"></i> ${
-      listEl.classList.contains("hidden") ? `Show Sessions${count ? ` (${count})` : ""}` : "Hide Sessions"
-    }`;
-  });
-}
-
-async function fetchAndRenderDevices(uid, listEl) {
   try {
     const snap = await getDocs(query(collection(db, "users", uid, "devices"), orderBy("lastSeen", "desc")));
     const devices = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
     if (!devices.length) {
-      listEl.innerHTML = `<div class="empty-state">No device information recorded yet</div>`;
+      el.innerHTML = `<div class="empty-state">No device information recorded yet</div>`;
       return;
     }
     const deviceIcon = (type) =>
@@ -1482,7 +1442,7 @@ async function fetchAndRenderDevices(uid, listEl) {
       devices.length > 1
         ? `<div class="device-warning-banner"><i class="fa-solid fa-triangle-exclamation"></i> This user has logged in/signed up from ${devices.length} different devices — check whether the account is being shared</div>`
         : "";
-    listEl.innerHTML =
+    el.innerHTML =
       warningHtml +
       `<div class="device-list">` +
       devices
@@ -1500,7 +1460,7 @@ async function fetchAndRenderDevices(uid, listEl) {
         .join("") +
       `</div>`;
   } catch {
-    listEl.innerHTML = `<div class="empty-state">Could not load device information</div>`;
+    el.innerHTML = `<div class="empty-state">Could not load device information</div>`;
   }
 }
 
@@ -2055,4 +2015,235 @@ function renderLeaderboard() {
   // like a real exam leaderboard (whoever scored highest wins; if tied, whoever finished
   // faster wins; if still tied, whoever submitted first wins) ----------
   if (mode === "exam") {
-    if (sortMode === "recent") row
+    if (sortMode === "recent") rows.sort((a, b) => (b.submittedAt?.seconds || 0) - (a.submittedAt?.seconds || 0));
+    else if (sortMode === "fastest") rows.sort((a, b) => (a.timeTakenSeconds ?? Infinity) - (b.timeTakenSeconds ?? Infinity) || b.score - a.score);
+    else rows.sort((a, b) => b.score - a.score || (a.timeTakenSeconds ?? Infinity) - (b.timeTakenSeconds ?? Infinity) || (a.submittedAt?.seconds || 0) - (b.submittedAt?.seconds || 0));
+  } else {
+    if (sortMode === "recent") rows.sort((a, b) => b.lastSubmittedSec - a.lastSubmittedSec);
+    else if (sortMode === "fastest") rows.sort((a, b) => a.totalTime - b.totalTime || b.totalScore - a.totalScore);
+    else rows.sort((a, b) => b.totalScore - a.totalScore || a.totalTime - b.totalTime);
+  }
+
+  // ---------- Stat summary cards ----------
+  if (!rows.length) {
+    statGrid.innerHTML = "";
+  } else if (mode === "exam") {
+    const avgScore = rows.reduce((s, r) => s + r.score, 0) / rows.length;
+    const topScore = rows[0]?.score ?? 0;
+    const timesKnown = rows.filter((r) => r.timeTakenSeconds != null);
+    const avgTime = timesKnown.length ? timesKnown.reduce((s, r) => s + r.timeTakenSeconds, 0) / timesKnown.length : null;
+    statGrid.innerHTML = [
+      { n: rows.length, l: "Participants" },
+      { n: formatScore(topScore), l: "Top Score" },
+      { n: formatScore(Math.round(avgScore * 100) / 100), l: "Average Score" },
+      { n: avgTime != null ? formatDuration(avgTime) : "—", l: "Average Time" },
+    ].map((s) => `<div class="stat-card"><div class="n">${s.n}</div><div class="l">${s.l}</div></div>`).join("");
+  } else {
+    const avgTotal = rows.reduce((s, r) => s + r.totalScore, 0) / rows.length;
+    statGrid.innerHTML = [
+      { n: rows.length, l: "Active Users" },
+      { n: formatScore(rows[0]?.totalScore ?? 0), l: "Top Total Score" },
+      { n: formatScore(Math.round(avgTotal * 100) / 100), l: "Average Total Score" },
+    ].map((s) => `<div class="stat-card"><div class="n">${s.n}</div><div class="l">${s.l}</div></div>`).join("");
+  }
+
+  // ---------- Compact tap-to-expand rows (thin, so the whole board fits without side-scrolling;
+  // tapping a row reveals the full breakdown that used to live in extra table columns) ----------
+  const list = document.getElementById("leaderboard-list");
+  if (!rows.length) {
+    list.innerHTML = `<div class="empty-state"><div class="icon"><i class="fa-solid fa-trophy"></i></div><p>${mode === "exam" ? "No one has taken this exam yet" : "No exam results yet"}</p></div>`;
+  } else {
+    list.innerHTML = rows
+      .map((r, i) => {
+        const u = usersMap[r.uid];
+        const name = u?.displayName || u?.email || "Unknown User";
+        const initial = (u?.displayName || u?.email || "?").trim().charAt(0).toUpperCase();
+        const avatar = u?.photoURL ? `<img src="${u.photoURL}" alt="">` : `<span>${escapeHtml(initial)}</span>`;
+        return `
+        <div class="lb-row">
+          <button type="button" class="lb-row-main" aria-expanded="false">
+            ${lbRankBadge(i + 1)}
+            <span class="lb-avatar">${avatar}</span>
+            <span class="lb-row-id">
+              <span class="lb-row-name">${escapeHtml(name)}</span>
+              <span class="lb-row-email">${escapeHtml(u?.email || "")}</span>
+            </span>
+            ${lbScoreBadge(r, mode)}
+            <i class="fa-solid fa-chevron-down lb-row-caret"></i>
+          </button>
+          <div class="lb-row-detail hidden">${lbDetailHtml(r, mode)}</div>
+        </div>`;
+      })
+      .join("");
+  }
+
+  document.getElementById("lb-export-btn").onclick = () => exportLeaderboardCsv(mode, rows, usersMap, examId);
+  document.getElementById("lb-export-pdf-btn").onclick = () => exportLeaderboardPdf(mode, rows, usersMap, examId);
+}
+
+// Event delegation — the list is fully re-rendered on every filter/sort/search
+// change, so a single listener on the container (bound once, below) handles
+// taps for whichever rows currently exist rather than rebinding per-row.
+function handleLeaderboardListClick(e) {
+  const btn = e.target.closest(".lb-row-main");
+  if (!btn) return;
+  const row = btn.closest(".lb-row");
+  const detail = row?.querySelector(".lb-row-detail");
+  if (!detail) return;
+  const isOpen = !detail.classList.contains("hidden");
+  detail.classList.toggle("hidden", isOpen);
+  btn.setAttribute("aria-expanded", String(!isOpen));
+  row.classList.toggle("open", !isOpen);
+}
+document.getElementById("leaderboard-list")?.addEventListener("click", handleLeaderboardListClick);
+
+/* ---------- Export the currently-shown leaderboard as a CSV file (client-side, no backend needed) ---------- */
+function exportLeaderboardCsv(mode, rows, usersMap, examId) {
+  if (!rows.length) { toast("Nothing to export", "error"); return; }
+  const csvCell = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+  let header, lines;
+  if (mode === "exam") {
+    header = ["Rank", "Name", "Email", "Score", "Total", "Percent", "Correct", "Wrong", "Unanswered", "Time Taken (s)", "Attempt", "Submitted"];
+    lines = rows.map((r, i) => {
+      const u = usersMap[r.uid];
+      return [i + 1, u?.displayName || "", u?.email || "", formatScore(r.score), r.total, r.percent, r.correctCount ?? "", r.wrongCount ?? "", r.unansweredCount ?? "", r.timeTakenSeconds ?? "", r.attemptNumber, formatDateTime(r.submittedAt)].map(csvCell).join(",");
+    });
+  } else {
+    header = ["Rank", "Name", "Email", "Total Score", "Total Max", "Exams Taken", "Total Time (s)", "Last Activity"];
+    lines = rows.map((r, i) => {
+      const u = usersMap[r.uid];
+      return [i + 1, u?.displayName || "", u?.email || "", formatScore(r.totalScore), r.totalMax, r.examsTaken, r.totalTime, r.lastSubmittedTs ? formatDateTime(r.lastSubmittedTs) : ""].map(csvCell).join(",");
+    });
+  }
+  const csv = [header.map(csvCell).join(","), ...lines].join("\r\n");
+  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  const examLabel = examId ? (currentExams.find((e) => e.id === examId)?.title || "exam") : "all-exams";
+  a.href = url;
+  a.download = `leaderboard-${examLabel.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+document.getElementById("lb-exam-select")?.addEventListener("change", renderLeaderboard);
+document.getElementById("lb-sort-select")?.addEventListener("change", renderLeaderboard);
+document.getElementById("lb-search-input")?.addEventListener("input", renderLeaderboard);
+
+/* ---------- Export the currently-shown leaderboard as a PDF, with the site
+   logo as a faint rotated watermark on every page (uses jsPDF + autoTable,
+   loaded via CDN in admin.html). ---------- */
+let lbLogoImgCache = null;
+function loadLeaderboardLogo() {
+  if (lbLogoImgCache !== null) return Promise.resolve(lbLogoImgCache);
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => { lbLogoImgCache = img; resolve(img); };
+    img.onerror = () => { lbLogoImgCache = false; resolve(false); };
+    img.src = "assets/logo.png";
+  });
+}
+
+async function exportLeaderboardPdf(mode, rows, usersMap, examId) {
+  if (!rows.length) { toast("Nothing to export", "error"); return; }
+  const { jsPDF } = window.jspdf || {};
+  if (!jsPDF) { toast("Couldn't load the PDF engine. Check your connection and try again.", "error"); return; }
+
+  const pdfBtn = document.getElementById("lb-export-pdf-btn");
+  pdfBtn.disabled = true;
+  pdfBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Preparing...';
+
+  try {
+    const logoImg = await loadLeaderboardLogo();
+    const doc = new jsPDF({ unit: "pt", format: "a4", orientation: "landscape" });
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const examLabel = examId ? (currentExams.find((e) => e.id === examId)?.title || "Exam") : "All Exams (Combined)";
+
+    const drawWatermark = () => {
+      if (!logoImg) return;
+      doc.saveGraphicsState();
+      doc.setGState(new doc.GState({ opacity: 0.07 }));
+      const wmSize = 260;
+      doc.addImage(logoImg, "PNG", (pageWidth - wmSize) / 2, (pageHeight - wmSize) / 2, wmSize, wmSize, undefined, undefined, 30);
+      doc.restoreGraphicsState();
+    };
+
+    const drawHeader = () => {
+      if (logoImg) doc.addImage(logoImg, "PNG", 30, 20, 30, 30);
+      doc.setFontSize(15);
+      doc.setFont(undefined, "bold");
+      doc.setTextColor(0, 0, 0);
+      doc.text("Tech Verse Course — Leaderboard", logoImg ? 68 : 30, 38);
+      doc.setFontSize(9);
+      doc.setFont(undefined, "normal");
+      doc.setTextColor(110, 110, 110);
+      doc.text(`${examLabel}  •  Generated ${new Date().toLocaleString()}`, logoImg ? 68 : 30, 52);
+      doc.setTextColor(0, 0, 0);
+    };
+
+    let head, body;
+    if (mode === "exam") {
+      head = [["Rank", "Name", "Email", "Score", "Percent", "Correct", "Wrong", "Unanswered", "Time Taken", "Attempt", "Submitted"]];
+      body = rows.map((r, i) => {
+        const u = usersMap[r.uid];
+        return [
+          i + 1,
+          u?.displayName || "—",
+          u?.email || "—",
+          `${formatScore(r.score)}/${r.total}`,
+          `${Math.max(0, Math.min(100, r.percent))}%`,
+          r.correctCount ?? "—",
+          r.wrongCount ?? "—",
+          r.unansweredCount ?? "—",
+          r.timeTakenSeconds != null ? formatDuration(r.timeTakenSeconds) : "—",
+          r.attemptNumber,
+          formatDateTime(r.submittedAt),
+        ];
+      });
+    } else {
+      head = [["Rank", "Name", "Email", "Total Score", "Exams Taken", "Avg Score", "Total Time", "Last Activity"]];
+      body = rows.map((r, i) => {
+        const u = usersMap[r.uid];
+        const avgPct = r.totalMax > 0 ? Math.max(0, Math.min(100, Math.round((r.totalScore / r.totalMax) * 100))) : 0;
+        return [
+          i + 1,
+          u?.displayName || "—",
+          u?.email || "—",
+          `${formatScore(r.totalScore)}/${r.totalMax}`,
+          r.examsTaken,
+          `${avgPct}%`,
+          formatDuration(r.totalTime),
+          r.lastSubmittedTs ? formatDateTime(r.lastSubmittedTs) : "—",
+        ];
+      });
+    }
+
+    doc.autoTable({
+      head,
+      body,
+      startY: 66,
+      margin: { left: 30, right: 30 },
+      styles: { fontSize: 8.5, cellPadding: 5 },
+      headStyles: { fillColor: [124, 92, 252], textColor: 255, fontStyle: "bold" },
+      alternateRowStyles: { fillColor: [246, 246, 250] },
+      didDrawPage: () => {
+        drawWatermark();
+        drawHeader();
+      },
+    });
+
+    const safeLabel = examLabel.replace(/[^a-z0-9\u0980-\u09FF]+/gi, "-").toLowerCase().slice(0, 60);
+    doc.save(`leaderboard-${safeLabel || "results"}.pdf`);
+  } catch (err) {
+    toast("Failed to generate the PDF. Please try again.", "error");
+  } finally {
+    pdfBtn.disabled = false;
+    pdfBtn.innerHTML = '<i class="fa-solid fa-file-pdf"></i> Download PDF';
+  }
+}
+
+init();

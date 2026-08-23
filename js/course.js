@@ -17,6 +17,7 @@ import {
   query,
   orderBy,
   where,
+  limit,
   serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 import { initNav, requireAuth, toast, escapeHtml, toBnDigits, getUserProfile, drivePreviewUrl, isDriveLink, openModal, closeModal, youTubeId, getExamAvailability, formatDateTime, getCoursePricing } from "./utils.js";
@@ -162,15 +163,7 @@ async function init(params, myToken) {
       await updateDoc(doc(db, "courses", courseId), { enrollCount: increment(1) }).catch(() => {});
     }
   } else {
-    // Access to a paid course is decided purely by enrolledCourses on the
-    // user's own profile — the same field the admin panel's Grant/Revoke
-    // button and the dashboard's Buy/Access button both read. Previously
-    // this checked a separate "used access code" record instead, so an
-    // admin's Revoke (which only cleared enrolledCourses) never actually
-    // locked the course back — the old access-code record was still there.
-    // Keeping a single source of truth means Grant/Revoke now take effect
-    // immediately and consistently everywhere.
-    unlocked = !!userProfile?.enrolledCourses?.includes(courseId);
+    unlocked = await checkUnlocked();
   }
   if (myToken !== navToken) return;
 
@@ -217,6 +210,23 @@ async function init(params, myToken) {
 /* ==========================================================================
    Paid courses — access code lock system
    ========================================================================== */
+
+// Check whether this user has a used access code for this course
+async function checkUnlocked() {
+  try {
+    const q = query(
+      collection(db, "accessCodes"),
+      where("uid", "==", currentUser.uid),
+      where("courseId", "==", courseId),
+      where("used", "==", true),
+      limit(1)
+    );
+    const snap = await getDocs(q);
+    return !snap.empty;
+  } catch {
+    return false;
+  }
+}
 
 function money(n) {
   return `৳${n}`;
