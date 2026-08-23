@@ -222,7 +222,12 @@ async function loadExamList(myToken) {
           if (state === "upcoming") {
             return `
             <div class="exam-card card exam-card-locked">
-              <div><span class="badge badge-teal">${escapeHtml(ex.courseName || "General")}</span> ${lessonTagHtml(ex)}</div>
+              <div class="exam-card-header-row">
+                <div><span class="badge badge-teal">${escapeHtml(ex.courseName || "General")}</span> ${lessonTagHtml(ex)}</div>
+                <span class="exam-countdown-chip" data-countdown="${publishAt.getTime()}">
+                  <i class="fa-solid fa-hourglass-half"></i> <span class="countdown-val">...</span>
+                </span>
+              </div>
               <h3>${escapeHtml(ex.title)}</h3>
               <p class="muted" style="font-size:0.9rem">${escapeHtml(ex.description || "")}</p>
               <div class="meta-row">
@@ -305,6 +310,7 @@ async function loadExamList(myToken) {
     grid.innerHTML = cards.length
       ? cards.join("")
       : `<div class="empty-state"><div class="icon"><i class="fa-solid fa-file-pen"></i></div><p>No exams available yet — exams for courses you've purchased will show up here</p></div>`;
+    startCountdowns(grid);
   } catch (err) {
     if (myToken !== navToken) return;
     grid.innerHTML = `<div class="empty-state"><p>Could not load exams</p></div>`;
@@ -739,4 +745,51 @@ async function downloadResultPDF(score, total, percent, examTitle, breakdown = {
       pdfBtn.innerHTML = '<i class="fa-solid fa-file-pdf"></i> Download PDF';
     }
   }
+}
+
+/* ── Real-time countdown for upcoming exams ──────────────────────────────
+   Finds every [data-countdown] chip inside `container`, ticks every second.
+   Format: Xd Xh Xm Xs → as time shrinks, shorter labels drop off.
+   The interval is stored on the container element so navigating away
+   (which replaces innerHTML) naturally stops the old timer. */
+function startCountdowns(container) {
+  // Clear any previous interval attached to this container
+  if (container._countdownTimer) clearInterval(container._countdownTimer);
+
+  function tick() {
+    const chips = container.querySelectorAll("[data-countdown]");
+    if (!chips.length) {
+      clearInterval(container._countdownTimer);
+      return;
+    }
+    const now = Date.now();
+    chips.forEach((chip) => {
+      const target = Number(chip.dataset.countdown);
+      const diff = Math.max(0, target - now);
+      const valEl = chip.querySelector(".countdown-val");
+      if (!valEl) return;
+
+      if (diff === 0) {
+        valEl.textContent = "Starting…";
+        return;
+      }
+
+      const totalSecs = Math.floor(diff / 1000);
+      const d = Math.floor(totalSecs / 86400);
+      const h = Math.floor((totalSecs % 86400) / 3600);
+      const m = Math.floor((totalSecs % 3600) / 60);
+      const s = totalSecs % 60;
+
+      let label = "";
+      if (d > 0)      label = `${d}d ${h}h`;
+      else if (h > 0) label = `${h}h ${m}m`;
+      else if (m > 0) label = `${m}m ${s}s`;
+      else            label = `${s}s`;
+
+      valEl.textContent = label;
+    });
+  }
+
+  tick(); // run immediately so there's no blank flash
+  container._countdownTimer = setInterval(tick, 1000);
 }
