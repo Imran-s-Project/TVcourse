@@ -1,11 +1,23 @@
-const CACHE_NAME = "techversecourse-v24";
+// ==========================================================================
+// Tech Verse Course — Service Worker
+// Strategy:
+//   • SHELL_FILES  → Cache First (app shell, সবসময় অফলাইনে পাওয়া যাবে)
+//   • CDN_FILES    → Cache First (Firebase SDK, Fonts, Font Awesome)
+//   • নিজের origin → Network First, fallback cache
+//   • Firebase API → bypass (firestore.googleapis.com ইত্যাদি cache হয় না,
+//                    Firestore নিজেই IndexedDB-তে ডেটা রাখে)
+// ==========================================================================
+
+const CACHE_NAME = "techversecourse-v25";
+
+/* ── নিজের ফাইল (app shell) ── */
 const SHELL_FILES = [
-  /* ── HTML ── */
+  /* HTML */
   "index.html",
   "admin.html",
   "404.html",
 
-  /* ── CSS ── */
+  /* CSS */
   "css/base.css",
   "css/auth.css",
   "css/dashboard.css",
@@ -16,7 +28,7 @@ const SHELL_FILES = [
   "css/error.css",
   "css/static.css",
 
-  /* ── JS core ── */
+  /* JS core */
   "js/app.js",
   "js/router.js",
   "js/firebase-config.js",
@@ -24,7 +36,7 @@ const SHELL_FILES = [
   "js/theme.js",
   "js/footer.js",
 
-  /* ── JS pages ── */
+  /* JS pages */
   "js/auth.js",
   "js/dashboard.js",
   "js/course.js",
@@ -33,7 +45,7 @@ const SHELL_FILES = [
   "js/admin.js",
   "js/error.js",
 
-  /* ── JS page renderers ── */
+  /* JS page renderers */
   "js/page-login.js",
   "js/page-signup.js",
   "js/page-profile.js",
@@ -44,26 +56,80 @@ const SHELL_FILES = [
   "js/page-terms.js",
   "js/page-credits.js",
 
-  /* ── Manifest ── */
+  /* Manifest */
   "manifest.json",
 ];
 
+/* ── বাইরের CDN ফাইল (Firebase SDK + Fonts + Icons) ── */
+const CDN_FILES = [
+  /* Firebase SDK */
+  "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js",
+  "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js",
+  "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js",
+  "https://www.gstatic.com/firebasejs/10.13.0/firebase-storage.js",
+
+  /* Font Awesome */
+  "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css",
+
+  /* Google Fonts */
+  "https://fonts.googleapis.com/css2?family=Noto+Serif+Bengali:wght@400;600;700&family=Hind+Siliguri:wght@400;500;600;700&family=Noto+Sans+Bengali:wght@400;500;600&display=swap",
+];
+
+/* Firebase-এর live API গুলো — কখনো cache করব না */
+const BYPASS_ORIGINS = [
+  "firestore.googleapis.com",
+  "identitytoolkit.googleapis.com",
+  "securetoken.googleapis.com",
+  "firebase.googleapis.com",
+  "firebasestorage.googleapis.com",
+];
+
+/* ── Install: shell + CDN আগেই cache করে নাও ── */
 self.addEventListener("install", (event) => {
-  event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(SHELL_FILES)).catch(() => {}));
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) =>
+      Promise.allSettled([
+        cache.addAll(SHELL_FILES),
+        cache.addAll(CDN_FILES),
+      ])
+    )
+  );
   self.skipWaiting();
 });
 
+/* ── Activate: পুরনো cache মুছে দাও ── */
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))))
+    caches.keys().then((keys) =>
+      Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
+    )
   );
   self.clients.claim();
 });
 
-/* নেটওয়ার্ক-ফার্স্ট, ফলব্যাক ক্যাশ — Firebase/API কল ক্যাশ করা হয় না */
+/* ── Fetch: request অনুযায়ী strategy ── */
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
-  if (url.origin !== self.location.origin) return;
+
+  /* Firebase live API → bypass, SW হাত দেবে না */
+  if (BYPASS_ORIGINS.some((origin) => url.hostname.includes(origin))) return;
+
+  /* CDN ফাইল → Cache First (একবার cache হলে নেট ছাড়াই চলবে) */
+  if (url.origin !== self.location.origin) {
+    event.respondWith(
+      caches.match(event.request).then((cached) => {
+        if (cached) return cached;
+        return fetch(event.request).then((res) => {
+          const clone = res.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone)).catch(() => {});
+          return res;
+        });
+      })
+    );
+    return;
+  }
+
+  /* নিজের origin → Network First, fallback cache */
   event.respondWith(
     fetch(event.request)
       .then((res) => {
