@@ -1,4 +1,4 @@
-const CACHE_NAME = "techversecourse-v23";
+const CACHE_NAME = "techversecourse-v24";
 const SHELL_FILES = [
   "index.html",
   "admin.html",
