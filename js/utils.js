@@ -141,6 +141,51 @@ function showPhoneRequiredGate(uid) {
   });
 }
 
+/* ---------- Suspended-account gate ----------
+   Mirrors showPhoneRequiredGate() below: a full-screen, non-dismissable
+   overlay mounted directly on <body>. Shown when a suspended user's session
+   is caught by initNav's onAuthStateChanged handler. The account is signed
+   out before this is shown, so there is nothing to "continue" to — the only
+   way out is closing the tab or contacting support. ---------- */
+function showSuspendedGate() {
+  if (document.getElementById("suspended-gate-overlay")) return;
+  const overlay = document.createElement("div");
+  overlay.id = "suspended-gate-overlay";
+  overlay.className = "phone-gate-overlay";
+  overlay.innerHTML = `
+    <div class="phone-gate-box">
+      <div class="phone-gate-icon" style="background:rgba(225,95,82,0.16); color:#F0938A;"><i class="fa-solid fa-ban"></i></div>
+      <h3>Account Banned</h3>
+      <p class="phone-gate-warning">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        <span>Your account has been banned by an admin and can no longer access Tech Verse Course. If you think this is a mistake, please contact support.</span>
+      </p>
+      <a href="${supportMailto(SUPPORT_EMAIL_GMAIL)}" class="btn btn-primary btn-block">Contact Support</a>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  document.body.style.overflow = "hidden";
+}
+
+/* ---------- Presence heartbeat ----------
+   Writes users/{uid}.lastActive so the admin panel can show who's online
+   right now. Fires immediately on login, then on an interval, then again
+   whenever the tab becomes visible after being backgrounded (so a user who
+   left a tab open all night doesn't stay "online" from a single stale write,
+   and one who comes back to an old tab shows online again right away). Only
+   ever started once per page load, same one-time-setup pattern as navBound. */
+let presenceStarted = false;
+function startPresenceHeartbeat(uid) {
+  if (presenceStarted) return;
+  presenceStarted = true;
+  const beat = () => updateDoc(doc(db, "users", uid), { lastActive: serverTimestamp() }).catch(() => {});
+  beat();
+  setInterval(beat, 45000);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") beat();
+  });
+}
+
 /* ---------- Reactively wait for auth state ---------- */
 export function waitForAuth() {
   return new Promise((resolve) => {
@@ -356,9 +401,20 @@ export function initNav(activePage = "") {
 
   onAuthStateChanged(auth, async (user) => {
     if (user) {
+      const profile = await getUserProfile(user.uid);
+
+      // Suspended accounts are signed out immediately and blocked behind a
+      // full-screen notice — nothing below this runs for them (no nav, no
+      // presence heartbeat, no site access).
+      if (profile?.suspended) {
+        await signOut(auth);
+        showSuspendedGate();
+        return;
+      }
+
       isLoggedIn = true;
       navIsLoggedIn = true;
-      const profile = await getUserProfile(user.uid);
+      startPresenceHeartbeat(user.uid);
       const isAdmin = !!profile?.isAdmin;
       const name = profile?.displayName || user.email?.split("@")[0] || "User";
       const email = user.email || "";
