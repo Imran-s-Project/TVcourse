@@ -15,6 +15,9 @@ import {
   sendPasswordResetEmail,
   updateProfile,
   GoogleAuthProvider,
+  FacebookAuthProvider,
+  GithubAuthProvider,
+  OAuthProvider,
   signInWithPopup,
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import {
@@ -212,25 +215,66 @@ export async function initForgotPasswordPage() {
   });
 }
 
-/* Shared by both the login and signup card — wires the "Log in / Sign up
-   with Google" button that sits under the divider on each form. */
-function bindGoogleButton() {
-  document.getElementById("google-btn")?.addEventListener("click", async (e) => {
-    const btn = e.currentTarget;
-    const originalHtml = btn.innerHTML;
-    btn.disabled = true;
-    try {
-      const provider = new GoogleAuthProvider();
-      const cred = await signInWithPopup(auth, provider);
-      await ensureUserDoc(cred.user);
-      await recordDeviceLogin(cred.user);
-      toast("Logged in successfully", "success");
-      setTimeout(() => navigate("#/home"), 500);
-    } catch (err) {
-      toast("Google login failed", "error");
-      btn.disabled = false;
-      btn.innerHTML = originalHtml;
-    }
+/* All OAuth providers that appear on the login/signup cards.
+   Each entry maps a button id → a Firebase provider factory.
+   Adding a new provider only requires one new entry here. */
+const OAUTH_PROVIDERS = [
+  {
+    btnId: "google-btn",
+    label: "Google",
+    make: () => new GoogleAuthProvider(),
+  },
+  {
+    btnId: "github-btn",
+    label: "GitHub",
+    make: () => new GithubAuthProvider(),
+  },
+  {
+    btnId: "facebook-btn",
+    label: "Facebook",
+    make: () => new FacebookAuthProvider(),
+  },
+  {
+    btnId: "yahoo-btn",
+    label: "Yahoo",
+    make: () => new OAuthProvider("yahoo.com"),
+  },
+  {
+    btnId: "apple-btn",
+    label: "Apple",
+    make: () => new OAuthProvider("apple.com"),
+  },
+];
+
+/* Shared by both the login and signup card — wires every social/OAuth button
+   that sits under the divider on each form. One click handler per button,
+   no duplication. */
+function bindOAuthButtons() {
+  OAUTH_PROVIDERS.forEach(({ btnId, label, make }) => {
+    const btn = document.getElementById(btnId);
+    if (!btn) return;
+    btn.addEventListener("click", async () => {
+      const originalHtml = btn.innerHTML;
+      btn.disabled = true;
+      try {
+        const cred = await signInWithPopup(auth, make());
+        await ensureUserDoc(cred.user);
+        await recordDeviceLogin(cred.user);
+        toast("Logged in successfully", "success");
+        setTimeout(() => navigate("#/home"), 500);
+      } catch (err) {
+        // auth/popup-closed-by-user / auth/cancelled-popup-request are silent —
+        // the user just closed the popup, no need for an error toast.
+        if (
+          err.code !== "auth/popup-closed-by-user" &&
+          err.code !== "auth/cancelled-popup-request"
+        ) {
+          toast(`${label} login failed`, "error");
+        }
+        btn.disabled = false;
+        btn.innerHTML = originalHtml;
+      }
+    });
   });
 }
 
@@ -263,7 +307,7 @@ export async function initLoginPage() {
     }
   });
 
-  bindGoogleButton();
+  bindOAuthButtons();
 }
 
 /* ── Public entry point — called by app.js's router every time #/signup
@@ -301,5 +345,5 @@ export async function initSignupPage() {
     }
   });
 
-  bindGoogleButton();
+  bindOAuthButtons();
 }
