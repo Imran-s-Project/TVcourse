@@ -6,6 +6,21 @@
 .exam-card .result-pill { align-self: flex-start; }
 .exam-card-locked { opacity: 0.72; }
 .exam-card-locked h3 { color: var(--text-muted); }
+
+/* upcoming exam — header row: badges left, countdown chip right */
+.exam-card-header-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+
+/* real-time countdown chip */
+.exam-countdown-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 9px; border-radius: 999px;
+  background: rgba(124, 92, 252, 0.12);
+  border: 1px solid rgba(124, 92, 252, 0.28);
+  color: var(--accent-amber-soft);
+  font-size: 0.72rem; font-weight: 700; letter-spacing: 0.02em;
+  white-space: nowrap; flex-shrink: 0;
+}
+.exam-countdown-chip i { font-size: 0.68rem; }
 .exam-lesson-tag { font-size: 0.74rem; }
 
 /* ---------- এক্সাম নেওয়ার ভিউ ---------- */
