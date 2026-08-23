@@ -2,6 +2,7 @@
 // Content for the #/help SPA route (previously help.html, now removed).
 // Rendered by app.js's router directly into index.html — this route no
 // longer exists as its own HTML file at all.
+import { supportMailto, SUPPORT_EMAIL_GMAIL, SUPPORT_EMAIL_YAHOO } from "./utils.js";
 
 export const title = "Help & Support — Tech Verse Course";
 
@@ -26,7 +27,7 @@ export function render() {
         <i class="fa-solid fa-key"></i>
         <h3>I didn't get my access code</h3>
         <p>Verification is manual and can take a little time. If it's been a while, contact us directly and we'll check your request.</p>
-        <a class="help-link" href="mailto:project.developer.tech@gmail.com">Email support <i class="fa-solid fa-arrow-right"></i></a>
+        <a class="help-link" href="${supportMailto(SUPPORT_EMAIL_GMAIL)}">Email support <i class="fa-solid fa-arrow-right"></i></a>
       </div>
       <div class="help-card">
         <i class="fa-solid fa-lock"></i>
@@ -56,7 +57,8 @@ export function render() {
     <ul>
       <li><i class="fa-brands fa-whatsapp"></i> WhatsApp: <a href="https://wa.me/8801957329211" target="_blank" rel="noopener">What's app</a></li>
       <li><i class="fa-solid fa-phone"></i> Phone: <a href="tel:+8801957329211">call</a></li>
-      <li><i class="fa-solid fa-envelope"></i> Email: <a href="mailto:project.developer.tech@gmail.com">support web admin</a></li>
+      <li><i class="fa-solid fa-envelope"></i> Email: <a href="${supportMailto(SUPPORT_EMAIL_GMAIL)}">${SUPPORT_EMAIL_GMAIL}</a></li>
+      <li><i class="fa-brands fa-yahoo"></i> Yahoo: <a href="${supportMailto(SUPPORT_EMAIL_YAHOO)}">${SUPPORT_EMAIL_YAHOO}</a></li>
       <li><i class="fa-brands fa-facebook-f"></i> Facebook: <a href="https://www.facebook.com/irnahmed360" target="_blank" rel="noopener">Tech Verse</a></li>
       <li><i class="fa-brands fa-youtube"></i> YouTube: <a href="https://www.youtube.com/@imran.ahmedd" target="_blank" rel="noopener">Imran Ahmed</a></li>
     </ul>

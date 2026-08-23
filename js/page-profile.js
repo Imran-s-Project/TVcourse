@@ -58,6 +58,12 @@ export function render() {
     </div>
 
     <div id="tab-security" class="tab-panel hidden">
+      <div class="card linked-accounts-card">
+        <h3 class="panel-title"><i class="fa-solid fa-link"></i> Linked Accounts</h3>
+        <p class="muted panel-desc">দ্রুত ও নিরাপদ লগইনের জন্য আপনার প্রোফাইলের সাথে অন্য অ্যাকাউন্ট যুক্ত করুন। যেকোনো একটি দিয়ে লগইন করতে পারবেন।</p>
+        <div id="linked-accounts-list" class="linked-accounts-list"></div>
+      </div>
+
       <div class="security-grid">
         <form id="password-form" class="card">
           <h3 class="panel-title"><i class="fa-solid fa-key"></i> Change Password</h3>

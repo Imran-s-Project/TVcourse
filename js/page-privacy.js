@@ -2,6 +2,7 @@
 // Content for the #/privacy SPA route (previously privacy.html, now removed).
 // Rendered by app.js's router directly into index.html — this route no
 // longer exists as its own HTML file at all.
+import { supportMailto, SUPPORT_EMAIL_GMAIL, SUPPORT_EMAIL_YAHOO } from "./utils.js";
 
 export const title = "Privacy Policy — Tech Verse Course";
 
@@ -38,7 +39,7 @@ export function render() {
     <p>You can review and update your profile information at any time from your Profile page. You may also request permanent deletion of your account and associated data from the same page — note that records of purchases and exam results may be retained by the admin for verification purposes even after deletion.</p>
 
     <h2>Contact us</h2>
-    <p>If you have questions about this Privacy Policy, reach us at <a href="mailto:project.developer.tech@gmail.com">project.developer.tech@gmail.com</a> or through the <a href="#/help">Help &amp; Support</a> page.</p>
+    <p>If you have questions about this Privacy Policy, reach us at <a href="${supportMailto(SUPPORT_EMAIL_GMAIL)}">${SUPPORT_EMAIL_GMAIL}</a> or <a href="${supportMailto(SUPPORT_EMAIL_YAHOO)}">${SUPPORT_EMAIL_YAHOO}</a>, or through the <a href="#/help">Help &amp; Support</a> page.</p>
 
     <p class="muted-note">This policy may be updated from time to time as the platform evolves. Continued use of Tech Verse Course after changes are posted means you accept the revised policy.</p>
   </main>`;

@@ -2,6 +2,7 @@
 // Content for the #/terms SPA route (previously terms.html, now removed).
 // Rendered by app.js's router directly into index.html — this route no
 // longer exists as its own HTML file at all.
+import { supportMailto, SUPPORT_EMAIL_GMAIL, SUPPORT_EMAIL_YAHOO } from "./utils.js";
 
 export const title = "Terms & Conditions — Tech Verse Course";
 
@@ -46,6 +47,6 @@ export function render() {
     <p>We may update these terms as the platform grows. Continued use of Tech Verse Course after an update means you accept the revised terms.</p>
 
     <h2>9. Contact</h2>
-    <p>Questions about these terms can be sent to <a href="mailto:project.developer.tech@gmail.com">project.developer.tech@gmail.com</a>.</p>
+    <p>Questions about these terms can be sent to <a href="${supportMailto(SUPPORT_EMAIL_GMAIL)}">${SUPPORT_EMAIL_GMAIL}</a> or <a href="${supportMailto(SUPPORT_EMAIL_YAHOO)}">${SUPPORT_EMAIL_YAHOO}</a>.</p>
   </main>`;
 }

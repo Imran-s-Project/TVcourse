@@ -5,6 +5,21 @@ import { auth, db } from "./firebase-config.js";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import { doc, getDoc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
+/* ---------- Support email addresses + mailto template ----------
+   Central place for the site's two support inboxes, plus a helper that
+   builds a mailto: link with an English subject and greeting already
+   filled in — the user only has to type their details after "Details:".
+   Update the two addresses here and every Contact/Support link on the
+   site picks it up. ---------- */
+export const SUPPORT_EMAIL_GMAIL = "tv.support.info@gmail.com";
+export const SUPPORT_EMAIL_YAHOO = "info.techverse@yahoo.com";
+
+export function supportMailto(address) {
+  const subject = "Support Request - Tech Verse Course";
+  const body = "Hello Tech Verse Course Support Team,\n\nDetails:\n\n\nThank you,";
+  return `mailto:${address}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+}
+
 /* ---------- Toast notifications ---------- */
 export function toast(message, type = "info") {
   let root = document.getElementById("toast-root");

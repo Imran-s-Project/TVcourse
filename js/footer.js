@@ -18,6 +18,16 @@
     return onIndexPage ? `#/${route}` : `index.html#/${route}`;
   }
 
+  // Same subject + greeting template used everywhere on the site a support
+  // email link appears — see js/utils.js's supportMailto() for the module
+  // version (footer.js loads as a plain script, not a module, so it can't
+  // import it directly).
+  function supportMailto(address) {
+    const subject = "Support Request - Tech Verse Course";
+    const body = "Hello Tech Verse Course Support Team,\n\nDetails:\n\n\nThank you,";
+    return `mailto:${address}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  }
+
   function footerMarkup() {
     return `
   <footer class="site-footer">
@@ -49,7 +59,8 @@
           <li><a href="https://www.facebook.com/irnahmed360" target="_blank" rel="noopener"><i class="fa-brands fa-facebook-f"></i> Facebook</a></li>
           <li><a href="https://www.youtube.com/@imran.ahmedd" target="_blank" rel="noopener"><i class="fa-brands fa-youtube"></i> YouTube Channel</a></li>
           <li><a href="https://wa.me/8801957329211" target="_blank" rel="noopener"><i class="fa-brands fa-whatsapp"></i> WhatsApp</a></li>
-          <li><a href="mailto:project.developer.tech@gmail.com"><i class="fa-solid fa-envelope"></i> project.developer.tech@gmail.com</a></li>
+          <li><a href="${supportMailto('tv.support.info@gmail.com')}"><i class="fa-solid fa-envelope"></i> tv.support.info@gmail.com</a></li>
+          <li><a href="${supportMailto('info.techverse@yahoo.com')}"><i class="fa-brands fa-yahoo"></i> info.techverse@yahoo.com</a></li>
           <li><a href="tel:+8801957329211"><i class="fa-solid fa-phone"></i>call</a></li>
         </ul>
       </div>
