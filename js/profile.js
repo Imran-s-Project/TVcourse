@@ -31,7 +31,8 @@ import {
   where,
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 import { ref, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-storage.js";
-import { requireAuth, getUserProfile, toast, escapeHtml, toBnDigits, formatDate, confirmAction, openModal, closeModal } from "./utils.js";
+import { requireAuth, getUserProfile, toast, escapeHtml, toBnDigits, formatDate, confirmAction, openModal, closeModal, supportMailto, SUPPORT_EMAIL_GMAIL, SUPPORT_EMAIL_YAHOO } from "./utils.js";
+import { courseUrl } from "./router.js";
 
 let currentUser = null;
 let profile = null;
@@ -262,7 +263,7 @@ async function downloadMyPurchasePdf(id, triggerBtn) {
   try {
     const logoImg = await loadMyPdfLogo();
 
-    const W = 440, H = 660;
+    const W = 440, H = 780;
     const doc = new jsPDF({ unit: "pt", format: [W, H], orientation: "portrait" });
 
     const hex = (h) => {
@@ -417,8 +418,130 @@ async function downloadMyPurchasePdf(id, triggerBtn) {
       y += 60;
     }
 
+    /* ── "Continue Learning" — tappable button linking straight back to the
+       course page (only when we know which course this purchase was for). ── */
+    if (p.courseId) {
+      y += 6;
+      setDraw(DIV_C);
+      doc.line(cardX + 16, y, cardX + cardW - 16, y);
+      y += 16;
+
+      doc.setFont(undefined, "normal");
+      doc.setFontSize(7.5);
+      setTxt(LABEL_C);
+      doc.text("CONTINUE LEARNING", cardX + 16, y);
+      y += 10;
+
+      const btnX = cardX + 16, btnW = cardW - 32, btnH = 40;
+      setFill(NAVY);
+      doc.roundedRect(btnX, y, btnW, btnH, 8, 8, "F");
+
+      setTxt("#ffffff");
+      doc.setFont(undefined, "bold");
+      doc.setFontSize(9.5);
+      const btnTitle = doc.splitTextToSize(p.courseTitle || "Your course", btnW - 60)[0];
+      doc.text(btnTitle, btnX + 14, y + 17);
+      doc.setFont(undefined, "normal");
+      doc.setFontSize(7.5);
+      setTxt(AMBER);
+      doc.text("Tap to open your course", btnX + 14, y + 30);
+
+      // Right-pointing "go" arrow
+      setFill("#ffffff");
+      doc.triangle(btnX + btnW - 24, y + 13, btnX + btnW - 24, y + 27, btnX + btnW - 14, y + 20, "F");
+
+      const courseHref = `${window.location.origin}${window.location.pathname}${courseUrl(p.courseId)}`;
+      doc.link(btnX, y, btnW, btnH, { url: courseHref });
+
+      y += btnH + 16;
+    }
+
+    /* ── "Need help?" — tappable contact icons (Facebook, WhatsApp, Gmail,
+       Yahoo Mail, Call). Each icon + label is one clickable region. ── */
+    {
+      setDraw(DIV_C);
+      doc.line(cardX + 16, y, cardX + cardW - 16, y);
+      y += 16;
+
+      doc.setFont(undefined, "normal");
+      doc.setFontSize(7.5);
+      setTxt(LABEL_C);
+      doc.text("NEED HELP? CONTACT US", cardX + 16, y);
+      y += 22;
+
+      const contacts = [
+        {
+          label: "Facebook", color: "#1877F2", url: "https://www.facebook.com/irnahmed360",
+          draw: (cx, cy) => {
+            setTxt("#ffffff");
+            doc.setFont(undefined, "bold");
+            doc.setFontSize(13);
+            doc.text("f", cx, cy + 4.5, { align: "center" });
+          },
+        },
+        {
+          label: "WhatsApp", color: "#25D366", url: "https://wa.me/8801957329211",
+          draw: (cx, cy) => {
+            setFill("#ffffff");
+            doc.roundedRect(cx - 7, cy - 7, 14, 11, 3, 3, "F");
+            doc.triangle(cx - 4, cy + 4, cx - 4, cy + 8, cx - 1, cy + 4, "F");
+          },
+        },
+        {
+          label: "Gmail", color: "#EA4335", url: supportMailto(SUPPORT_EMAIL_GMAIL),
+          draw: (cx, cy) => {
+            setFill("#ffffff");
+            doc.roundedRect(cx - 8, cy - 6, 16, 12, 1, 1, "F");
+            setDraw("#EA4335");
+            doc.setLineWidth(1);
+            doc.line(cx - 8, cy - 6, cx, cy + 1);
+            doc.line(cx + 8, cy - 6, cx, cy + 1);
+          },
+        },
+        {
+          label: "Yahoo Mail", color: "#6001D2", url: supportMailto(SUPPORT_EMAIL_YAHOO),
+          draw: (cx, cy) => {
+            setTxt("#ffffff");
+            doc.setFont(undefined, "bold");
+            doc.setFontSize(10);
+            doc.text("Y!", cx, cy + 3.5, { align: "center" });
+          },
+        },
+        {
+          label: "Call Us", color: NAVY, url: "tel:+8801957329211",
+          draw: (cx, cy) => {
+            setFill("#ffffff");
+            doc.circle(cx, cy - 6, 2.3, "F");
+            doc.circle(cx, cy + 6, 2.3, "F");
+            doc.setLineWidth(3);
+            setDraw("#ffffff");
+            doc.line(cx, cy - 4, cx, cy + 4);
+          },
+        },
+      ];
+
+      const slotW = (cardW - 32) / contacts.length;
+      const r = 15;
+      contacts.forEach((c, i) => {
+        const cx = cardX + 16 + slotW * i + slotW / 2;
+        const cy = y + r;
+
+        setFill(c.color);
+        doc.circle(cx, cy, r, "F");
+        c.draw(cx, cy);
+
+        setTxt(VAL_C);
+        doc.setFont(undefined, "normal");
+        doc.setFontSize(6.3);
+        doc.text(c.label, cx, cy + r + 11, { align: "center" });
+
+        doc.link(cx - slotW / 2 + 2, y - 2, slotW - 4, r * 2 + 20, { url: c.url });
+      });
+
+      y += r * 2 + 24;
+    }
+
     /* ── Footer — student-facing note ── */
-    y = cardY + cardH - 40;
     setDraw(DIV_C);
     doc.line(cardX + 16, y, cardX + cardW - 16, y);
     y += 14;
