@@ -23,8 +23,48 @@
 .auth-switch a { color: var(--accent-amber-soft); font-weight: 700; }
 .auth-forgot-link { font-size: 0.82rem; font-weight: 600; color: var(--accent-amber-soft); }
 .auth-forgot-link:hover { text-decoration: underline; }
+.social-auth-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+/* Primary Google button — full-width, same as before */
 .btn-google {
   display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%;
   background: var(--surface); color: var(--text-on-surface); font-weight: 700; padding: 12px;
-  border-radius: 999px;
+  border-radius: 999px; border: none; cursor: pointer; font-size: 0.95rem;
+  transition: opacity 0.15s, transform 0.1s;
 }
+.btn-google:hover { opacity: 0.9; transform: translateY(-1px); }
+.btn-google:active { transform: translateY(0); }
+.btn-google:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+/* Secondary social row — 2-up grid */
+.social-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+/* Generic social pill button */
+.btn-social {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 10px 14px; border-radius: 999px; border: 1.5px solid var(--border-strong);
+  background: var(--bg-elevated-2); color: var(--text-primary);
+  font-weight: 600; font-size: 0.88rem; cursor: pointer; white-space: nowrap;
+  transition: opacity 0.15s, transform 0.1s, background 0.15s, border-color 0.15s;
+}
+.btn-social:hover { opacity: 0.88; transform: translateY(-1px); }
+.btn-social:active { transform: translateY(0); }
+.btn-social:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+/* Per-provider accent colors on hover */
+.btn-social[data-provider="github.com"]:hover  { background: #24292e; color: #fff; border-color: #24292e; }
+.btn-social[data-provider="facebook.com"]:hover { background: #1877F2; color: #fff; border-color: #1877F2; }
+.btn-social[data-provider="yahoo.com"]:hover    { background: #6001D2; color: #fff; border-color: #6001D2; }
+.btn-social[data-provider="apple.com"]:hover    { background: #000;    color: #fff; border-color: #000; }
+
+/* Icon sizing */
+.btn-social i { font-size: 1rem; }
+.btn-google svg { flex-shrink: 0; }
