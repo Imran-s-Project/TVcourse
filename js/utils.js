@@ -415,6 +415,9 @@ export function initNav(activePage = "") {
       isLoggedIn = true;
       navIsLoggedIn = true;
       startPresenceHeartbeat(user.uid);
+      // Dynamic import (not a static one) so utils.js and notifications.js don't form
+      // a circular import — notifications.js itself statically imports escapeHtml from here.
+      import("./notifications.js").then(({ mountNotificationBell }) => mountNotificationBell(user.uid, profile)).catch(() => {});
       const isAdmin = !!profile?.isAdmin;
       const name = profile?.displayName || user.email?.split("@")[0] || "User";
       const email = user.email || "";
@@ -471,6 +474,7 @@ export function initNav(activePage = "") {
       navIsLoggedIn = false;
       navIsAdmin = false;
       navUserInfo = null;
+      import("./notifications.js").then(({ unmountNotificationBell }) => unmountNotificationBell()).catch(() => {});
       render(false);
       if (navUser) {
         navUser.innerHTML = `

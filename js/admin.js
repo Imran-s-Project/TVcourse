@@ -68,6 +68,8 @@ function bindSidebar() {
       document.getElementById(`section-${btn.dataset.section}`).classList.add("active");
       if (mobileTitle) mobileTitle.textContent = btn.dataset.label || btn.textContent.trim();
       if (btn.dataset.section === "leaderboard") initLeaderboardSection();
+      if (btn.dataset.section === "analytics") loadAnalyticsSection();
+      if (btn.dataset.section === "notifications") loadNotificationsList();
       closeDrawer();
     });
   });
@@ -125,6 +127,369 @@ async function loadOverview() {
     }
   } catch (err) {
     grid.innerHTML = `<div class="empty-state"><p>Could not load</p></div>`;
+  }
+}
+
+/* ==========================================================================
+   Analytics — revenue, top courses, monthly trends
+   (all computed client-side from purchaseRequests/users — no billing plan,
+   no Cloud Functions, 100% free)
+   ========================================================================== */
+let analyticsLoaded = false;
+
+function monthKey(ts) {
+  const d = ts?.toDate ? ts.toDate() : ts instanceof Date ? ts : null;
+  if (!d) return null;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+function monthLabel(key) {
+  const [y, m] = key.split("-");
+  return new Date(Number(y), Number(m) - 1, 1).toLocaleDateString("en-US", { month: "short", year: "2-digit" });
+}
+function lastNMonthKeys(n) {
+  const out = [];
+  const now = new Date();
+  for (let i = n - 1; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    out.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
+  }
+  return out;
+}
+function barListHtml(rows, { valuePrefix = "", maxBars = 8 } = {}) {
+  const top = rows.slice(0, maxBars);
+  const max = Math.max(1, ...top.map((r) => r.value));
+  if (!top.length) return `<div class="empty-state">No data yet</div>`;
+  return `<div class="analytics-bars">${top
+    .map(
+      (r) => `
+      <div class="analytics-bar-row">
+        <div class="analytics-bar-label" title="${escapeHtml(r.label)}">${escapeHtml(r.label)}</div>
+        <div class="analytics-bar-track"><div class="analytics-bar-fill" style="width:${Math.max(4, (r.value / max) * 100)}%"></div></div>
+        <div class="analytics-bar-value">${valuePrefix}${r.value.toLocaleString()}</div>
+      </div>`
+    )
+    .join("")}</div>`;
+}
+
+async function loadAnalyticsSection() {
+  const statGrid = document.getElementById("analytics-stat-grid");
+  const topCoursesEl = document.getElementById("analytics-top-courses");
+  const monthlyRevEl = document.getElementById("analytics-monthly-revenue");
+  const monthlySignupsEl = document.getElementById("analytics-monthly-signups");
+  if (analyticsLoaded) return; // static-ish data — re-open the tab any time to force a refresh via loadOverview flows elsewhere
+  analyticsLoaded = true;
+
+  try {
+    const [purchasesSnap, usersSnap] = await Promise.all([
+      getDocs(collection(db, "purchaseRequests")),
+      getDocs(collection(db, "users")),
+    ]);
+    const purchases = purchasesSnap.docs.map((d) => d.data());
+    const users = usersSnap.docs.map((d) => d.data());
+    const approved = purchases.filter((p) => p.status === "approved");
+
+    const totalRevenue = approved.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+    const thisMonthKey = monthKey(new Date());
+    const thisMonthRevenue = approved
+      .filter((p) => monthKey(p.reviewedAt || p.createdAt) === thisMonthKey)
+      .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+    const avgOrder = approved.length ? Math.round(totalRevenue / approved.length) : 0;
+
+    statGrid.innerHTML = [
+      { n: `৳${totalRevenue.toLocaleString()}`, l: "Total Revenue" },
+      { n: `৳${thisMonthRevenue.toLocaleString()}`, l: "This Month" },
+      { n: approved.length, l: "Paid Enrollments" },
+      { n: `৳${avgOrder.toLocaleString()}`, l: "Avg. Order Value" },
+      { n: purchases.filter((p) => p.status === "pending").length, l: "Pending Requests" },
+    ]
+      .map((s) => `<div class="stat-card"><div class="n">${s.n}</div><div class="l">${s.l}</div></div>`)
+      .join("");
+
+    // Top courses by revenue (falls back to purchase count if no amount data)
+    const byCourse = {};
+    approved.forEach((p) => {
+      const key = p.courseId || p.courseTitle || "unknown";
+      if (!byCourse[key]) byCourse[key] = { label: p.courseTitle || "Untitled", value: 0, count: 0 };
+      byCourse[key].value += Number(p.amount) || 0;
+      byCourse[key].count += 1;
+    });
+    const topCourseRows = Object.values(byCourse).sort((a, b) => b.value - a.value);
+    topCoursesEl.innerHTML = barListHtml(topCourseRows, { valuePrefix: "৳" });
+
+    // Monthly revenue trend — last 6 months
+    const months = lastNMonthKeys(6);
+    const revByMonth = {};
+    months.forEach((m) => (revByMonth[m] = 0));
+    approved.forEach((p) => {
+      const k = monthKey(p.reviewedAt || p.createdAt);
+      if (k && k in revByMonth) revByMonth[k] += Number(p.amount) || 0;
+    });
+    monthlyRevEl.innerHTML = barListHtml(
+      months.map((m) => ({ label: monthLabel(m), value: revByMonth[m] })),
+      { valuePrefix: "৳", maxBars: 6 }
+    );
+
+    // New signups trend — last 6 months
+    const signupsByMonth = {};
+    months.forEach((m) => (signupsByMonth[m] = 0));
+    users.forEach((u) => {
+      const k = monthKey(u.createdAt);
+      if (k && k in signupsByMonth) signupsByMonth[k] += 1;
+    });
+    monthlySignupsEl.innerHTML = barListHtml(
+      months.map((m) => ({ label: monthLabel(m), value: signupsByMonth[m] })),
+      { maxBars: 6 }
+    );
+  } catch (err) {
+    statGrid.innerHTML = `<div class="empty-state"><p>Could not load analytics</p></div>`;
+    analyticsLoaded = false;
+  }
+}
+
+/* ==========================================================================
+   Notifications — admin creates/manages, tagged to course(s), targeted at
+   everyone or only students enrolled in the tagged course(s). Read/tap
+   tracking + rendering lives in js/notifications.js (shared with the
+   student-facing bell); this section is just the admin CRUD.
+   ========================================================================== */
+let currentNotifications = [];
+
+const NOTIF_TYPE_ICON = {
+  course_update: "fa-video",
+  new_course: "fa-book-sparkles",
+  exam: "fa-file-pen",
+  announcement: "fa-bullhorn",
+  general: "fa-circle-info",
+};
+const NOTIF_TYPE_LABEL = {
+  course_update: "Course Update",
+  new_course: "New Course",
+  exam: "Exam",
+  announcement: "Announcement",
+  general: "General",
+};
+
+function notifAudienceLabel(n) {
+  return n.audience === "enrolled" ? "Only enrolled students" : "Everyone";
+}
+
+function notifTimeAgo(ts) {
+  if (!ts) return "";
+  const d = ts.toDate ? ts.toDate() : new Date(ts);
+  const diffSec = Math.floor((Date.now() - d.getTime()) / 1000);
+  if (diffSec < 60) return "Just now";
+  if (diffSec < 3600) return `${Math.floor(diffSec / 60)}m ago`;
+  if (diffSec < 86400) return `${Math.floor(diffSec / 3600)}h ago`;
+  if (diffSec < 604800) return `${Math.floor(diffSec / 86400)}d ago`;
+  return formatDate(ts);
+}
+
+// Compact, single-line-per-notification list (icon + title + when) — tap a
+// row to open the full detail sheet (openNotificationDetail) instead of
+// dumping every field into the row itself.
+async function loadNotificationsList() {
+  const wrap = document.getElementById("notifications-list");
+  wrap.innerHTML = `<div class="loading-screen"><span class="spinner"></span></div>`;
+  try {
+    const snap = await getDocs(query(collection(db, "notifications"), orderBy("createdAt", "desc")));
+    currentNotifications = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  } catch {
+    currentNotifications = [];
+  }
+
+  if (!currentNotifications.length) {
+    wrap.innerHTML = `<div class="empty-state"><div class="icon"><i class="fa-solid fa-bell"></i></div><p>No notifications sent yet</p></div>`;
+    return;
+  }
+
+  wrap.innerHTML = `<div class="admin-notif-list">
+    ${currentNotifications
+      .map((n) => {
+        const icon = NOTIF_TYPE_ICON[n.type] || "fa-circle-info";
+        return `
+        <button type="button" class="admin-notif-row" data-id="${n.id}">
+          <div class="admin-notif-row-icon"><i class="fa-solid ${icon}"></i></div>
+          <div class="admin-notif-row-main">
+            <div class="admin-notif-row-title">${escapeHtml(n.title || "")}</div>
+            <div class="admin-notif-row-meta">
+              <span>${notifTimeAgo(n.createdAt)}</span>
+              <span class="admin-notif-row-dot">•</span>
+              <span>${escapeHtml(notifAudienceLabel(n))}</span>
+              ${n.active ? "" : `<span class="admin-notif-row-dot">•</span><span class="admin-notif-row-hidden">Hidden</span>`}
+            </div>
+          </div>
+          <i class="fa-solid fa-chevron-right admin-notif-row-chevron"></i>
+        </button>`;
+      })
+      .join("")}
+  </div>`;
+
+  wrap.querySelectorAll(".admin-notif-row").forEach((row) => row.addEventListener("click", () => openNotificationDetail(row.dataset.id)));
+}
+
+// Full detail sheet for one notification — everything the old stacked-card
+// table row used to dump inline now lives here instead, opened on tap.
+function openNotificationDetail(id) {
+  const n = currentNotifications.find((x) => x.id === id);
+  if (!n) return;
+  const icon = NOTIF_TYPE_ICON[n.type] || "fa-circle-info";
+  const typeLabel = NOTIF_TYPE_LABEL[n.type] || "General";
+
+  const overlay = openModal(`
+    <div class="modal-head"><h3>Notification Details</h3><button class="modal-close-btn" data-modal-close><i class="fa-solid fa-xmark"></i></button></div>
+    <div class="notif-detail">
+      <div class="notif-detail-head">
+        <div class="notif-detail-icon"><i class="fa-solid ${icon}"></i></div>
+        <div>
+          <div class="notif-detail-title">${escapeHtml(n.title || "")}</div>
+          <div class="notif-detail-sub">${escapeHtml(typeLabel)} · ${formatDateTime(n.createdAt)}</div>
+        </div>
+      </div>
+      ${n.message ? `<p class="notif-detail-message">${escapeHtml(n.message)}</p>` : ""}
+      <div class="notif-detail-rows">
+        <div class="notif-detail-row"><span>Audience</span><b>${escapeHtml(notifAudienceLabel(n))}</b></div>
+        <div class="notif-detail-row"><span>Status</span><b>${n.active ? `<span class="badge badge-teal">Active</span>` : `<span class="badge badge-coral">Hidden</span>`}</b></div>
+        <div class="notif-detail-row"><span>Tagged Course(s)</span><b>${
+          (n.courseTitles || []).length
+            ? `<div class="settings-badges">${n.courseTitles.map((t) => `<span class="badge badge-teal">${escapeHtml(t)}</span>`).join("")}</div>`
+            : `<span class="badge badge-amber">General (no course)</span>`
+        }</b></div>
+      </div>
+      <div class="notif-detail-actions">
+        <button type="button" class="btn btn-outline btn-sm" id="nd-edit"><i class="fa-solid fa-pen"></i> Edit</button>
+        <button type="button" class="btn btn-outline btn-sm" id="nd-toggle"><i class="fa-solid ${n.active ? "fa-eye-slash" : "fa-eye"}"></i> ${n.active ? "Hide" : "Unhide"}</button>
+        <button type="button" class="btn btn-danger btn-sm" id="nd-delete"><i class="fa-solid fa-trash"></i> Delete</button>
+      </div>
+    </div>
+  `);
+
+  overlay.querySelector("#nd-edit").addEventListener("click", () => { closeModal(); openNotificationModal(n.id); });
+  overlay.querySelector("#nd-toggle").addEventListener("click", () => { closeModal(); toggleNotificationActive(n.id); });
+  overlay.querySelector("#nd-delete").addEventListener("click", () => { closeModal(); deleteNotification(n.id); });
+}
+
+document.getElementById("add-notification-btn-top")?.addEventListener("click", () => openNotificationModal(null));
+
+function openNotificationModal(notifId) {
+  const n = notifId ? currentNotifications.find((x) => x.id === notifId) : null;
+  const overlay = openModal(`
+    <div class="modal-head"><h3>${n ? "Edit Notification" : "New Notification"}</h3><button class="modal-close-btn" data-modal-close><i class="fa-solid fa-xmark"></i></button></div>
+    <form id="notif-modal-form">
+      <div class="field"><label>Title</label><input type="text" id="nm-title" required placeholder="e.g. New lecture uploaded!" value="${n ? escapeHtml(n.title) : ""}"></div>
+      <div class="field"><label>Message</label><textarea id="nm-message" rows="3" placeholder="What's this update about?" required>${n ? escapeHtml(n.message || "") : ""}</textarea></div>
+
+      <div class="field">
+        <label>Type (controls the icon shown to students)</label>
+        <select id="nm-type">
+          <option value="course_update" ${!n || n.type === "course_update" ? "selected" : ""}>Course Update (new video/content)</option>
+          <option value="new_course" ${n?.type === "new_course" ? "selected" : ""}>New Course Launched</option>
+          <option value="exam" ${n?.type === "exam" ? "selected" : ""}>Exam</option>
+          <option value="announcement" ${n?.type === "announcement" ? "selected" : ""}>General Announcement</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label>Tag Course(s) <span class="form-hint" style="display:inline;">— tapping the notification opens the first tagged course</span></label>
+        <div class="lesson-picker" id="nm-course-picker">
+          ${courses
+            .map(
+              (c) => `
+            <label class="lesson-picker-item">
+              <input type="checkbox" value="${c.id}" data-title="${escapeHtml(c.title)}" ${n?.courseIds?.includes(c.id) ? "checked" : ""}>
+              <span>${escapeHtml(c.title)}</span>
+            </label>`
+            )
+            .join("")}
+        </div>
+        <span class="form-hint">Leave everything unchecked for a general, non-course announcement</span>
+      </div>
+
+      <div class="field">
+        <label>Who Should See This</label>
+        <select id="nm-audience">
+          <option value="all" ${!n || n.audience === "all" ? "selected" : ""}>Everyone (all logged-in students)</option>
+          <option value="enrolled" ${n?.audience === "enrolled" ? "selected" : ""}>Only students enrolled in the tagged course(s)</option>
+        </select>
+        <span class="form-hint" id="nm-audience-hint" hidden>Pick at least one course above to target only its students</span>
+      </div>
+
+      <button type="submit" class="btn btn-primary btn-block mt-16" id="notif-modal-save-btn">${n ? "Save Changes" : "Send Notification"}</button>
+    </form>
+  `);
+
+  const audienceSelect = overlay.querySelector("#nm-audience");
+  const audienceHint = overlay.querySelector("#nm-audience-hint");
+  function checkedCourseIds() {
+    return Array.from(overlay.querySelectorAll("#nm-course-picker input:checked")).map((el) => el.value);
+  }
+  function refreshAudienceHint() {
+    audienceHint.hidden = !(audienceSelect.value === "enrolled" && checkedCourseIds().length === 0);
+  }
+  audienceSelect.addEventListener("change", refreshAudienceHint);
+  overlay.querySelector("#nm-course-picker").addEventListener("change", refreshAudienceHint);
+  refreshAudienceHint();
+
+  overlay.querySelector("#notif-modal-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const btn = overlay.querySelector("#notif-modal-save-btn");
+    const checked = Array.from(overlay.querySelectorAll("#nm-course-picker input:checked"));
+    const courseIds = checked.map((el) => el.value);
+    const courseTitles = checked.map((el) => el.dataset.title);
+    let audience = audienceSelect.value;
+    if (audience === "enrolled" && !courseIds.length) audience = "all"; // nothing to target — fall back safely
+
+    btn.disabled = true;
+    btn.innerHTML = `<span class="spinner"></span>`;
+    const payload = {
+      title: overlay.querySelector("#nm-title").value.trim(),
+      message: overlay.querySelector("#nm-message").value.trim(),
+      type: overlay.querySelector("#nm-type").value,
+      courseIds,
+      courseTitles,
+      audience,
+    };
+    try {
+      if (n) {
+        await updateDoc(doc(db, "notifications", n.id), payload);
+        toast("Notification updated", "success");
+      } else {
+        await addDoc(collection(db, "notifications"), {
+          ...payload,
+          active: true,
+          createdAt: serverTimestamp(),
+          createdBy: me?.user?.email || me?.user?.uid || "admin",
+        });
+        toast("Notification sent", "success");
+      }
+      closeModal();
+      loadNotificationsList();
+    } catch (err) {
+      toast("Could not save — make sure the notifications Firestore rule from README.md is deployed", "error");
+      btn.disabled = false;
+      btn.textContent = n ? "Save Changes" : "Send Notification";
+    }
+  });
+}
+
+async function toggleNotificationActive(id) {
+  const n = currentNotifications.find((x) => x.id === id);
+  if (!n) return;
+  try {
+    await updateDoc(doc(db, "notifications", id), { active: !n.active });
+    loadNotificationsList();
+  } catch {
+    toast("Could not update", "error");
+  }
+}
+
+async function deleteNotification(id) {
+  if (!(await confirmAction("Delete this notification? Students will no longer see it."))) return;
+  try {
+    await deleteDoc(doc(db, "notifications", id));
+    toast("Notification deleted", "success");
+    loadNotificationsList();
+  } catch {
+    toast("Could not delete", "error");
   }
 }
 
