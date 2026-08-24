@@ -215,7 +215,17 @@
 .settings-badges { display: flex; flex-wrap: wrap; gap: 4px; }
 .settings-badges .badge { white-space: nowrap; font-size: 0.76rem; }
 
-/* ---------- নির্দিষ্ট লেসন(গুলো) বাছাইয়ের চেকবক্স গ্রিড — Exam Scope ---------- */
+/* ---------- Analytics — lightweight bar rows (no chart library, stays 100% free/offline-friendly) ---------- */
+.analytics-bars { display: flex; flex-direction: column; gap: 10px; }
+.analytics-bar-row { display: grid; grid-template-columns: 110px 1fr auto; align-items: center; gap: 10px; }
+.analytics-bar-label { font-size: 0.82rem; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.analytics-bar-track { height: 12px; border-radius: 999px; background: var(--bg-elevated-2); overflow: hidden; }
+.analytics-bar-fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--accent-amber), var(--accent-teal)); transition: width .4s ease; }
+.analytics-bar-value { font-size: 0.8rem; font-weight: 700; color: var(--text-primary); white-space: nowrap; min-width: 54px; text-align: right; }
+@media (max-width: 520px) {
+  .analytics-bar-row { grid-template-columns: 80px 1fr auto; }
+  .analytics-bar-label { font-size: 0.74rem; }
+}
 .lesson-picker {
   display: flex; flex-direction: column; gap: 2px; max-height: 220px; overflow-y: auto;
   background: var(--bg-elevated-2); border: 1.5px solid var(--border-strong); border-radius: var(--radius-sm); padding: 6px;
@@ -447,3 +457,58 @@
   border-radius: var(--radius-sm); padding: 12px 14px; display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
 }
 .gen-code-result code { font-family: var(--font-utility); font-size: 0.95rem; letter-spacing: 0.5px; color: var(--accent-amber-soft); font-weight: 700; }
+
+/* ==========================================================================
+   Admin — Notifications: compact single-line list (tap a row for the full
+   detail sheet) instead of the old stacked-card table row.
+   ========================================================================== */
+.admin-notif-list {
+  background: var(--bg-elevated-2); border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden;
+}
+.admin-notif-row {
+  display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; padding: 13px 16px;
+  border: none; border-bottom: 1px solid var(--border); background: none; cursor: pointer; font-family: inherit;
+  transition: background .15s;
+}
+.admin-notif-row:last-child { border-bottom: none; }
+.admin-notif-row:hover { background: var(--bg-elevated); }
+.admin-notif-row-icon {
+  flex-shrink: 0; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  background: rgba(124,92,252,0.14); color: var(--accent-amber-soft); font-size: 0.9rem;
+}
+.admin-notif-row-main { min-width: 0; flex: 1; }
+.admin-notif-row-title {
+  font-weight: 600; font-size: 0.9rem; color: var(--text-primary);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.admin-notif-row-meta {
+  display: flex; align-items: center; gap: 6px; font-size: 0.76rem; color: var(--text-muted); margin-top: 2px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.admin-notif-row-dot { opacity: 0.6; }
+.admin-notif-row-hidden { color: var(--accent-coral); font-weight: 600; }
+.admin-notif-row-chevron { flex-shrink: 0; font-size: 0.78rem; color: var(--text-muted); opacity: 0.7; }
+
+/* বিস্তারিত শীট — রো-তে ট্যাপ করলে যা খুলবে */
+.notif-detail-head { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 14px; }
+.notif-detail-icon {
+  flex-shrink: 0; width: 42px; height: 42px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  background: rgba(124,92,252,0.14); color: var(--accent-amber-soft); font-size: 1.02rem;
+}
+.notif-detail-title { font-weight: 700; font-size: 1.02rem; color: var(--text-primary); line-height: 1.35; }
+.notif-detail-sub { font-size: 0.8rem; color: var(--text-muted); margin-top: 3px; }
+.notif-detail-message {
+  font-size: 0.92rem; line-height: 1.6; color: var(--text-primary);
+  background: var(--bg-elevated-2); border: 1px solid var(--border); border-radius: var(--radius-sm);
+  padding: 12px 14px; margin-bottom: 14px; white-space: pre-wrap;
+}
+.notif-detail-rows { display: flex; flex-direction: column; gap: 10px; margin-bottom: 18px; }
+.notif-detail-row {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 14px;
+  font-size: 0.86rem; padding-bottom: 10px; border-bottom: 1px solid var(--border);
+}
+.notif-detail-row:last-child { border-bottom: none; padding-bottom: 0; }
+.notif-detail-row > span { color: var(--text-muted); flex-shrink: 0; }
+.notif-detail-row > b { font-weight: 600; color: var(--text-primary); text-align: right; }
+.notif-detail-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.notif-detail-actions .btn { flex: 1; min-width: 100px; }

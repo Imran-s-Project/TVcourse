@@ -215,6 +215,82 @@ a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visib
 .user-dropdown-item.danger i { color: inherit; }
 .user-dropdown-item.danger:hover { background: rgba(242,114,114,0.1); }
 
+/* ---------- নোটিফিকেশন বেল + প্যানেল ---------- */
+.nav-notif { position: relative; }
+.nav-notif.hidden { display: none; }
+.notif-menu { position: relative; }
+.notif-bell-btn {
+  position: relative; width: 34px; height: 34px; border-radius: 50%; border: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; background: var(--bg-elevated-2);
+  color: var(--text-primary); font-size: 0.9rem; transition: background .15s, box-shadow .2s;
+}
+.notif-bell-btn:hover, .notif-bell-btn.active { background: var(--bg-elevated); box-shadow: 0 0 0 3px rgba(124,92,252,0.22); }
+.notif-badge {
+  position: absolute; top: -2px; right: -2px; min-width: 15px; height: 15px; padding: 0 3px; border-radius: 999px;
+  background: var(--accent-coral); color: #fff; font-size: 0.6rem; font-weight: 700; line-height: 15px; text-align: center;
+  box-shadow: 0 0 0 2px var(--bg-elevated-2);
+}
+.notif-badge.hidden { display: none; }
+
+/* ব্যাকড্রপ — শুধু মোবাইলে প্যানেল খোলা থাকলে পেছনের অংশ ঝাপসা করে দেয় */
+.notif-backdrop {
+  position: fixed; inset: 0; z-index: 58; background: var(--overlay-scrim);
+  opacity: 0; pointer-events: none; transition: opacity .22s ease;
+}
+.notif-backdrop.open { opacity: 1; pointer-events: auto; }
+
+.notif-panel {
+  position: fixed; top: 80px; right: 24px; z-index: 60; width: 360px; max-width: calc(100vw - 24px);
+  background: var(--bg-elevated); border: 1px solid var(--border-strong); border-radius: var(--radius-md);
+  box-shadow: 0 16px 40px rgba(0,0,0,0.45); overflow: hidden; animation: dropdown-in .18s ease;
+  display: flex; flex-direction: column; max-height: min(70vh, 480px);
+}
+.notif-panel[hidden] { display: none; }
+.notif-panel-sheet-handle { display: none; }
+.notif-panel-head {
+  display: flex; align-items: center; justify-content: space-between; padding: 14px 16px;
+  border-bottom: 1px solid var(--border); font-weight: 700; font-size: 0.98rem; color: var(--text-primary);
+  flex-shrink: 0;
+}
+.notif-markall-btn {
+  background: none; border: none; cursor: pointer; color: var(--accent-amber-soft); font-size: 0.78rem;
+  font-weight: 600; font-family: inherit; padding: 5px 8px; border-radius: 6px;
+}
+.notif-markall-btn:hover { background: var(--bg-elevated-2); }
+.notif-panel-list { overflow-y: auto; flex: 1; min-height: 0; }
+.notif-item {
+  display: flex; align-items: flex-start; gap: 12px; width: 100%; text-align: start; padding: 14px 16px;
+  border: none; border-bottom: 1px solid var(--border); background: none; cursor: pointer; font-family: inherit;
+  transition: background .15s;
+}
+.notif-item:last-child { border-bottom: none; }
+.notif-item:hover, .notif-item:active { background: var(--bg-elevated-2); }
+.notif-item.unread { background: rgba(124,92,252,0.07); }
+.notif-item-icon {
+  flex-shrink: 0; width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  background: rgba(124,92,252,0.14); color: var(--accent-amber-soft); font-size: 0.94rem;
+}
+.notif-item-body { min-width: 0; flex: 1; }
+.notif-item-title { font-weight: 700; font-size: 0.88rem; color: var(--text-primary); line-height: 1.35; }
+.notif-item-msg { font-size: 0.81rem; color: var(--text-muted); margin-top: 3px; line-height: 1.45; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.notif-item-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 7px; }
+.notif-tag { font-size: 0.68rem; font-weight: 600; padding: 2px 7px; border-radius: 999px; background: rgba(31,158,147,0.2); color: #5FD4C6; white-space: nowrap; }
+.notif-item-time { font-size: 0.72rem; color: var(--text-muted); margin-top: 7px; display: flex; align-items: center; gap: 5px; }
+.notif-item-time i { font-size: 0.66rem; opacity: .8; }
+.notif-dot { flex-shrink: 0; width: 8px; height: 8px; border-radius: 50%; background: var(--accent-amber); margin-top: 6px; box-shadow: 0 0 0 3px rgba(124,92,252,0.18); }
+.notif-empty { padding: 40px 16px; text-align: center; color: var(--text-muted); font-size: 0.86rem; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.notif-empty i { font-size: 1.8rem; opacity: .45; }
+
+/* মোবাইলে হেডারের ঠিক নিচ থেকে ফুল-প্রায়-উইডথ প্যানেল হিসেবে দেখাবে (top এর
+   সঠিক মান notifications.js থেকে হেডারের height মেপে ইনলাইনে বসানো হয়) */
+@media (max-width: 640px) {
+  .notif-panel {
+    left: 12px; right: 12px; width: auto; max-width: none; max-height: min(75vh, 520px);
+    border-radius: var(--radius-md);
+  }
+  .notif-item { padding: 14px 16px; }
+}
+
 .hamburger { display: none; }
 
 /* ---------- মোবাইল ন্যাভ প্যানেল ----------
