@@ -30,6 +30,7 @@
       <a href="index.html" class="brand"><img src="assets/logo.png" alt="TVcourse" class="brand-logo"></a>
       <div class="nav-links" id="nav-links"></div>
       <div class="flex items-center gap-12">
+        <div class="nav-notif hidden" id="nav-notif"></div>
         <button type="button" class="theme-toggle-btn" id="theme-toggle-btn" aria-label="Toggle theme"><i class="fa-solid fa-sun"></i></button>
         <div class="nav-user" id="nav-user"></div>
         <button class="hamburger" id="hamburger"><span></span><span></span><span></span></button>
@@ -51,11 +52,13 @@
       <div class="admin-sidebar-title">Control Center <button class="admin-drawer-close" id="admin-drawer-close" aria-label="Close menu"><i class="fa-solid fa-xmark"></i></button></div>
       <nav class="admin-nav" id="admin-nav">
         <button class="admin-nav-item active" data-section="overview" data-label="Overview"><span><i class="fa-solid fa-chart-pie"></i></span> Overview</button>
+        <button class="admin-nav-item" data-section="analytics" data-label="Analytics"><span><i class="fa-solid fa-chart-line"></i></span> Analytics</button>
         <button class="admin-nav-item" data-section="homepage" data-label="Homepage & Videos"><span><i class="fa-solid fa-house"></i></span> Homepage & Videos</button>
         <button class="admin-nav-item" data-section="courses" data-label="Courses"><span><i class="fa-solid fa-book"></i></span> Courses</button>
         <button class="admin-nav-item" data-section="lessons" data-label="Lessons / Videos"><span><i class="fa-solid fa-video"></i></span>Videos</button>
         <button class="admin-nav-item" data-section="exams" data-label="Exams"><span><i class="fa-solid fa-file-pen"></i></span> Exams</button>
         <button class="admin-nav-item" data-section="leaderboard" data-label="Leaderboard"><span><i class="fa-solid fa-trophy"></i></span> Leaderboard</button>
+        <button class="admin-nav-item" data-section="notifications" data-label="Notifications"><span><i class="fa-solid fa-bell"></i></span> Notifications</button>
         <button class="admin-nav-item" data-section="purchases" data-label="Purchase Requests"><span><i class="fa-solid fa-money-bill-wave"></i></span> Purchase Requests <span class="nav-pending-badge hidden" id="nav-pending-badge">0</span></button>
         <button class="admin-nav-item" data-section="users" data-label="Users"><span><i class="fa-solid fa-users"></i></span> Users</button>
       </nav>
@@ -78,6 +81,29 @@
             <thead><tr><th>User</th><th>Exam</th><th>Score</th><th>Date</th></tr></thead>
             <tbody><tr><td colspan="4"><div class="loading-screen"><span class="spinner"></span></div></td></tr></tbody>
           </table></div>
+        </div>
+      </section>
+
+      <!-- Analytics -->
+      <section class="admin-section" id="section-analytics">
+        <div class="admin-section-head">
+          <h1>Analytics</h1>
+          <p class="muted">Revenue, top courses, and growth trends at a glance</p>
+        </div>
+        <div class="stat-grid" id="analytics-stat-grid">
+          <div class="loading-screen"><span class="spinner"></span></div>
+        </div>
+        <div class="card mt-24">
+          <h3 class="mb-12">Top Courses by Revenue</h3>
+          <div id="analytics-top-courses"><div class="loading-screen"><span class="spinner"></span></div></div>
+        </div>
+        <div class="card mt-24">
+          <h3 class="mb-12">Monthly Revenue — Last 6 Months</h3>
+          <div id="analytics-monthly-revenue"><div class="loading-screen"><span class="spinner"></span></div></div>
+        </div>
+        <div class="card mt-24">
+          <h3 class="mb-12">New Signups — Last 6 Months</h3>
+          <div id="analytics-monthly-signups"><div class="loading-screen"><span class="spinner"></span></div></div>
         </div>
       </section>
 
@@ -201,6 +227,18 @@
           <div id="leaderboard-list" class="lb-list">
             <div class="loading-screen"><span class="spinner"></span></div>
           </div>
+        </div>
+      </section>
+
+      <!-- Notifications -->
+      <section class="admin-section" id="section-notifications">
+        <div class="admin-section-head">
+          <h1>Notifications</h1>
+          <p class="muted">Send smart, course-tagged notifications — students see them in their notification bell and tapping one takes them straight to what it's about</p>
+          <button class="btn btn-primary" id="add-notification-btn-top">+ New Notification</button>
+        </div>
+        <div class="card">
+          <div id="notifications-list"><div class="loading-screen"><span class="spinner"></span></div></div>
         </div>
       </section>
 
