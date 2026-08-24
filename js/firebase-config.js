@@ -11,7 +11,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 import { getStorage } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-storage.js";
 
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+// For Firebase JS SDK v7.20.0 and later, measurementId
 const firebaseConfig = {
   apiKey: "AIzaSyA7Bzpu_RPI8wqIkSqjmh4aXFK_ARXC88g",
   authDomain: "tv-course.firebaseapp.com",
