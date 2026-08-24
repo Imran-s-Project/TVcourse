@@ -13,13 +13,13 @@ import { getStorage } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-
 
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-  apiKey: "AIzaSyDTwDMP6UGhGAg036EOcgCMOwYurRbyxwI",
-  authDomain: "tvcourse1.firebaseapp.com",
-  projectId: "tvcourse1",
-  storageBucket: "tvcourse1.firebasestorage.app",
-  messagingSenderId: "927721496135",
-  appId: "1:927721496135:web:8fbed1d305b18c8aae5b62",
-  measurementId: "G-R8RJCK6L7L"
+  apiKey: "AIzaSyA7Bzpu_RPI8wqIkSqjmh4aXFK_ARXC88g",
+  authDomain: "tv-course.firebaseapp.com",
+  projectId: "tv-course",
+  storageBucket: "tv-course.firebasestorage.app",
+  messagingSenderId: "394638935623",
+  appId: "1:394638935623:web:af274fe9001abfa9771362",
+  measurementId: "G-VF48BD7CFS"
 };
 
 export const app = initializeApp(firebaseConfig);
