@@ -98,3 +98,9 @@
 .review-answer { display: flex; align-items: center; gap: 8px; font-size: 0.92rem; padding: 4px 0; }
 .review-answer.correct { color: var(--accent-teal); }
 .review-answer.wrong { color: var(--accent-coral); }
+.review-explanation {
+  display: flex; gap: 8px; align-items: flex-start; margin-top: 10px; padding: 10px 12px;
+  border-radius: 10px; background: var(--bg-elevated-2); font-size: 0.88rem; line-height: 1.5; color: var(--text-primary);
+}
+.review-explanation i { margin-top: 3px; color: var(--accent-amber); flex-shrink: 0; }
+.review-explanation b { color: var(--text-primary); }
