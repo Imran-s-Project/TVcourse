@@ -600,6 +600,7 @@ function showResult(score, total, percent, examTitle, breakdown = {}) {
             ${correct ? '<i class="fa-solid fa-check"></i>' : '<i class="fa-solid fa-xmark"></i>'} Your answer: ${userAns !== undefined ? escapeHtml(q.options[userAns]) : "No answer given"}
           </div>
           ${!correct ? `<div class="review-answer correct"><i class="fa-solid fa-check"></i> Correct answer: ${escapeHtml(q.options[q.correctIndex])}</div>` : ""}
+          ${q.explanation && q.explanation.trim() ? `<div class="review-explanation"><i class="fa-solid fa-lightbulb"></i><span><b>Explanation:</b> ${escapeHtml(q.explanation)}</span></div>` : ""}
         </div>`;
         })
         .join("")}
@@ -706,7 +707,9 @@ async function downloadResultPDF(score, total, percent, examTitle, breakdown = {
       const qLines = pdfDoc.splitTextToSize(`${i + 1}. ${q.text}`, contentWidth);
       const userAns = answers[q.id];
       const correct = userAns === q.correctIndex;
-      const estLines = qLines.length + (correct ? 1 : 2);
+      const hasExplanation = !!(q.explanation && q.explanation.trim());
+      const explanationLines = hasExplanation ? pdfDoc.splitTextToSize(`Explanation: ${q.explanation}`, contentWidth - 10) : [];
+      const estLines = qLines.length + (correct ? 1 : 2) + explanationLines.length;
 
       if (y + estLines * 14 + 20 > pageHeight - 40) {
         pdfDoc.addPage();
@@ -730,6 +733,13 @@ async function downloadResultPDF(score, total, percent, examTitle, breakdown = {
         const correctLines = pdfDoc.splitTextToSize(`Correct answer: ${q.options[q.correctIndex]}`, contentWidth - 10);
         pdfDoc.text(correctLines, marginX + 10, y);
         y += correctLines.length * 14;
+      }
+      if (hasExplanation) {
+        pdfDoc.setTextColor(120, 90, 20);
+        pdfDoc.setFont(undefined, "italic");
+        pdfDoc.text(explanationLines, marginX + 10, y);
+        y += explanationLines.length * 14;
+        pdfDoc.setFont(undefined, "normal");
       }
       pdfDoc.setTextColor(0, 0, 0);
       y += 10;

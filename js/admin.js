@@ -943,7 +943,7 @@ async function openExamModal(examId) {
   let questionDrafts = [];
   if (ex) {
     const qSnap = await getDocs(query(collection(db, "exams", ex.id, "questions"), orderBy("order")));
-    questionDrafts = qSnap.docs.map((d) => ({ text: d.data().text, options: d.data().options, correctIndex: d.data().correctIndex }));
+    questionDrafts = qSnap.docs.map((d) => ({ text: d.data().text, options: d.data().options, correctIndex: d.data().correctIndex, explanation: d.data().explanation || "" }));
   }
 
   const overlay = openModal(`
@@ -1040,12 +1040,13 @@ async function openExamModal(examId) {
             <button type="button" class="btn btn-outline btn-sm" id="em-bulk-toggle-btn"><i class="fa-solid fa-bolt"></i> Bulk Import</button>
           </div>
           <div class="qb-bulk-panel" id="em-bulk-panel" hidden>
-            <span class="form-hint">Paste each question separated by a blank line. First line is the question, then one option per line. Mark the correct option with a leading <b>*</b> —</span>
+            <span class="form-hint">Paste each question separated by a blank line. First line is the question, then one option per line. Mark the correct option with a leading <b>*</b>. Optionally add a last line starting with <b>Explanation:</b> —</span>
             <pre class="qb-bulk-example">What is the capital of France?
 *Paris
 London
 Berlin
-Rome</pre>
+Rome
+Explanation: Paris has been the capital of France since the 12th century.</pre>
             <textarea id="em-bulk-text" rows="8" placeholder="Paste multiple questions here..."></textarea>
             <div class="qb-bulk-actions">
               <button type="button" class="btn btn-outline btn-sm" id="em-bulk-cancel-btn">Cancel</button>
@@ -1164,11 +1165,16 @@ Rome</pre>
             </div>`).join("")}
         </div>
         <button type="button" class="add-option-btn" data-qi="${qi}" ${q.options.length >= MAX_OPTIONS ? "disabled" : ""}><i class="fa-solid fa-plus"></i> Add Option</button>
+        <div class="field q-explanation-field">
+          <label><i class="fa-solid fa-lightbulb"></i> Explanation <span class="form-hint" style="font-weight:400;">(optional — shown to students after they submit, explains why the correct answer is correct)</span></label>
+          <textarea class="q-explanation-input" data-qi="${qi}" rows="2" placeholder="e.g. Paris has been the capital of France since...">${escapeHtml(q.explanation || "")}</textarea>
+        </div>
       </div>`)
       .join("");
 
     wrap.querySelectorAll(".q-text-input").forEach((el) => el.addEventListener("input", () => (questionDrafts[el.dataset.qi].text = el.value)));
     wrap.querySelectorAll(".q-option-input").forEach((el) => el.addEventListener("input", () => (questionDrafts[el.dataset.qi].options[el.dataset.oi] = el.value)));
+    wrap.querySelectorAll(".q-explanation-input").forEach((el) => el.addEventListener("input", () => (questionDrafts[el.dataset.qi].explanation = el.value)));
 
     wrap.querySelectorAll(".opt-correct-btn").forEach((el) => el.addEventListener("click", () => {
       questionDrafts[el.dataset.qi].correctIndex = Number(el.dataset.oi);
@@ -1218,7 +1224,7 @@ Rome</pre>
     }
   });
   overlay.querySelector("#em-add-question-btn").addEventListener("click", () => {
-    questionDrafts.push({ text: "", options: ["", "", "", ""], correctIndex: 0 });
+    questionDrafts.push({ text: "", options: ["", "", "", ""], correctIndex: 0, explanation: "" });
     renderQ();
     const cards = overlay.querySelectorAll(".q-card");
     cards[cards.length - 1]?.querySelector(".q-text-input")?.focus();
@@ -1234,7 +1240,10 @@ Rome</pre>
       const qText = lines[0].replace(/^(question\s*[:\-]\s*)/i, "").replace(/^\d+[).]\s*/, "").trim();
       const options = [];
       let correctIndex = 0;
+      let explanation = "";
       lines.slice(1).forEach((line) => {
+        const expMatch = line.match(/^explanation\s*[:\-]\s*(.*)$/i);
+        if (expMatch) { explanation = expMatch[1].trim(); return; }
         let isCorrect = false;
         let opt = line;
         if (opt.startsWith("*")) { isCorrect = true; opt = opt.slice(1).trim(); }
@@ -1243,7 +1252,7 @@ Rome</pre>
         if (isCorrect) correctIndex = options.length;
         options.push(opt);
       });
-      if (qText && options.length >= 2) parsed.push({ text: qText, options: options.slice(0, MAX_OPTIONS), correctIndex: Math.min(correctIndex, options.length - 1) });
+      if (qText && options.length >= 2) parsed.push({ text: qText, options: options.slice(0, MAX_OPTIONS), correctIndex: Math.min(correctIndex, options.length - 1), explanation });
     });
     return parsed;
   }
@@ -1324,7 +1333,7 @@ Rome</pre>
         examRef = await addDoc(collection(db, "exams"), { ...payload, createdAt: serverTimestamp() });
       }
       await Promise.all(
-        questionDrafts.map((q, i) => addDoc(collection(db, "exams", examRef.id, "questions"), { text: q.text, options: q.options, correctIndex: q.correctIndex, order: i }))
+        questionDrafts.map((q, i) => addDoc(collection(db, "exams", examRef.id, "questions"), { text: q.text, options: q.options, correctIndex: q.correctIndex, explanation: (q.explanation || "").trim(), order: i }))
       );
       toast(ex ? "Exam updated" : "Exam created", "success");
       closeModal();
