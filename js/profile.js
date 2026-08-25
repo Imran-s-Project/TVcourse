@@ -31,7 +31,7 @@ import {
   where,
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 import { ref, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-storage.js";
-import { requireAuth, getUserProfile, toast, escapeHtml, toBnDigits, formatDate, confirmAction, openModal, closeModal, supportMailto, SUPPORT_EMAIL_GMAIL, SUPPORT_EMAIL_YAHOO } from "./utils.js";
+import { requireAuth, getUserProfile, toast, escapeHtml, toBnDigits, formatDate, confirmAction, openModal, closeModal, supportMailto, SUPPORT_EMAIL_GMAIL, SUPPORT_EMAIL_YAHOO, useBengaliFont } from "./utils.js";
 import { courseUrl } from "./router.js";
 
 let currentUser = null;
@@ -265,6 +265,11 @@ async function downloadMyPurchasePdf(id, triggerBtn) {
 
     const W = 440, H = 780;
     const doc = new jsPDF({ unit: "pt", format: [W, H], orientation: "portrait" });
+    // Load Noto Sans Bengali so Bengali text renders as real glyphs instead
+    // of garbled symbols; bnFont falls back to undefined (jsPDF default)
+    // only if the font failed to load.
+    const bnLoaded = await useBengaliFont(doc);
+    const bnFont = bnLoaded ? "NotoSansBengali" : undefined;
 
     const hex = (h) => {
       h = h.replace("#", "");
@@ -305,16 +310,16 @@ async function downloadMyPurchasePdf(id, triggerBtn) {
     doc.rect(cardX, cardY + 60, cardW, 20, "F");
 
     if (logoImg) doc.addImage(logoImg, "PNG", cardX + 18, cardY + 16, 36, 36);
-    doc.setFont(undefined, "bold");
+    doc.setFont(bnFont, "bold");
     doc.setFontSize(15);
     setTxt("#ffffff");
     doc.text("Tech Verse Course", cardX + (logoImg ? 62 : 18), cardY + 34);
-    doc.setFont(undefined, "normal");
+    doc.setFont(bnFont, "normal");
     doc.setFontSize(8.5);
     setTxt(AMBER);
     doc.text("Course Enrollment Invoice", cardX + (logoImg ? 62 : 18), cardY + 48);
 
-    doc.setFont(undefined, "bold");
+    doc.setFont(bnFont, "bold");
     doc.setFontSize(6.5);
     setTxt("#c9cddc");
     doc.text("STUDENT COPY", cardX + cardW - 16, cardY + 20, { align: "right" });
@@ -322,7 +327,7 @@ async function downloadMyPurchasePdf(id, triggerBtn) {
     /* ── Course title ── */
     let y = cardY + 100;
     setTxt(NAVY);
-    doc.setFont(undefined, "bold");
+    doc.setFont(bnFont, "bold");
     doc.setFontSize(13);
     const courseLines = doc.splitTextToSize(p.courseTitle || "Course", cardW - 32);
     doc.text(courseLines, cardX + 16, y);
@@ -332,7 +337,7 @@ async function downloadMyPurchasePdf(id, triggerBtn) {
     setFill("#fdf3e2");
     doc.roundedRect(cardX + 16, y, cardW - 32, 18, 4, 4, "F");
     setTxt("#92610f");
-    doc.setFont(undefined, "normal");
+    doc.setFont(bnFont, "normal");
     doc.setFontSize(7.5);
     doc.text(`INVOICE NO: ${p.id}`, cardX + 22, y + 12);
     y += 30;
@@ -343,7 +348,7 @@ async function downloadMyPurchasePdf(id, triggerBtn) {
     setFill(rc.bg);
     doc.roundedRect(cardX + 16, y, cardW - 32, 26, 6, 6, "F");
     setTxt(rc.text);
-    doc.setFont(undefined, "bold");
+    doc.setFont(bnFont, "bold");
     doc.setFontSize(9.5);
     doc.text(rc.label, cardX + cardW / 2, y + 17, { align: "center" });
     y += 40;
@@ -358,12 +363,12 @@ async function downloadMyPurchasePdf(id, triggerBtn) {
     const col2X = cardX + cardW / 2 + 4;
     const colW  = cardW / 2 - 24;
     const infoCell = (label, value, x, cy) => {
-      doc.setFont(undefined, "normal");
+      doc.setFont(bnFont, "normal");
       doc.setFontSize(7.5);
       setTxt(LABEL_C);
       doc.text(label.toUpperCase(), x, cy);
       cy += 12;
-      doc.setFont(undefined, "bold");
+      doc.setFont(bnFont, "bold");
       doc.setFontSize(9.5);
       setTxt(VAL_C);
       const vLines = doc.splitTextToSize(String(value || "—"), colW);
@@ -406,12 +411,12 @@ async function downloadMyPurchasePdf(id, triggerBtn) {
       doc.roundedRect(cardX + 16, y, cardW - 32, 48, 6, 6, "FD");
       doc.setLineDashPattern([], 0);
 
-      doc.setFont(undefined, "normal");
+      doc.setFont(bnFont, "normal");
       doc.setFontSize(7.5);
       setTxt("#92610f");
       doc.text("YOUR ACCESS CODE", cardX + 26, y + 15);
 
-      doc.setFont(undefined, "bold");
+      doc.setFont(bnFont, "bold");
       doc.setFontSize(14);
       setTxt(NAVY);
       doc.text((p.accessCode.replace(/(.{5})(?=.)/g, "$1-")), cardX + 26, y + 35);
@@ -426,7 +431,7 @@ async function downloadMyPurchasePdf(id, triggerBtn) {
       doc.line(cardX + 16, y, cardX + cardW - 16, y);
       y += 16;
 
-      doc.setFont(undefined, "normal");
+      doc.setFont(bnFont, "normal");
       doc.setFontSize(7.5);
       setTxt(LABEL_C);
       doc.text("CONTINUE LEARNING", cardX + 16, y);
@@ -437,11 +442,11 @@ async function downloadMyPurchasePdf(id, triggerBtn) {
       doc.roundedRect(btnX, y, btnW, btnH, 8, 8, "F");
 
       setTxt("#ffffff");
-      doc.setFont(undefined, "bold");
+      doc.setFont(bnFont, "bold");
       doc.setFontSize(9.5);
       const btnTitle = doc.splitTextToSize(p.courseTitle || "Your course", btnW - 60)[0];
       doc.text(btnTitle, btnX + 14, y + 17);
-      doc.setFont(undefined, "normal");
+      doc.setFont(bnFont, "normal");
       doc.setFontSize(7.5);
       setTxt(AMBER);
       doc.text("Tap to open your course", btnX + 14, y + 30);
@@ -463,7 +468,7 @@ async function downloadMyPurchasePdf(id, triggerBtn) {
       doc.line(cardX + 16, y, cardX + cardW - 16, y);
       y += 16;
 
-      doc.setFont(undefined, "normal");
+      doc.setFont(bnFont, "normal");
       doc.setFontSize(7.5);
       setTxt(LABEL_C);
       doc.text("NEED HELP? CONTACT US", cardX + 16, y);
@@ -474,7 +479,7 @@ async function downloadMyPurchasePdf(id, triggerBtn) {
           label: "Facebook", color: "#1877F2", url: "https://www.facebook.com/irnahmed360",
           draw: (cx, cy) => {
             setTxt("#ffffff");
-            doc.setFont(undefined, "bold");
+            doc.setFont(bnFont, "bold");
             doc.setFontSize(13);
             doc.text("f", cx, cy + 4.5, { align: "center" });
           },
@@ -502,7 +507,7 @@ async function downloadMyPurchasePdf(id, triggerBtn) {
           label: "Yahoo Mail", color: "#6001D2", url: supportMailto(SUPPORT_EMAIL_YAHOO),
           draw: (cx, cy) => {
             setTxt("#ffffff");
-            doc.setFont(undefined, "bold");
+            doc.setFont(bnFont, "bold");
             doc.setFontSize(10);
             doc.text("Y!", cx, cy + 3.5, { align: "center" });
           },
@@ -531,7 +536,7 @@ async function downloadMyPurchasePdf(id, triggerBtn) {
         c.draw(cx, cy);
 
         setTxt(VAL_C);
-        doc.setFont(undefined, "normal");
+        doc.setFont(bnFont, "normal");
         doc.setFontSize(6.3);
         doc.text(c.label, cx, cy + r + 11, { align: "center" });
 
@@ -546,7 +551,7 @@ async function downloadMyPurchasePdf(id, triggerBtn) {
     doc.line(cardX + 16, y, cardX + cardW - 16, y);
     y += 14;
     setTxt(LABEL_C);
-    doc.setFont(undefined, "normal");
+    doc.setFont(bnFont, "normal");
     doc.setFontSize(7);
     const noteLines = doc.splitTextToSize("This is a system-generated document for your personal records. It is not required to access your course.", cardW - 32);
     doc.text(noteLines, cardX + 16, y);

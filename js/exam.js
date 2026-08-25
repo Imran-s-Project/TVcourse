@@ -22,7 +22,7 @@ import {
   addDoc,
   serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-import { initNav, requireAuth, toast, escapeHtml, toBnDigits, formatTime, formatDuration, formatScore, getExamAvailability, formatDateTime, getCoursePricing } from "./utils.js";
+import { initNav, requireAuth, toast, escapeHtml, toBnDigits, formatTime, formatDuration, formatScore, getExamAvailability, formatDateTime, getCoursePricing, useBengaliFont } from "./utils.js";
 import { navigate } from "./router.js";
 
 // ── Per-visit state (reset on every initExamPage call) ────────────────────
@@ -648,6 +648,11 @@ async function downloadResultPDF(score, total, percent, examTitle, breakdown = {
     const pageWidth = pdfDoc.internal.pageSize.getWidth();
     const pageHeight = pdfDoc.internal.pageSize.getHeight();
     const marginX = 40;
+    // Load Noto Sans Bengali so Bengali question/answer text renders as
+    // real glyphs instead of garbled symbols; bnFont is undefined (falls
+    // back to jsPDF's default Helvetica) only if the font failed to load.
+    const bnLoaded = await useBengaliFont(pdfDoc);
+    const bnFont = bnLoaded ? "NotoSansBengali" : undefined;
 
     const drawWatermark = () => {
       if (!logoImg) return;
@@ -663,10 +668,10 @@ async function downloadResultPDF(score, total, percent, examTitle, breakdown = {
     let y = 55;
     if (logoImg) pdfDoc.addImage(logoImg, "PNG", marginX, 30, 36, 36);
     pdfDoc.setFontSize(17);
-    pdfDoc.setFont(undefined, "bold");
+    pdfDoc.setFont(bnFont, "bold");
     pdfDoc.text("Tech Verse Course", marginX + 46, 50);
     pdfDoc.setFontSize(10);
-    pdfDoc.setFont(undefined, "normal");
+    pdfDoc.setFont(bnFont, "normal");
     pdfDoc.setTextColor(110, 110, 110);
     pdfDoc.text("Exam Result Report", marginX + 46, 65);
     pdfDoc.setTextColor(0, 0, 0);
@@ -677,18 +682,18 @@ async function downloadResultPDF(score, total, percent, examTitle, breakdown = {
     y += 28;
 
     pdfDoc.setFontSize(14);
-    pdfDoc.setFont(undefined, "bold");
+    pdfDoc.setFont(bnFont, "bold");
     pdfDoc.text(examTitle || "Exam", marginX, y);
     y += 22;
 
     pdfDoc.setFontSize(11);
-    pdfDoc.setFont(undefined, "normal");
+    pdfDoc.setFont(bnFont, "normal");
     const studentLine = `Student: ${currentUser?.displayName || currentUser?.email || "-"}`;
     pdfDoc.text(studentLine, marginX, y); y += 16;
     pdfDoc.text(`Date: ${new Date().toLocaleString()}`, marginX, y); y += 16;
-    pdfDoc.setFont(undefined, "bold");
+    pdfDoc.setFont(bnFont, "bold");
     pdfDoc.text(`Score: ${formatScore(score)} / ${total}  (${percent}%)`, marginX, y); y += 16;
-    pdfDoc.setFont(undefined, "normal");
+    pdfDoc.setFont(bnFont, "normal");
     pdfDoc.text(`Correct: ${correctCount}   Wrong: ${wrongCount}   Unanswered: ${unansweredCount}`, marginX, y); y += 16;
     pdfDoc.text(`Time Taken: ${formatDuration(timeTakenSeconds)}`, marginX, y); y += 16;
     if (negativeMarking > 0) {
@@ -697,7 +702,7 @@ async function downloadResultPDF(score, total, percent, examTitle, breakdown = {
     y += 14;
 
     pdfDoc.setFontSize(13);
-    pdfDoc.setFont(undefined, "bold");
+    pdfDoc.setFont(bnFont, "bold");
     pdfDoc.text("Answer Review", marginX, y);
     y += 20;
     pdfDoc.setFontSize(10);
@@ -717,12 +722,12 @@ async function downloadResultPDF(score, total, percent, examTitle, breakdown = {
         y = 50;
       }
 
-      pdfDoc.setFont(undefined, "bold");
+      pdfDoc.setFont(bnFont, "bold");
       pdfDoc.setTextColor(0, 0, 0);
       pdfDoc.text(qLines, marginX, y);
       y += qLines.length * 14;
 
-      pdfDoc.setFont(undefined, "normal");
+      pdfDoc.setFont(bnFont, "normal");
       pdfDoc.setTextColor(correct ? 20 : 195, correct ? 130 : 45, correct ? 70 : 45);
       const yourAnsLines = pdfDoc.splitTextToSize(`Your answer: ${userAns !== undefined ? q.options[userAns] : "No answer given"}`, contentWidth - 10);
       pdfDoc.text(yourAnsLines, marginX + 10, y);
@@ -736,10 +741,10 @@ async function downloadResultPDF(score, total, percent, examTitle, breakdown = {
       }
       if (hasExplanation) {
         pdfDoc.setTextColor(120, 90, 20);
-        pdfDoc.setFont(undefined, "italic");
+        pdfDoc.setFont(bnFont, "normal");
         pdfDoc.text(explanationLines, marginX + 10, y);
         y += explanationLines.length * 14;
-        pdfDoc.setFont(undefined, "normal");
+        pdfDoc.setFont(bnFont, "normal");
       }
       pdfDoc.setTextColor(0, 0, 0);
       y += 10;

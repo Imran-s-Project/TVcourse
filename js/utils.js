@@ -667,3 +667,72 @@ export function getExamAvailability(exam) {
   else if (closesAt && now > closesAt) state = "closed";
   return { state, publishAt, closesAt };
 }
+
+/* -------- Shared Bengali-Unicode font loader for jsPDF --------
+   jsPDF's built-in fonts (Helvetica etc.) only cover Latin characters.
+   Bengali text drawn with them comes out as garbled boxes/symbols instead
+   of real Bengali letters. This loads Noto Sans Bengali (Regular + Bold)
+   once, caches the base64 in memory for the rest of the session, and
+   registers it with whichever jsPDF document instance needs it — used by
+   every PDF export on the site (exam result, profile/certificate, admin
+   reports) so all downloaded PDFs show clear, correctly-shaped Bengali
+   text instead of the old symbol/garbled output. ---------- */
+const BENGALI_FONT_REGULAR_URL = "https://notofonts.github.io/bengali/fonts/NotoSansBengali/hinted/ttf/NotoSansBengali-Regular.ttf";
+const BENGALI_FONT_BOLD_URL = "https://notofonts.github.io/bengali/fonts/NotoSansBengali/hinted/ttf/NotoSansBengali-Bold.ttf";
+let _bengaliFontFilesPromise = null;
+
+function _arrayBufferToBase64(buf) {
+  let binary = "";
+  const bytes = new Uint8Array(buf);
+  const chunkSize = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
+  }
+  return btoa(binary);
+}
+
+async function _fetchFontBase64(url) {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Font fetch failed (${res.status}): ${url}`);
+  return _arrayBufferToBase64(await res.arrayBuffer());
+}
+
+function _loadBengaliFontFiles() {
+  if (!_bengaliFontFilesPromise) {
+    _bengaliFontFilesPromise = (async () => {
+      const regular = await _fetchFontBase64(BENGALI_FONT_REGULAR_URL);
+      // Bold is a nice-to-have — if it fails to fetch, reuse Regular so
+      // setFont(..., "bold") still renders correct Bengali glyphs (just
+      // not visually bolder) instead of throwing or falling back to Helvetica.
+      const bold = await _fetchFontBase64(BENGALI_FONT_BOLD_URL).catch(() => regular);
+      return { regular, bold };
+    })().catch((err) => {
+      _bengaliFontFilesPromise = null; // allow retry on next PDF export
+      throw err;
+    });
+  }
+  return _bengaliFontFilesPromise;
+}
+
+/**
+ * Registers Noto Sans Bengali with a jsPDF document instance so Bengali
+ * text renders correctly instead of as garbled symbols. Call once right
+ * after `new jsPDF(...)`, before drawing any text, then use
+ * doc.setFont("NotoSansBengali", "normal" | "bold").
+ * Returns true if the font is ready, false if it couldn't be loaded (e.g.
+ * offline) — callers should fall back to the default font rather than throw.
+ */
+export async function useBengaliFont(pdfDoc) {
+  try {
+    const { regular, bold } = await _loadBengaliFontFiles();
+    pdfDoc.addFileToVFS("NotoSansBengali-Regular.ttf", regular);
+    pdfDoc.addFont("NotoSansBengali-Regular.ttf", "NotoSansBengali", "normal");
+    pdfDoc.addFileToVFS("NotoSansBengali-Bold.ttf", bold);
+    pdfDoc.addFont("NotoSansBengali-Bold.ttf", "NotoSansBengali", "bold");
+    pdfDoc.setFont("NotoSansBengali", "normal");
+    return true;
+  } catch (err) {
+    console.error("Bengali PDF font failed to load, falling back to default font:", err);
+    return false;
+  }
+}

@@ -10,7 +10,7 @@ import {
 import {
   initNav, requireAdmin, toast, escapeHtml, toBnDigits, formatDate, formatDateTime, getExamAvailability,
   openModal, closeModal, confirmAction, youTubeId, videoThumbnail, isDirectVideo,
-  getCoursePricing, priceBadgeHtml, formatScore, formatDuration,
+  getCoursePricing, priceBadgeHtml, formatScore, formatDuration, useBengaliFont,
 } from "./utils.js";
 
 initNav("admin");
@@ -1966,6 +1966,11 @@ async function downloadPurchasePdf(id, triggerBtn) {
     /* ── Canvas size: compact card, not A4 ── */
     const W = 440, H = 620;
     const doc = new jsPDF({ unit: "pt", format: [W, H], orientation: "portrait" });
+    // Load Noto Sans Bengali so Bengali text renders as real glyphs instead
+    // of garbled symbols; bnFont falls back to undefined (jsPDF default)
+    // only if the font failed to load.
+    const bnLoaded = await useBengaliFont(doc);
+    const bnFont = bnLoaded ? "NotoSansBengali" : undefined;
 
     /* ── Helpers ── */
     const hex = (h) => {
@@ -2011,11 +2016,11 @@ async function downloadPurchasePdf(id, triggerBtn) {
     if (logoImg) {
       doc.addImage(logoImg, "PNG", cardX + 16, cardY + 16, 34, 34);
     }
-    doc.setFont(undefined, "bold");
+    doc.setFont(bnFont, "bold");
     doc.setFontSize(15);
     setTxt("#ffffff");
     doc.text("Tech Verse Course", cardX + (logoImg ? 58 : 16), cardY + 34);
-    doc.setFont(undefined, "normal");
+    doc.setFont(bnFont, "normal");
     doc.setFontSize(8.5);
     doc.setTextColor(200, 200, 240);
     doc.text("Course Purchase Receipt", cardX + (logoImg ? 58 : 16), cardY + 48);
@@ -2033,14 +2038,14 @@ async function downloadPurchasePdf(id, triggerBtn) {
     const [dR,dG,dB] = hex(sc.dot);
     doc.setFillColor(dR, dG, dB);
     doc.circle(badgeX + 10, badgeY + 10, 3.5, "F");
-    doc.setFont(undefined, "bold");
+    doc.setFont(bnFont, "bold");
     doc.setFontSize(8.5);
     doc.text(statusLabel, badgeX + 17, badgeY + 13.5);
 
     /* ── Course title block ── */
     let y = cardY + 88;
     setTxt(ACCENT);
-    doc.setFont(undefined, "bold");
+    doc.setFont(bnFont, "bold");
     doc.setFontSize(13);
     const courseName = p.courseTitle || "Course";
     const courseLines = doc.splitTextToSize(courseName, cardW - 32);
@@ -2051,7 +2056,7 @@ async function downloadPurchasePdf(id, triggerBtn) {
     setFill("#eef2ff");
     doc.roundedRect(cardX + 16, y, cardW - 32, 18, 4, 4, "F");
     setTxt("#4338ca");
-    doc.setFont(undefined, "normal");
+    doc.setFont(bnFont, "normal");
     doc.setFontSize(7.5);
     doc.text(`ORDER ID: ${p.id}`, cardX + 22, y + 12);
     y += 28;
@@ -2068,12 +2073,12 @@ async function downloadPurchasePdf(id, triggerBtn) {
     const colW  = cardW / 2 - 24;
 
     const infoCell = (label, value, x, cy) => {
-      doc.setFont(undefined, "normal");
+      doc.setFont(bnFont, "normal");
       doc.setFontSize(7.5);
       setTxt(LABEL_C);
       doc.text(label.toUpperCase(), x, cy);
       cy += 12;
-      doc.setFont(undefined, "bold");
+      doc.setFont(bnFont, "bold");
       doc.setFontSize(9.5);
       setTxt(VAL_C);
       const vLines = doc.splitTextToSize(String(value || "—"), colW);
@@ -2119,12 +2124,12 @@ async function downloadPurchasePdf(id, triggerBtn) {
       doc.setLineWidth(1);
       doc.roundedRect(cardX + 16, y, cardW - 32, 44, 6, 6, "FD");
 
-      doc.setFont(undefined, "normal");
+      doc.setFont(bnFont, "normal");
       doc.setFontSize(7.5);
       setTxt("#166534");
       doc.text("ACCESS CODE", cardX + 26, y + 14);
 
-      doc.setFont(undefined, "bold");
+      doc.setFont(bnFont, "bold");
       doc.setFontSize(14);
       setTxt("#15803d");
       doc.text(formatAccessCodeForDisplay(p.accessCode), cardX + 26, y + 33);
@@ -2137,7 +2142,7 @@ async function downloadPurchasePdf(id, triggerBtn) {
     doc.line(cardX + 16, y, cardX + cardW - 16, y);
     y += 14;
     setTxt(LABEL_C);
-    doc.setFont(undefined, "normal");
+    doc.setFont(bnFont, "normal");
     doc.setFontSize(7.5);
     doc.text("Thank you for your purchase · Tech Verse Course", cardX + 16, y);
     doc.setFontSize(7);
@@ -2533,6 +2538,11 @@ async function exportLeaderboardPdf(mode, rows, usersMap, examId) {
   try {
     const logoImg = await loadLeaderboardLogo();
     const doc = new jsPDF({ unit: "pt", format: "a4", orientation: "landscape" });
+    // Load Noto Sans Bengali so Bengali text renders as real glyphs instead
+    // of garbled symbols; bnFont falls back to undefined (jsPDF default)
+    // only if the font failed to load.
+    const bnLoaded = await useBengaliFont(doc);
+    const bnFont = bnLoaded ? "NotoSansBengali" : undefined;
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
     const examLabel = examId ? (currentExams.find((e) => e.id === examId)?.title || "Exam") : "All Exams (Combined)";
@@ -2549,11 +2559,11 @@ async function exportLeaderboardPdf(mode, rows, usersMap, examId) {
     const drawHeader = () => {
       if (logoImg) doc.addImage(logoImg, "PNG", 30, 20, 30, 30);
       doc.setFontSize(15);
-      doc.setFont(undefined, "bold");
+      doc.setFont(bnFont, "bold");
       doc.setTextColor(0, 0, 0);
       doc.text("Tech Verse Course — Leaderboard", logoImg ? 68 : 30, 38);
       doc.setFontSize(9);
-      doc.setFont(undefined, "normal");
+      doc.setFont(bnFont, "normal");
       doc.setTextColor(110, 110, 110);
       doc.text(`${examLabel}  •  Generated ${new Date().toLocaleString()}`, logoImg ? 68 : 30, 52);
       doc.setTextColor(0, 0, 0);
