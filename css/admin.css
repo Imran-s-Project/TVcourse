@@ -333,6 +333,11 @@
 .purchase-detail-list { font-size: 0.85rem; line-height: 1.7; }
 .purchase-detail-list b { color: var(--text-primary); }
 
+/* ---------- Payment proof screenshot preview (purchase request review) ---------- */
+.pd-proof-wrap { margin-top: 14px; }
+.pd-proof-label { font-size: 0.82rem; font-weight: 700; color: var(--text-muted); margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+.pd-proof-img { width: 100%; max-height: 320px; object-fit: contain; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--bg-elevated-2); cursor: zoom-in; }
+
 /* ---------- ইউজার সারি (ক্লিক করলে ডিভাইস তথ্য দেখা যায়) ---------- */
 #users-table tbody tr.user-row { cursor: pointer; }
 .device-warning-badge {
