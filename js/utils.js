@@ -655,7 +655,69 @@ export function formatDateTime(ts) {
   return `${date.getDate()} ${months[date.getMonth()]}, ${date.getFullYear()} — ${h12}:${m} ${period}`;
 }
 
-/* ---------- Determine an exam's current state from its publish schedule ----------
+/* ==========================================================================
+   Access codes — structured 30-character format:
+     [ 10 chars: site segment ][ 10 chars: user segment ][ 10 chars: secret ]
+   Site segment is a fixed brand fingerprint (same on every code this site
+   issues). User segment is a deterministic fingerprint derived from the
+   user's UID — same user always gets the same 10 chars, so a code can be
+   visually/programmatically tied back to the account it was minted for
+   without a database lookup. Secret segment is pure randomness and is
+   never derivable from anything — it's what makes the code unguessable.
+   Shared here so admin.js (mint) and course.js (redeem + verify) can never
+   drift out of sync with each other.
+   ========================================================================== */
+export const ACCESS_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no 0/O/1/I — hard to misread
+export const ACCESS_CODE_SITE_SEGMENT = "TECHVERSEX"; // 10 chars — fixed brand fingerprint, first block of every code
+export const ACCESS_CODE_SEGMENT_LENGTH = 10;
+
+/* Deterministic 10-char fingerprint for a UID — same input always produces
+   the same output, using a 64-bit FNV-style rolling hash (BigInt) so it's
+   effectively unique per account without needing a lookup table. */
+export function accessCodeUserSegment(uid = "") {
+  let hash = 1469598103934665603n; // FNV offset basis
+  const prime = 1099511628211n;
+  const mask = (1n << 64n) - 1n;
+  for (let i = 0; i < uid.length; i++) {
+    hash = ((hash ^ BigInt(uid.charCodeAt(i))) * prime) & mask;
+  }
+  const base = BigInt(ACCESS_CODE_ALPHABET.length);
+  let out = "";
+  let h = hash;
+  for (let i = 0; i < ACCESS_CODE_SEGMENT_LENGTH; i++) {
+    out += ACCESS_CODE_ALPHABET[Number(h % base)];
+    h = h / base;
+    if (h === 0n) h = (hash + BigInt(i * 104729 + 7919)) & mask; // reseed so it never collapses to all-same-char
+  }
+  return out;
+}
+
+/* Cryptographically random 10-char secret segment — the part nobody can predict */
+export function accessCodeSecretSegment(length = ACCESS_CODE_SEGMENT_LENGTH) {
+  const arr = new Uint32Array(length);
+  if (window.crypto?.getRandomValues) window.crypto.getRandomValues(arr);
+  else for (let i = 0; i < length; i++) arr[i] = Math.floor(Math.random() * 4294967296);
+  let out = "";
+  for (let i = 0; i < length; i++) out += ACCESS_CODE_ALPHABET[arr[i] % ACCESS_CODE_ALPHABET.length];
+  return out;
+}
+
+/* Does this code's embedded user segment match this UID? A fast, offline
+   sanity check that catches a mistyped/foreign code before spending a
+   Firestore read on it. Not a replacement for the real uid check on the
+   stored document — just a first line of defense. */
+export function accessCodeMatchesUser(code = "", uid = "") {
+  const siteLen = ACCESS_CODE_SITE_SEGMENT.length;
+  const userSeg = (code || "").slice(siteLen, siteLen + ACCESS_CODE_SEGMENT_LENGTH);
+  return userSeg === accessCodeUserSegment(uid);
+}
+
+/* Insert a dash every 5 characters, purely for display/email — e.g. XXXXX-XXXXX-XXXXX-XXXXX-XXXXX-XXXXX */
+export function formatAccessCodeForDisplay(code = "") {
+  return code.replace(/(.{5})(?=.)/g, "$1-");
+}
+
+
    exam.publishAt (Timestamp) — when it becomes visible/available
    exam.closesAt  (Timestamp | null) — when it closes (null means no limit) */
 export function getExamAvailability(exam) {

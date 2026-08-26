@@ -11,6 +11,7 @@ import {
   initNav, requireAdmin, toast, escapeHtml, toBnDigits, formatDate, formatDateTime, getExamAvailability,
   openModal, closeModal, confirmAction, youTubeId, videoThumbnail, isDirectVideo,
   getCoursePricing, priceBadgeHtml, formatScore, formatDuration, useBengaliFont,
+  ACCESS_CODE_SITE_SEGMENT, accessCodeUserSegment, accessCodeSecretSegment, formatAccessCodeForDisplay,
 } from "./utils.js";
 
 initNav("admin");
@@ -1811,7 +1812,7 @@ function bindGenerateCodePanel(u) {
     const originalHtml = btn.innerHTML;
     btn.innerHTML = `<span class="spinner"></span>`;
     try {
-      const code = await generateUniqueAccessCode();
+      const code = await generateUniqueAccessCode(u.id);
       await setDoc(doc(db, "accessCodes", code), {
         uid: u.id,
         courseId,
@@ -1991,6 +1992,7 @@ async function loadPurchasesTable() {
       <td data-label="Status">${statusBadge(p.status)}</td>
       <td data-label=""><div class="row-actions">
         ${p.status === "pending" ? `
+          <button class="icon-btn" data-view="${p.id}" title="Review Details"><i class="fa-solid fa-eye"></i></button>
           <button class="icon-btn" data-approve="${p.id}" title="Approve"><i class="fa-solid fa-check"></i></button>
           <button class="icon-btn danger" data-reject="${p.id}" title="Reject"><i class="fa-solid fa-xmark"></i></button>
         ` : `<button class="icon-btn" data-view="${p.id}" title="Details"><i class="fa-solid fa-eye"></i></button>`}
@@ -2020,9 +2022,24 @@ function viewPurchaseDetail(id) {
       <div><b>Status:</b> ${escapeHtml(p.status)}</div>
       ${p.accessCode ? `<div><b>Access Code:</b> ${escapeHtml(formatAccessCodeForDisplay(p.accessCode))}</div>` : ""}
     </div>
-    <button type="button" class="btn btn-primary btn-block mt-16" id="purchase-detail-pdf-btn"><i class="fa-solid fa-file-pdf"></i> Download PDF</button>
+    ${
+      p.proofUrl
+        ? `<div class="pd-proof-wrap"><div class="pd-proof-label"><i class="fa-solid fa-image"></i> Payment Screenshot</div><a href="${escapeHtml(p.proofUrl)}" target="_blank" rel="noopener"><img src="${escapeHtml(p.proofUrl)}" class="pd-proof-img" alt="Payment proof"></a></div>`
+        : `<div class="empty-state" style="padding:14px;"><p style="font-size:0.85rem;">No payment screenshot was attached</p></div>`
+    }
+    ${
+      p.status === "pending"
+        ? `<div class="flex gap-12 mt-16">
+            <button type="button" class="btn btn-outline btn-block" id="purchase-detail-reject-btn"><i class="fa-solid fa-xmark"></i> Reject</button>
+            <button type="button" class="btn btn-primary btn-block" id="purchase-detail-approve-btn"><i class="fa-solid fa-check"></i> Approve</button>
+          </div>`
+        : ""
+    }
+    <button type="button" class="btn btn-outline btn-block mt-16" id="purchase-detail-pdf-btn"><i class="fa-solid fa-file-pdf"></i> Download PDF</button>
   `);
   overlay.querySelector("#purchase-detail-pdf-btn")?.addEventListener("click", (e) => downloadPurchasePdf(p.id, e.currentTarget));
+  overlay.querySelector("#purchase-detail-approve-btn")?.addEventListener("click", () => { closeModal(); approvePurchase(p.id); });
+  overlay.querySelector("#purchase-detail-reject-btn")?.addEventListener("click", () => { closeModal(); rejectPurchase(p.id); });
 }
 
 /* ---------- Export a single purchase/order as a PDF receipt — one course,
@@ -2201,18 +2218,23 @@ async function downloadPurchasePdf(id, triggerBtn) {
       const [acR,acG,acB] = hex("#bbf7d0");
       doc.setDrawColor(acR, acG, acB);
       doc.setLineWidth(1);
-      doc.roundedRect(cardX + 16, y, cardW - 32, 44, 6, 6, "FD");
+      doc.roundedRect(cardX + 16, y, cardW - 32, 58, 6, 6, "FD");
 
       doc.setFont(bnFont, "normal");
       doc.setFontSize(7.5);
       setTxt("#166534");
       doc.text("ACCESS CODE", cardX + 26, y + 14);
 
+      // Split the 30-character code (formatted into 6 dash-separated groups)
+      // across two lines so it always fits the card width regardless of font
       doc.setFont(bnFont, "bold");
-      doc.setFontSize(14);
+      doc.setFontSize(12.5);
       setTxt("#15803d");
-      doc.text(formatAccessCodeForDisplay(p.accessCode), cardX + 26, y + 33);
-      y += 56;
+      const codeGroups = formatAccessCodeForDisplay(p.accessCode).split("-");
+      const mid = Math.ceil(codeGroups.length / 2);
+      doc.text(codeGroups.slice(0, mid).join("-"), cardX + 26, y + 31);
+      doc.text(codeGroups.slice(mid).join("-"), cardX + 26, y + 47);
+      y += 70;
     }
 
     /* ── Footer ── */
@@ -2250,21 +2272,17 @@ async function downloadPurchasePdf(id, triggerBtn) {
   }
 }
 
-/* Generate a random 25-character access code — retries if the code is already taken */
-async function generateUniqueAccessCode() {
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // Easy to read — excludes confusing characters (0,O,1,I)
+/* Generate a 30-character structured access code — 10-char site fingerprint +
+   10-char deterministic user fingerprint + 10-char random secret — retries
+   if the (astronomically unlikely) full collision ever happens. */
+async function generateUniqueAccessCode(uid) {
+  const userSeg = accessCodeUserSegment(uid);
   for (let attempt = 0; attempt < 5; attempt++) {
-    let code = "";
-    for (let i = 0; i < 25; i++) code += chars[Math.floor(Math.random() * chars.length)];
+    const code = ACCESS_CODE_SITE_SEGMENT + userSeg + accessCodeSecretSegment();
     const snap = await getDoc(doc(db, "accessCodes", code));
     if (!snap.exists()) return code;
   }
   throw new Error("Could not generate code");
-}
-
-/* Insert a dash every 5 characters, purely for display/email — e.g. XXXXX-XXXXX-XXXXX-XXXXX-XXXXX */
-function formatAccessCodeForDisplay(code) {
-  return code.replace(/(.{5})(?=.)/g, "$1-");
 }
 
 async function approvePurchase(id) {
@@ -2273,7 +2291,7 @@ async function approvePurchase(id) {
   if (!(await confirmAction(`Approve "${p.userName}"'s request to purchase "${p.courseTitle}"? An access code will be sent to their email.`, { danger: false, confirmLabel: "Yes, Approve" }))) return;
 
   try {
-    const code = await generateUniqueAccessCode();
+    const code = await generateUniqueAccessCode(p.uid);
     await setDoc(doc(db, "accessCodes", code), {
       uid: p.uid,
       courseId: p.courseId,
