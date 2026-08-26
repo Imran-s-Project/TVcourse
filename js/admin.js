@@ -1373,6 +1373,7 @@ let allUsers = [];        // Users loaded so far across pages (search filters th
 let usersLastDoc = null;
 let usersHasMore = true;
 let usersSearchTerm = "";
+let usersActiveFilter = "all";
 
 function isUserOnline(u) {
   const ms = u.lastActive?.toMillis ? u.lastActive.toMillis() : 0;
@@ -1398,6 +1399,14 @@ async function loadUsersTable(reset = true) {
     usersSearchTerm = e.target.value.trim().toLowerCase();
     renderUsersTable();
   });
+  document.querySelectorAll("#user-filter-chips .chip").forEach((chip) =>
+    chip.addEventListener("click", () => {
+      document.querySelectorAll("#user-filter-chips .chip").forEach((c) => c.classList.remove("active"));
+      chip.classList.add("active");
+      usersActiveFilter = chip.dataset.filter;
+      renderUsersTable();
+    })
+  );
   document.getElementById("users-load-more-btn").addEventListener("click", async (e) => {
     e.currentTarget.disabled = true;
     e.currentTarget.innerHTML = `<span class="spinner"></span>`;
@@ -1478,9 +1487,18 @@ function startOnlineUsersPolling() {
 function renderUsersTable() {
   const tbody = document.querySelector("#users-table tbody");
   const term = usersSearchTerm;
-  const list = term
+  let list = term
     ? allUsers.filter((u) => (u.displayName || "").toLowerCase().includes(term) || (u.email || "").toLowerCase().includes(term))
     : allUsers;
+
+  const filters = {
+    all: () => true,
+    online: (u) => isUserOnline(u),
+    admin: (u) => !!u.isAdmin,
+    banned: (u) => !!u.suspended,
+    enrolled: (u) => (u.enrolledCourses || []).length > 0,
+  };
+  list = list.filter(filters[usersActiveFilter] || filters.all);
 
   if (!list.length) {
     tbody.innerHTML = `<tr><td colspan="2"><div class="empty-state">No users found</div></td></tr>`;
@@ -1491,6 +1509,7 @@ function renderUsersTable() {
       const deviceCount = u.deviceCount || 0;
       const multiDevice = deviceCount > 1;
       const online = isUserOnline(u);
+      const courseCount = (u.enrolledCourses || []).length;
       return `
     <tr class="user-row" data-view-user="${u.id}">
       <td data-label="User"><div class="cell-title">${userAvatarHtml(u)}<div>
@@ -1500,7 +1519,7 @@ function renderUsersTable() {
           ${u.isAdmin ? `<span class="user-admin-badge"><i class="fa-solid fa-star"></i> Admin</span>` : ""}
           ${multiDevice ? ` <span class="badge badge-coral device-warning-badge" title="Multiple different devices detected logging in/signing up"><i class="fa-solid fa-triangle-exclamation"></i> ${deviceCount} devices</span>` : ""}
         </div>
-        <div class="s">${escapeHtml(u.email || "")}</div>
+        <div class="s">${escapeHtml(u.email || "")} · <span class="user-course-count">${courseCount} course${courseCount === 1 ? "" : "s"}</span></div>
       </div></div></td>
       <td data-label=""><i class="fa-solid fa-chevron-right user-row-arrow"></i></td>
     </tr>`;
@@ -1644,22 +1663,28 @@ async function deleteUserAccount(u) {
 function renderUserDetailBody(u) {
   const bodyEl = document.getElementById("user-detail-body");
   bodyEl.innerHTML = `
-    <div class="udp-grid">
+    <div class="card udp-code-card">
+      <h3 class="mb-12"><i class="fa-solid fa-key"></i> Generate Access Code</h3>
+      <p class="muted" style="font-size:0.85rem; margin-bottom:10px;">This is the only way to give this user access to a course. Pick a course and issue a code locked to their account.</p>
+      <div class="field" style="margin:0;">
+        <label>Course</label>
+        <select id="udp-code-course-select">${courses.map((c) => `<option value="${c.id}">${escapeHtml(c.title || "Untitled")}</option>`).join("")}</select>
+      </div>
+      <button type="button" class="btn btn-primary mt-16" id="udp-generate-code-btn"><i class="fa-solid fa-wand-magic-sparkles"></i> Generate Code</button>
+      <div id="udp-generated-code-box"></div>
+    </div>
+
+    <div class="udp-grid mt-16">
       <div class="card">
-        <h3 class="mb-12"><i class="fa-solid fa-book"></i> Course Access</h3>
-        <p class="muted" style="font-size:0.85rem; margin-bottom:10px;">Grant or take away access to any course, regardless of purchase status</p>
+        <h3 class="mb-12"><i class="fa-solid fa-book-open-reader"></i> Enrolled Courses</h3>
+        <p class="muted" style="font-size:0.85rem; margin-bottom:10px;">Courses this user currently has access to. Access can only be revoked here — to add a course, generate an access code above</p>
         <div id="udp-course-access-list"><div class="loading-screen"><span class="spinner"></span></div></div>
       </div>
 
       <div class="card">
-        <h3 class="mb-12"><i class="fa-solid fa-key"></i> Generate Access Code</h3>
-        <p class="muted" style="font-size:0.85rem; margin-bottom:10px;">If this user is having trouble, generate a fresh code locked to their account and a specific course</p>
-        <div class="field" style="margin:0;">
-          <label>Course</label>
-          <select id="udp-code-course-select">${courses.map((c) => `<option value="${c.id}">${escapeHtml(c.title || "Untitled")}</option>`).join("")}</select>
-        </div>
-        <button type="button" class="btn btn-primary mt-16" id="udp-generate-code-btn"><i class="fa-solid fa-wand-magic-sparkles"></i> Generate Code</button>
-        <div id="udp-generated-code-box"></div>
+        <h3 class="mb-12"><i class="fa-solid fa-clock-rotate-left"></i> Access Code History</h3>
+        <p class="muted" style="font-size:0.85rem; margin-bottom:10px;">Every code ever issued to this user, used or not</p>
+        <div id="udp-code-history"><div class="loading-screen"><span class="spinner"></span></div></div>
       </div>
 
       <div class="card">
@@ -1674,45 +1699,46 @@ function renderUserDetailBody(u) {
     </div>
   `;
 
-  renderCourseAccessPanel(u);
+  renderEnrolledCoursesPanel(u);
   bindGenerateCodePanel(u);
+  loadAccessCodeHistory(u);
   loadUserPurchaseHistory(u.id);
   loadUserDevicesPanel(u.id);
 }
 
-/* ---------- Course access: grant/revoke enrolledCourses for this user ---------- */
-function renderCourseAccessPanel(u) {
+/* ---------- Enrolled courses: read-only, revoke-only. Granting access is only
+   allowed through a redeemed access code — never a direct toggle here. ---------- */
+function renderEnrolledCoursesPanel(u) {
   const el = document.getElementById("udp-course-access-list");
-  if (!courses.length) {
-    el.innerHTML = `<div class="empty-state">No courses exist yet</div>`;
+  const enrolled = courses.filter((c) => (u.enrolledCourses || []).includes(c.id));
+  if (!enrolled.length) {
+    el.innerHTML = `<div class="empty-state">Not enrolled in any course yet</div>`;
     return;
   }
-  el.innerHTML = courses
-    .map((c) => {
-      const has = (u.enrolledCourses || []).includes(c.id);
-      return `
+  el.innerHTML = enrolled
+    .map(
+      (c) => `
       <div class="access-course-row">
         <div><div class="t">${escapeHtml(c.title || "Untitled")}</div><div class="s">${escapeHtml(c.category || "")}</div></div>
-        <button type="button" class="btn btn-sm ${has ? "btn-danger" : "btn-primary"}" data-access-course="${c.id}" data-has="${has ? "1" : "0"}">
-          ${has ? '<i class="fa-solid fa-xmark"></i> Revoke' : '<i class="fa-solid fa-plus"></i> Grant'}
+        <button type="button" class="btn btn-sm btn-danger" data-revoke-course="${c.id}">
+          <i class="fa-solid fa-xmark"></i> Revoke
         </button>
-      </div>`;
-    })
+      </div>`
+    )
     .join("");
 
-  el.querySelectorAll("[data-access-course]").forEach((btn) =>
+  el.querySelectorAll("[data-revoke-course]").forEach((btn) =>
     btn.addEventListener("click", async () => {
-      const courseId = btn.dataset.accessCourse;
-      const has = btn.dataset.has === "1";
+      const courseId = btn.dataset.revokeCourse;
+      const course = courses.find((c) => c.id === courseId);
+      const ok = await confirmAction(`Revoke access to "${course?.title || "this course"}" for "${u.displayName || u.email}"?`, { danger: true, confirmLabel: "Yes, Revoke" });
+      if (!ok) return;
       btn.disabled = true;
       try {
-        await updateDoc(doc(db, "users", u.id), { enrolledCourses: has ? arrayRemove(courseId) : arrayUnion(courseId) });
-        if (!has) await updateDoc(doc(db, "courses", courseId), { enrollCount: increment(1) }).catch(() => {});
-        toast(has ? "Access revoked" : "Access granted", "success");
-        u.enrolledCourses = has
-          ? (u.enrolledCourses || []).filter((id) => id !== courseId)
-          : [...(u.enrolledCourses || []), courseId];
-        renderCourseAccessPanel(u);
+        await updateDoc(doc(db, "users", u.id), { enrolledCourses: arrayRemove(courseId) });
+        toast("Access revoked", "success");
+        u.enrolledCourses = (u.enrolledCourses || []).filter((id) => id !== courseId);
+        renderEnrolledCoursesPanel(u);
         renderUserDetailHeader(u);
       } catch {
         toast("Could not update access", "error");
@@ -1720,6 +1746,58 @@ function renderCourseAccessPanel(u) {
       }
     })
   );
+}
+
+/* ---------- Access code history: every code ever issued to this user, so the
+   admin has full visibility even though codes are the only path to access ---------- */
+async function loadAccessCodeHistory(u) {
+  const el = document.getElementById("udp-code-history");
+  try {
+    const snap = await getDocs(query(collection(db, "accessCodes"), where("uid", "==", u.id)));
+    const list = snap.docs
+      .map((d) => ({ id: d.id, ...d.data() }))
+      .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+    if (!list.length) {
+      el.innerHTML = `<div class="empty-state">No access codes issued to this user yet</div>`;
+      return;
+    }
+    el.innerHTML = `<div class="code-history-list">${list
+      .map((code) => {
+        const course = courses.find((c) => c.id === code.courseId);
+        const statusBadge = code.used
+          ? `<span class="badge badge-teal">Used</span>`
+          : `<span class="badge badge-amber">Unused</span>`;
+        return `
+        <div class="code-history-row">
+          <div class="code-history-main">
+            <div class="t">${escapeHtml(course?.title || "Unknown course")} ${statusBadge}</div>
+            <div class="s"><code>${formatAccessCodeForDisplay(code.id)}</code></div>
+            <div class="s">Issued ${formatDate(code.createdAt)}${code.used ? ` · Used ${formatDate(code.usedAt)}` : ""}${code.manual ? " · Manual" : " · From purchase"}</div>
+          </div>
+          ${!code.used ? `<button type="button" class="icon-btn danger" data-revoke-code="${code.id}" title="Invalidate this code"><i class="fa-solid fa-trash"></i></button>` : ""}
+        </div>`;
+      })
+      .join("")}</div>`;
+
+    el.querySelectorAll("[data-revoke-code]").forEach((btn) =>
+      btn.addEventListener("click", async () => {
+        const codeId = btn.dataset.revokeCode;
+        const ok = await confirmAction("Invalidate this unused access code? It can no longer be redeemed.", { danger: true, confirmLabel: "Yes, Invalidate" });
+        if (!ok) return;
+        btn.disabled = true;
+        try {
+          await deleteDoc(doc(db, "accessCodes", codeId));
+          toast("Code invalidated", "success");
+          loadAccessCodeHistory(u);
+        } catch {
+          toast("Could not invalidate the code", "error");
+          btn.disabled = false;
+        }
+      })
+    );
+  } catch {
+    el.innerHTML = `<div class="empty-state">Could not load access code history</div>`;
+  }
 }
 
 /* ---------- Manual access-code generation, tied to this user + a chosen course ---------- */
@@ -1762,6 +1840,7 @@ function bindGenerateCodePanel(u) {
         ev.currentTarget.disabled = false;
       });
       toast("Access code generated", "success");
+      loadAccessCodeHistory(u);
     } catch {
       toast("Could not generate a code, please try again", "error");
     } finally {
