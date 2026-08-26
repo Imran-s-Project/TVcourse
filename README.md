@@ -42,12 +42,30 @@ service cloud.firestore {
 
       // নিজের অ্যাকাউন্ট নিজে ডিলিট করতে পারবে (প্রোফাইল পেজের "অ্যাকাউন্ট মুছে ফেলুন"), অ্যাডমিনও যে-কারো ডিলিট করতে পারবে
       allow delete: if isAdmin() || (isSignedIn() && request.auth.uid == uid);
+
+      /* ---------- ইউজারের ডিভাইস তালিকা (কোন কোন ফোন/ব্রাউজার থেকে লগইন/সাইন-আপ হয়েছে) ---------- */
+      match /devices/{deviceId} {
+        // নিজের ডিভাইস তালিকা নিজে পড়তে পারবে, অ্যাডমিনও যে-কারো ডিভাইস তালিকা পড়তে পারবে (ওয়ার্নিং দেখানোর জন্য)
+        allow read: if isSignedIn() && (request.auth.uid == uid || isAdmin());
+
+        // লগইন/সাইন-আপের সময় ইউজার নিজেই নিজের ডিভাইস রেকর্ড লিখবে (auth.js এর recordDeviceLogin ফাংশন)
+        allow create, update: if isSignedIn() && request.auth.uid == uid;
+
+        allow delete: if isAdmin();
+      }
     }
 
     /* ---------- কোর্স ---------- */
     match /courses/{courseId} {
       allow read: if true;
       allow write: if isAdmin();
+
+      // সাইন-ইন করা যেকোনো ইউজার এনরোল হওয়ার সময় শুধু enrollCount সংখ্যাটা বাড়াতে পারবে —
+      // বাকি কোনো ফিল্ড বদলাতে পারবে না (কোর্সের তথ্য সুরক্ষিত থাকে, শুধু গণনা বাড়ে)
+      allow update: if isSignedIn()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["enrollCount"])
+        && request.resource.data.enrollCount ==
+           (("enrollCount" in resource.data ? resource.data.enrollCount : 0) + 1);
 
       match /lessons/{lessonId} {
         allow read: if true;
@@ -67,8 +85,6 @@ service cloud.firestore {
     }
 
     /* ---------- পরীক্ষার ফলাফল ---------- */
-    // অ্যাডমিন প্যানেলের "Leaderboard" ও "Overview" পেজ সব ইউজারের ফলাফল একসাথে দেখায়,
-    // তাই read রুলে `|| isAdmin()` অবশ্যই থাকতে হবে (নিচে আছে) — বাদ দিলে ঐ দুই পেজ ডেটা লোড করতে পারবে না।
     match /results/{resultId} {
       allow read: if isSignedIn() && (resource.data.uid == request.auth.uid || isAdmin());
       allow create: if isSignedIn() && request.resource.data.uid == request.auth.uid;
@@ -77,22 +93,37 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    /* ---------- সাইট সেটিংস (হোমপেজ হিরো + ফিচার্ড ভিডিও + পেমেন্ট নাম্বার) ---------- */
+    /* ---------- সাইট সেটিংস (হোমপেজ হিরো + ফিচার্ড ভিডিও + পেমেন্ট নাম্বার + পারচেজ পজ সুইচ) ----------
+       docId "homepage", "purchases" ইত্যাদি সবাই পড়তে পারবে (লগআউট অবস্থাতেও),
+       শুধু "payment" (পেমেন্ট নাম্বার) পড়তে লগইন লাগবে — বাকি সব নিচের একই rule কভার করে। */
     match /settings/{docId} {
-      // হোমপেজ সেটিংস সবাই পড়তে পারবে (লগআউট অবস্থাতেও), কিন্তু পেমেন্ট নাম্বার শুধু লগইন করা ইউজার পড়তে পারবে
       allow read: if docId != "payment" || isSignedIn();
       allow write: if isAdmin();
     }
 
     /* ---------- নোটিফিকেশন (অ্যাডমিন প্যানেল থেকে পাঠানো, কোর্স-ট্যাগসহ) ----------
-       শুধু অ্যাডমিন লিখতে/এডিট/ডিলিট করতে পারবে; যেকোনো লগইন করা ইউজার পড়তে পারবে
-       (কোন কোন নোটিফিকেশন আসলে দেখানো হবে সেটা client-side এ অডিয়েন্স/enrolledCourses
-       দিয়ে ফিল্টার হয় — js/notifications.js দেখুন)। "পড়া হয়েছে" স্ট্যাটাস
-       users/{uid}.notifReadIds ফিল্ডে সেভ হয়, যেটা users/{uid} এর বিদ্যমান update
-       রুলেই কভার হয়ে যায় (isAdmin ফিল্ড অপরিবর্তিত থাকে), তাই এখানে আলাদা রুল লাগে না। */
+       শুধু অ্যাডমিন লিখতে/এডিট/ডিলিট করতে পারবে। যেকোনো লগইন করা ইউজার সবগুলো ডকুমেন্ট
+       পড়তে পারবে (কোনটা আসলে দেখানো হবে তা client-side এ audience/enrolledCourses
+       দিয়ে ফিল্টার হয় — js/notifications.js), তাই read এখানে খোলা রাখা নিরাপদ, কারণ
+       ভেতরের কোনো তথ্যই sensitive না (শুধু টাইটেল/মেসেজ/কোর্স-ট্যাগ)।
+       create/update এ স্ট্রং ভ্যালিডেশন: টাইটেল/মেসেজ খালি রাখা যাবে না,
+       audience অবশ্যই "all" বা "enrolled" হতে হবে, courseIds/courseTitles অবশ্যই list হতে হবে। */
     match /notifications/{notifId} {
       allow read: if isSignedIn();
-      allow write: if isAdmin();
+
+      allow create: if isAdmin()
+        && request.resource.data.title is string && request.resource.data.title.size() > 0
+        && request.resource.data.message is string && request.resource.data.message.size() > 0
+        && request.resource.data.audience in ["all", "enrolled"]
+        && request.resource.data.courseIds is list
+        && request.resource.data.courseTitles is list;
+
+      allow update: if isAdmin()
+        && request.resource.data.title is string && request.resource.data.title.size() > 0
+        && request.resource.data.message is string && request.resource.data.message.size() > 0
+        && request.resource.data.audience in ["all", "enrolled"];
+
+      allow delete: if isAdmin();
     }
 
     /* ---------- পেইড কোর্স: ক্রয় অনুরোধ ---------- */
