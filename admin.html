@@ -292,8 +292,15 @@
         </div>
 
         <div class="card mt-16">
-          <div class="field" style="max-width:320px; margin-bottom:16px;">
+          <div class="field" style="max-width:320px; margin-bottom:14px;">
             <input type="text" id="user-search-input" placeholder="Search loaded users by name or email">
+          </div>
+          <div class="user-filter-chips" id="user-filter-chips">
+            <button type="button" class="chip active" data-filter="all">All</button>
+            <button type="button" class="chip" data-filter="online">Online</button>
+            <button type="button" class="chip" data-filter="admin">Admins</button>
+            <button type="button" class="chip" data-filter="banned">Banned</button>
+            <button type="button" class="chip" data-filter="enrolled">Has Courses</button>
           </div>
           <div class="table-wrap"><table class="data-table table-scroll-x" id="users-table">
             <thead><tr><th>User</th><th></th></tr></thead>
