@@ -461,6 +461,30 @@
 }
 .gen-code-result code { font-family: var(--font-utility); font-size: 0.95rem; letter-spacing: 0.5px; color: var(--accent-amber-soft); font-weight: 700; }
 
+/* Generate Access Code — the one and only way to grant a user course access,
+   so it gets top billing above the rest of the user-detail cards */
+.udp-code-card { border-color: var(--accent-amber-soft); }
+
+/* ---------- User list — quick filter chips ---------- */
+.user-filter-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+.user-filter-chips .chip {
+  padding: 6px 15px; border-radius: 999px; font-size: 0.8rem; font-weight: 600; cursor: pointer;
+  background: var(--bg-elevated-2); border: 1px solid var(--border); color: var(--text-muted); transition: all .15s;
+}
+.user-filter-chips .chip.active, .user-filter-chips .chip:hover { border-color: var(--accent-amber-soft); color: var(--accent-amber-soft); }
+.user-course-count { color: var(--text-muted); }
+
+/* ---------- Access code history list (in user detail) ---------- */
+.code-history-list { display: flex; flex-direction: column; gap: 8px; max-height: 340px; overflow-y: auto; }
+.code-history-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px; background: var(--bg-elevated-2);
+  border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px;
+}
+.code-history-main { min-width: 0; }
+.code-history-main .t { font-weight: 600; font-size: 0.86rem; margin-bottom: 3px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.code-history-main .s { font-size: 0.76rem; color: var(--text-muted); line-height: 1.6; }
+.code-history-main code { font-family: var(--font-utility); letter-spacing: 0.3px; }
+
 /* ==========================================================================
    Admin — Notifications: compact single-line list (tap a row for the full
    detail sheet) instead of the old stacked-card table row.
