@@ -3,7 +3,7 @@
 // Exported as initCoursePage(courseId, params) for the SPA router (app.js).
 // URL scheme: mydomain.com/#/course?id=xxx
 // ==========================================================================
-import { db, storage } from "./firebase-config.js";
+import { db } from "./firebase-config.js";
 import {
   doc,
   getDoc,
@@ -20,9 +20,8 @@ import {
   limit,
   serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-import { initNav, requireAuth, toast, escapeHtml, toBnDigits, getUserProfile, drivePreviewUrl, isDriveLink, openModal, closeModal, youTubeId, getExamAvailability, formatDateTime, getCoursePricing, accessCodeMatchesUser } from "./utils.js";
+import { initNav, requireAuth, toast, escapeHtml, toBnDigits, getUserProfile, drivePreviewUrl, isDriveLink, openModal, closeModal, youTubeId, getExamAvailability, formatDateTime, getCoursePricing } from "./utils.js";
 import { courseUrl } from "./router.js";
-import { ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-storage.js";
 
 // ── Per-session state (reset on every initCoursePage call) ────────────────
 let courseId = null;
@@ -274,7 +273,7 @@ function handleBuyClick(course) {
     openAlreadyPurchasedModal();
     return;
   }
-  openBuyModal(course, latestPurchaseStatus === "pending");
+  openBuyModal(course);
 }
 
 function openAlreadyPurchasedModal() {
@@ -330,7 +329,7 @@ async function loadPurchaseStatus(myToken) {
   }
 }
 
-function openBuyModal(course, isPending = false) {
+function openBuyModal(course) {
   const { price, discountPrice: discount, hasDiscount } = getCoursePricing(course);
   const payText = hasDiscount ? money(discount) : money(price);
   // The amount is never read from the DOM on submit — it's taken straight
@@ -345,65 +344,39 @@ function openBuyModal(course, isPending = false) {
 
   const overlay = openModal(`
     <div class="modal-head"><h3>Buy Course</h3><button class="modal-close-btn" data-modal-close><i class="fa-solid fa-xmark"></i></button></div>
-    ${
-      isPending
-        ? `<div class="purchase-form-notice"><i class="fa-solid fa-circle-info"></i> You already have a pending request for this course. Only send another if the first one had a mistake.</div>`
-        : ""
-    }
-    <form id="purchase-form" class="purchase-form-pro mt-16">
-      <div class="pf-step">
-        <div class="pf-step-head"><span class="pf-step-n">1</span> Send Payment</div>
-        <div class="field">
-          <label>Payment Method</label>
-          <select id="pf-method" required>
-            <option value="bKash">bKash</option>
-            <option value="Nagad">Nagad</option>
-            <option value="Rocket">Rocket</option>
-          </select>
-        </div>
-        <div id="pay-numbers-box" class="pay-numbers-box"><div class="loading-screen" style="min-height:40px;"><span class="spinner"></span></div></div>
-        <div class="pf-amount-due">Amount to send: <b>${payText}</b></div>
-      </div>
-
-      <div class="pf-step">
-        <div class="pf-step-head"><span class="pf-step-n">2</span> Your Details</div>
-        <div class="admin-grid">
-          <div class="field"><label>Your Name</label><input type="text" id="pf-name" required value="${escapeHtml(userProfile?.displayName || "")}"></div>
-          <div class="field locked-field">
-            <label>Phone Number</label>
-            <input type="tel" id="pf-phone" required placeholder="01XXXXXXXXX" value="${escapeHtml(lockedPhone)}" ${lockedPhone ? "readonly" : ""}>
-            <span class="field-lock-note">${
-              lockedPhone
-                ? `<i class="fa-solid fa-lock"></i> Saved on your profile — this cannot be changed`
-                : `<i class="fa-solid fa-triangle-exclamation"></i> Enter the correct number — it will be permanently locked after submitting`
-            }</span>
-          </div>
+    <p class="muted" style="font-size:0.9rem; margin-bottom:14px;">Choose a payment method below, send <b>${payText}</b> to the number shown, then fill out the form. An access code will be sent to your email once approved.</p>
+    <form id="purchase-form" class="mt-16">
+      <div class="admin-grid">
+        <div class="field"><label>Your Name</label><input type="text" id="pf-name" required value="${escapeHtml(userProfile?.displayName || "")}"></div>
+        <div class="field locked-field">
+          <label>Phone Number</label>
+          <input type="tel" id="pf-phone" required placeholder="01XXXXXXXXX" value="${escapeHtml(lockedPhone)}" ${lockedPhone ? "readonly" : ""}>
+          <span class="field-lock-note">${
+            lockedPhone
+              ? `<i class="fa-solid fa-lock"></i> Saved on your profile — this cannot be changed`
+              : `<i class="fa-solid fa-triangle-exclamation"></i> Enter the correct number — it will be permanently locked after submitting`
+          }</span>
         </div>
       </div>
-
-      <div class="pf-step">
-        <div class="pf-step-head"><span class="pf-step-n">3</span> Confirm Your Payment</div>
-        <div class="admin-grid">
-          <div class="field"><label>Sender Number</label><input type="tel" id="pf-sender" required placeholder="01XXXXXXXXX"></div>
-          <div class="field locked-field">
-            <label>Amount Sent</label>
-            <input type="number" id="pf-amount" required min="1" value="${fixedAmount}" readonly tabindex="-1">
-            <span class="field-lock-note"><i class="fa-solid fa-lock"></i> Fixed price — cannot be changed</span>
-          </div>
-        </div>
-        <div class="field"><label>Transaction ID</label><input type="text" id="pf-txn" placeholder="e.g. 8N7A2K9P1Q" autocapitalize="characters"></div>
-        <div class="field">
-          <label>Payment Screenshot <span class="muted" style="font-weight:400;">(optional, but speeds up approval)</span></label>
-          <label class="pf-proof-dropzone" id="pf-proof-dropzone">
-            <input type="file" id="pf-proof" accept="image/*" hidden>
-            <div id="pf-proof-placeholder"><i class="fa-solid fa-cloud-arrow-up"></i><span>Tap to attach the payment confirmation screenshot</span></div>
-            <img id="pf-proof-preview" style="display:none;">
-          </label>
+      <div class="field">
+        <label>Payment Method</label>
+        <select id="pf-method" required>
+          <option value="bKash">bKash</option>
+          <option value="Nagad">Nagad</option>
+          <option value="Rocket">Rocket</option>
+        </select>
+      </div>
+      <div id="pay-numbers-box" class="pay-numbers-box mb-16"><div class="loading-screen" style="min-height:40px;"><span class="spinner"></span></div></div>
+      <div class="admin-grid">
+        <div class="field"><label>Sender Number</label><input type="tel" id="pf-sender" required placeholder="01XXXXXXXXX"></div>
+        <div class="field locked-field">
+          <label>Amount Sent</label>
+          <input type="number" id="pf-amount" required min="1" value="${fixedAmount}" readonly tabindex="-1">
+          <span class="field-lock-note"><i class="fa-solid fa-lock"></i> Fixed price — cannot be changed</span>
         </div>
       </div>
-
-      <button type="submit" class="btn btn-primary btn-block" id="purchase-submit-btn">Send Request <i class="fa-solid fa-paper-plane"></i></button>
-      <p class="pf-secure-note"><i class="fa-solid fa-lock"></i> Your request is manually reviewed — an access code is emailed to you only after approval</p>
+      <div class="field"><label>Transaction ID (if any)</label><input type="text" id="pf-txn" placeholder="Optional"></div>
+      <button type="submit" class="btn btn-primary btn-block" id="purchase-submit-btn">Send Request</button>
     </form>
   `);
 
@@ -417,64 +390,17 @@ function openBuyModal(course, isPending = false) {
     renderSelectedPayNumber(overlay, paymentNumbers);
   });
 
-  // Proof screenshot: pick + live preview + size/type guard
-  let proofFile = null;
-  const proofInput = overlay.querySelector("#pf-proof");
-  const proofZone = overlay.querySelector("#pf-proof-dropzone");
-  const proofPreview = overlay.querySelector("#pf-proof-preview");
-  const proofPlaceholder = overlay.querySelector("#pf-proof-placeholder");
-  proofZone.addEventListener("click", (e) => {
-    if (e.target !== proofInput) proofInput.click();
-  });
-  proofInput.addEventListener("change", () => {
-    const file = proofInput.files?.[0];
-    if (!file) return;
-    if (!file.type.startsWith("image/")) {
-      toast("Please attach an image file", "error");
-      proofInput.value = "";
-      return;
-    }
-    if (file.size > 5 * 1024 * 1024) {
-      toast("Image is too large — please attach one under 5MB", "error");
-      proofInput.value = "";
-      return;
-    }
-    proofFile = file;
-    proofPreview.src = URL.createObjectURL(file);
-    proofPreview.style.display = "block";
-    proofPlaceholder.style.display = "none";
-  });
-
   overlay.querySelector("#purchase-form").addEventListener("submit", async (e) => {
     e.preventDefault();
     const btn = overlay.querySelector("#purchase-submit-btn");
     const phoneInput = (overlay.querySelector("#pf-phone").value || "").trim();
-    const senderInput = (overlay.querySelector("#pf-sender").value || "").trim();
-    const txnInput = overlay.querySelector("#pf-txn").value.trim();
     if (!/^01\d{9}$/.test(phoneInput)) {
       toast("Please enter a valid Bangladeshi mobile number (e.g. 01XXXXXXXXX)", "error");
       return;
     }
-    if (!/^01\d{9}$/.test(senderInput)) {
-      toast("Please enter a valid sender mobile number (e.g. 01XXXXXXXXX)", "error");
-      return;
-    }
-    if (txnInput && txnInput.length < 4) {
-      toast("That transaction ID looks too short — please double-check it", "error");
-      return;
-    }
-    const originalBtnHtml = btn.innerHTML;
     btn.disabled = true;
+    btn.innerHTML = `<span class="spinner"></span>`;
     try {
-      let proofUrl = "";
-      if (proofFile) {
-        btn.innerHTML = `<span class="spinner"></span> Uploading screenshot…`;
-        const ext = (proofFile.name.split(".").pop() || "jpg").toLowerCase().slice(0, 5);
-        const proofRef = ref(storage, `paymentProofs/${currentUser.uid}/${courseId}-${Date.now()}.${ext}`);
-        await uploadBytes(proofRef, proofFile);
-        proofUrl = await getDownloadURL(proofRef);
-      }
-      btn.innerHTML = `<span class="spinner"></span> Sending request…`;
       // If this profile somehow reached checkout without a saved phone
       // (pre-existing account from before this lock existed), save it to
       // the profile now so every purchase after this one is locked too.
@@ -490,10 +416,9 @@ function openBuyModal(course, isPending = false) {
         courseId,
         courseTitle: course.title,
         paymentMethod: overlay.querySelector("#pf-method").value,
-        senderNumber: senderInput,
+        senderNumber: overlay.querySelector("#pf-sender").value.trim(),
         amount: fixedAmount,
-        transactionId: txnInput,
-        proofUrl,
+        transactionId: overlay.querySelector("#pf-txn").value.trim(),
         status: "pending",
         accessCode: "",
         createdAt: serverTimestamp(),
@@ -504,7 +429,7 @@ function openBuyModal(course, isPending = false) {
     } catch (err) {
       toast("Could not send the request, please try again", "error");
       btn.disabled = false;
-      btn.innerHTML = originalBtnHtml;
+      btn.textContent = "Send Request";
     }
   });
 }
@@ -546,14 +471,7 @@ function renderSelectedPayNumber(overlay, numbersMap) {
         <div class="pn-number">${escapeHtml(number)}</div>
         <div class="muted" style="font-size:0.78rem;">${escapeHtml(method)} · ${escapeHtml(paymentType)}</div>
       </div>
-      <button type="button" class="icon-btn pn-copy-btn" id="pf-copy-number-btn" title="Copy number"><i class="fa-solid fa-copy"></i></button>
     </div>`;
-  box.querySelector("#pf-copy-number-btn")?.addEventListener("click", async () => {
-    try {
-      await navigator.clipboard.writeText(number);
-      toast("Number copied", "success");
-    } catch {}
-  });
 }
 
 // Popup used everywhere a course needs an access code — the only way to
@@ -562,31 +480,16 @@ function openAccessCodeModal(course) {
   const overlay = openModal(`
     <button type="button" class="modal-close-btn access-modal-close" data-modal-close><i class="fa-solid fa-xmark"></i></button>
     <div class="access-modal-surface paper">
-      <div class="access-modal-icon"><i class="fa-solid fa-shield-halved"></i></div>
-      <h3 class="access-modal-title">Enter Access Code</h3>
-      <p class="access-modal-sub">Enter the 30-character code sent to your email to unlock <b>${escapeHtml(course.title || "this course")}</b></p>
-      <input type="text" id="access-code-modal-input" class="access-modal-input access-modal-input-mono"
-        placeholder="XXXXX-XXXXX-XXXXX-XXXXX-XXXXX-XXXXX" maxlength="35" autocomplete="off" autocapitalize="characters" spellcheck="false">
-      <div class="access-modal-progress"><span id="access-code-progress-n">0</span>/30 characters</div>
-      <button type="button" class="btn btn-primary btn-block access-modal-submit" id="access-code-modal-submit"><i class="fa-solid fa-lock-open"></i> Unlock Course</button>
+      <h3 class="access-modal-title">Enter Course Access Code</h3>
+      <p class="access-modal-sub">Submit your access code to unlock the course</p>
+      <input type="text" id="access-code-modal-input" class="access-modal-input" placeholder="Enter your access code (e.g. XXXXX-XXXXX-XXXXX-XXXXX-XXXXX)" style="text-transform:uppercase;letter-spacing:1px;">
+      <button type="button" class="btn btn-primary btn-block access-modal-submit" id="access-code-modal-submit">Submit Code <i class="fa-solid fa-shield-halved"></i></button>
     </div>
   `);
   overlay.classList.add("access-modal-overlay");
   const input = overlay.querySelector("#access-code-modal-input");
-  const progressEl = overlay.querySelector("#access-code-progress-n");
   const btn = overlay.querySelector("#access-code-modal-submit");
   setTimeout(() => input?.focus(), 60);
-
-  // Live-format as the user types/pastes: strip anything invalid, cap at
-  // 30 real characters, re-insert dashes every 5 — so a pasted code with or
-  // without dashes always ends up looking the same and is easy to eyeball.
-  input.addEventListener("input", () => {
-    const raw = input.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 30);
-    input.value = raw.replace(/(.{5})(?=.)/g, "$1-");
-    progressEl.textContent = raw.length;
-    progressEl.parentElement.classList.toggle("complete", raw.length === 30);
-  });
-
   const submit = () => applyAccessCode(input, btn);
   btn.addEventListener("click", submit);
   input.addEventListener("keydown", (e) => {
@@ -598,17 +501,6 @@ async function applyAccessCode(input, btn) {
   const code = input.value.trim().toUpperCase().replace(/[\s-]/g, "");
   if (!code) {
     toast("Please enter an access code", "error");
-    return;
-  }
-  if (code.length !== 30) {
-    toast("The access code should be exactly 30 characters — please check and re-enter it", "error");
-    return;
-  }
-  // Offline sanity check first: does the embedded user-fingerprint even
-  // match this account? Catches a foreign/mistyped code instantly without
-  // spending a Firestore read.
-  if (!accessCodeMatchesUser(code, currentUser.uid)) {
-    toast("This code isn't for your account", "error");
     return;
   }
   const originalLabel = btn.innerHTML;
