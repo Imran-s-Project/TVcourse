@@ -104,3 +104,29 @@
 }
 .review-explanation i { margin-top: 3px; color: var(--accent-amber); flex-shrink: 0; }
 .review-explanation b { color: var(--text-primary); }
+
+/* ---------- পরীক্ষা শুরুর আগের নির্দেশনা মোডাল ---------- */
+.exam-start-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin-bottom: 20px; }
+.exam-start-head h3 { font-size: 1.15rem; line-height: 1.4; margin-bottom: 6px; }
+.exam-start-head p { font-size: 0.86rem; }
+
+.exam-start-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 22px; }
+.exam-start-stat {
+  background: var(--bg-elevated-2); border: 1px solid var(--border-strong); border-radius: var(--radius-sm);
+  padding: 14px 12px; text-align: center;
+}
+.exam-start-stat-label { display: block; font-size: 0.78rem; color: var(--text-muted); margin-bottom: 6px; }
+.exam-start-stat-value { display: block; font-family: var(--font-utility); font-weight: 700; font-size: 1.2rem; }
+
+.exam-start-instructions h4 { font-size: 0.95rem; margin-bottom: 10px; }
+.exam-start-instructions ul { list-style: none; display: flex; flex-direction: column; gap: 10px; margin-bottom: 24px; }
+.exam-start-instructions li {
+  position: relative; padding-inline-start: 20px; font-size: 0.87rem; line-height: 1.55; color: var(--text-muted);
+}
+.exam-start-instructions li::before {
+  content: "\f058"; font-family: "Font Awesome 6 Free"; font-weight: 900; position: absolute; left: 0; top: 1px;
+  color: var(--accent-teal); font-size: 0.85rem;
+}
+
+.exam-start-actions { display: flex; gap: 10px; }
+.exam-start-actions .btn { flex: 1; }

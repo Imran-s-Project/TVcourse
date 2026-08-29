@@ -28,6 +28,12 @@
   padding: 7px 16px; border-radius: 999px;
 }
 .course-enroll-pill i { color: var(--accent-amber-soft); }
+.certificate-pill {
+  background: linear-gradient(135deg, #E8A33D, #d4881a); color: #14182B; font-weight: 800;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.certificate-pill:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(232, 163, 61, 0.35); }
+.certificate-pill i { color: #14182B; }
 
 @media (max-width: 560px) {
   .course-header { padding: 26px 0 20px; }

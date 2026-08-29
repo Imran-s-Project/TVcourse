@@ -32,10 +32,12 @@
 
 .tab-panel { padding-bottom: 70px; }
 
-.my-course-row { display: flex; align-items: center; gap: 16px; padding: 16px; margin-bottom: 12px; }
+.my-course-row { display: flex; align-items: center; gap: 12px; padding: 16px; margin-bottom: 12px; flex-wrap: wrap; }
+.my-course-row-link { display: flex; align-items: center; gap: 16px; flex: 1; min-width: 0; text-decoration: none; color: inherit; }
 .my-course-row img { width: 64px; height: 64px; border-radius: 10px; object-fit: cover; background: var(--bg-elevated-2); }
-.my-course-row .info { flex: 1; }
+.my-course-row .info { flex: 1; min-width: 0; }
 .my-course-row .info h4 { font-size: 0.98rem; margin-bottom: 6px; }
+.my-course-cert-btn { flex-shrink: 0; white-space: nowrap; }
 
 .result-row { display: flex; align-items: center; justify-content: space-between; padding: 16px 18px; margin-bottom: 10px; }
 .result-row .score { font-family: var(--font-display); font-weight: 700; font-size: 1.2rem; color: var(--accent-amber-soft); }

@@ -1,0 +1,138 @@
+/* ==========================================================================
+   Learning Hub — Achievements (badges), Discussion, Flashcards
+   ========================================================================== */
+
+/* ---------- "NEW" feature-discovery pill ----------
+   Used on the Hub's nav link and each of its tabs (see js/utils.js's
+   newPillHtml + js/hub.js) — a small reusable marker for anything freshly
+   shipped, so people notice new features without having to be told. */
+.new-pill {
+  display: inline-block;
+  background: linear-gradient(135deg, var(--accent-coral), var(--accent-amber));
+  color: #fff;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 999px;
+  vertical-align: middle;
+  margin-left: 4px;
+  animation: hub-new-pulse 1.8s ease-in-out infinite;
+}
+@keyframes hub-new-pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.08); opacity: 0.85; }
+}
+
+/* ---------- Hub header ---------- */
+.hub-header { margin: 32px 0 8px; }
+.hub-header h1 { display: flex; align-items: center; gap: 10px; font-size: 1.7rem; }
+.hub-header h1 i { color: var(--accent-amber-soft); }
+
+.hub-section-label { font-weight: 700; margin: 22px 0 12px; font-size: 1.02rem; }
+
+/* ---------- Achievements: streak banner ---------- */
+.hub-streak-banner {
+  display: flex; align-items: center; gap: 16px;
+  background: linear-gradient(135deg, rgba(124,92,252,0.16), rgba(31,158,147,0.14));
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  padding: 18px 22px;
+  margin-top: 18px;
+}
+.hub-streak-flame { font-size: 2rem; color: #FF8A3D; }
+.hub-streak-count { font-size: 1.15rem; font-weight: 800; }
+.hub-streak-sub { color: var(--text-muted); font-size: 0.86rem; margin-top: 2px; }
+
+/* ---------- Achievements: badge grid ---------- */
+.badge-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 14px;
+}
+.badge-card {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 18px 16px;
+  text-align: center;
+  transition: transform .15s, border-color .15s;
+}
+.badge-card.earned { border-color: var(--border-strong); }
+.badge-card.locked { opacity: 0.45; filter: grayscale(0.6); }
+.badge-card.earned:hover { transform: translateY(-2px); }
+.badge-card-icon {
+  width: 52px; height: 52px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 10px; font-size: 1.3rem; color: #fff;
+}
+.badge-teal .badge-card-icon { background: var(--accent-teal); }
+.badge-amber .badge-card-icon { background: var(--accent-amber); }
+.badge-coral .badge-card-icon { background: var(--accent-coral); }
+.badge-green .badge-card-icon { background: var(--accent-green); }
+.badge-card-title { font-weight: 700; font-size: 0.92rem; }
+.badge-card-desc { color: var(--text-muted); font-size: 0.78rem; margin-top: 4px; min-height: 2.4em; }
+.badge-card-status { display: inline-flex; align-items: center; gap: 5px; margin-top: 10px; font-size: 0.75rem; font-weight: 700; color: var(--accent-green-soft); }
+.badge-card-status.locked { color: var(--text-muted); }
+
+/* ---------- Discussion ---------- */
+.discussion-toolbar { display: flex; gap: 10px; align-items: center; margin: 18px 0; flex-wrap: wrap; }
+.discussion-filter-select {
+  background: var(--bg-elevated-2); border: 1.5px solid var(--border-strong); color: var(--text-primary);
+  padding: 10px 14px; border-radius: var(--radius-sm); flex: 1; min-width: 160px;
+}
+.discussion-list { display: flex; flex-direction: column; gap: 10px; }
+.discussion-thread-card {
+  display: flex; gap: 12px; text-align: left; width: 100%;
+  background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-md);
+  padding: 14px 16px; transition: border-color .15s;
+}
+.discussion-thread-card:hover { border-color: var(--border-strong); }
+.discussion-thread-avatar {
+  flex-shrink: 0; width: 40px; height: 40px; border-radius: 50%; overflow: hidden;
+  background: var(--accent-amber); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700;
+}
+.discussion-thread-avatar.sm { width: 32px; height: 32px; font-size: 0.85rem; }
+.discussion-thread-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.discussion-thread-main { flex: 1; min-width: 0; }
+.discussion-thread-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.discussion-thread-title { font-weight: 700; }
+.discussion-thread-preview { color: var(--text-muted); font-size: 0.85rem; margin-top: 4px; }
+.discussion-thread-meta { display: flex; gap: 6px; align-items: center; color: var(--text-muted); font-size: 0.76rem; margin-top: 8px; flex-wrap: wrap; }
+
+.discussion-detail-head p { color: var(--text-primary); }
+.discussion-replies { display: flex; flex-direction: column; gap: 12px; margin: 18px 0; max-height: 300px; overflow-y: auto; }
+.discussion-reply { display: flex; gap: 10px; }
+.discussion-reply-head { display: flex; gap: 8px; align-items: baseline; font-size: 0.85rem; }
+.discussion-reply-body { font-size: 0.88rem; margin-top: 2px; }
+.discussion-reply-form { display: flex; gap: 8px; align-items: flex-end; }
+.discussion-reply-form textarea {
+  flex: 1; background: var(--bg-elevated-2); border: 1.5px solid var(--border-strong); color: var(--text-primary);
+  padding: 10px 12px; border-radius: var(--radius-sm); resize: vertical;
+}
+
+/* ---------- Flashcards ---------- */
+.flashcard-progress-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.flashcard-flip {
+  cursor: pointer; min-height: 220px; border-radius: var(--radius-lg);
+  background: var(--bg-elevated); border: 1.5px solid var(--border-strong);
+  display: flex; align-items: center; justify-content: center; text-align: center;
+  padding: 32px 24px; font-size: 1.15rem; font-weight: 600; position: relative;
+}
+.flashcard-face.hidden { display: none; }
+.flashcard-back { color: var(--accent-amber-soft); }
+.flashcard-hint { text-align: center; margin-top: 12px; font-size: 0.85rem; }
+.flashcard-grade-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 16px; }
+.flashcard-grade-btn { padding: 12px 8px; font-weight: 700; color: #fff; border-radius: var(--radius-sm); }
+.grade-again { background: var(--accent-coral); }
+.grade-hard  { background: #C97A2E; }
+.grade-good  { background: var(--accent-teal); }
+.grade-easy  { background: var(--accent-green); }
+.flashcard-alldone { text-align: center; padding: 60px 20px; }
+.flashcard-alldone i { font-size: 2.6rem; color: var(--accent-green-soft); margin-bottom: 12px; }
+
+@media (max-width: 640px) {
+  .badge-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+  .flashcard-grade-row { grid-template-columns: repeat(2, 1fr); }
+}
