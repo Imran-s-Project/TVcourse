@@ -56,6 +56,7 @@
 <link rel="stylesheet" href="css/profile.css">
 <link rel="stylesheet" href="css/auth.css">
 <link rel="stylesheet" href="css/hub.css">
+<link rel="stylesheet" href="css/mycourses.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
@@ -227,6 +228,16 @@
        Houses Achievements (badges), Discussion, and Flashcards. -->
   <div id="page-hub" class="hidden">
     <div id="hub-page-content"></div>
+  <div data-footer></div>
+  </div>
+
+  <!-- ===== MY COURSES PAGE (SPA rendered here) =====
+       Markup comes from js/page-mycourses.js's render(); behavior comes
+       from its initMyCoursesPage(), both wired together by the router in
+       js/app.js. Shows only the courses this user is enrolled in — replaces
+       the old profile-page "My Courses" tab. -->
+  <div id="page-mycourses" class="hidden">
+    <div id="mycourses-page-content"></div>
   <div data-footer></div>
   </div>
 
