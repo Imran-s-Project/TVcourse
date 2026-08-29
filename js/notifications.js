@@ -6,11 +6,20 @@
 //   notifications/{id}
 //     title, message            — what's shown
 //     type                      — "course_update" | "new_course" | "exam" | "announcement" | "general" (icon only)
-//     courseIds: string[]       — tagged course(s); tapping the notification opens courseIds[0]
+//     link: string|null         — optional custom destination the admin typed in by hand. When set,
+//                                  this WINS over courseIds and the notification opens exactly this
+//                                  URL. http(s)://... (or protocol-relative //...) is treated as
+//                                  external and opens in a new tab; anything else (e.g. "admin.html",
+//                                  "index.html#page=hub") is treated as an internal path and navigates
+//                                  in the same tab, same as the old course-link behaviour.
+//     courseIds: string[]       — tagged course(s); fallback target when no custom link is set —
+//                                  tapping the notification opens courseIds[0]
 //     courseTitles: string[]    — denormalized titles, parallel to courseIds, so the chip
 //                                  can render without an extra fetch
 //     audience: "all" | "enrolled" — "enrolled" only shows to users whose users/{uid}.enrolledCourses
 //                                     overlaps courseIds (covers both free-enrolled and paid/unlocked)
+//     pinned: boolean           — optional; pinned notifications float to the top of the list
+//                                  regardless of date
 //     active: boolean           — soft on/off switch (admin can hide without deleting)
 //     createdAt, createdBy
 //
@@ -50,14 +59,30 @@ function onIndexPage() {
   return /(^|\/)(index\.html)?$/.test(window.location.pathname);
 }
 
-// Build a link that works whether the click happens on index.html (SPA hash
-// nav, no reload) or on admin.html / a static page (needs the index.html
-// prefix to actually land on the SPA first) — same rule utils.js's initNav
-// already uses for Home/Profile/etc.
-function targetHref(n) {
+// A custom link is "external" if it points off-site (or protocol-relative)
+// — those always open in a new tab so students never lose their place in
+// the app. Anything else ("admin.html", "index.html#page=hub", a bare
+// "#page=about", etc.) is an internal path and navigates in the same tab.
+function isExternalLink(url) {
+  return /^https?:\/\//i.test(url) || url.startsWith("//");
+}
+
+// Resolve where tapping a notification should go, and how.
+//   1. A hand-typed custom link always wins (this is the whole point of
+//      the field — the admin can point a notification at literally
+//      anything: a course, a form, WhatsApp group, YouTube video, PDF...).
+//   2. Otherwise fall back to the first tagged course, same as before —
+//      built so it works whether the click happens on index.html (SPA hash
+//      nav, no reload) or on admin.html / a static page (needs the
+//      index.html prefix to actually land on the SPA first), same rule
+//      utils.js's initNav already uses for Home/Profile/etc.
+// Returns { href, external } or null if there's nowhere to go.
+function resolveTarget(n) {
+  const link = (n.link || "").trim();
+  if (link) return { href: link, external: isExternalLink(link) };
   if (!n.courseIds || !n.courseIds.length) return null;
   const hash = courseUrl(n.courseIds[0]);
-  return onIndexPage() ? hash : `index.html${hash}`;
+  return { href: onIndexPage() ? hash : `index.html${hash}`, external: false };
 }
 
 function timeAgo(ts) {
@@ -92,14 +117,16 @@ function notifItemHtml(n) {
   const tags = (n.courseTitles || [])
     .map((t) => `<span class="notif-tag">${escapeHtml(t)}</span>`)
     .join("");
+  const target = resolveTarget(n);
   return `
-    <button type="button" class="notif-item ${read ? "" : "unread"}" data-id="${n.id}">
+    <button type="button" class="notif-item ${read ? "" : "unread"} ${n.pinned ? "pinned" : ""}" data-id="${n.id}">
+      ${n.pinned ? `<i class="fa-solid fa-thumbtack notif-item-pin" title="Pinned"></i>` : ""}
       <div class="notif-item-icon"><i class="fa-solid ${icon}"></i></div>
       <div class="notif-item-body">
         <div class="notif-item-title">${escapeHtml(n.title || "")}</div>
         ${n.message ? `<div class="notif-item-msg">${escapeHtml(n.message)}</div>` : ""}
         ${tags ? `<div class="notif-item-tags">${tags}</div>` : ""}
-        <div class="notif-item-time">${timeAgo(n.createdAt)}</div>
+        <div class="notif-item-time">${timeAgo(n.createdAt)}${target && target.external ? ` <i class="fa-solid fa-arrow-up-right-from-square notif-item-extlink" title="Opens an external link"></i>` : ""}</div>
       </div>
       ${read ? "" : `<span class="notif-dot" aria-hidden="true"></span>`}
     </button>`;
@@ -118,7 +145,11 @@ function render() {
     list.innerHTML = `<div class="notif-empty"><i class="fa-regular fa-bell-slash"></i><span>এখনো কোনো নোটিফিকেশন নেই</span></div>`;
     return;
   }
-  list.innerHTML = allNotifs.map(notifItemHtml).join("");
+  // Pinned notifications float to the top; within each group, newest first
+  // (the Firestore query already delivers createdAt desc, so this is a
+  // stable partition, not a full re-sort).
+  const sorted = [...allNotifs].sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0));
+  list.innerHTML = sorted.map(notifItemHtml).join("");
 }
 
 /* ---------- read-state ---------- */
@@ -214,10 +245,14 @@ function ensureContainer() {
     const n = allNotifs.find((x) => x.id === item.dataset.id);
     if (!n) return;
     markRead(n.id);
-    const href = targetHref(n);
-    if (href) {
+    const target = resolveTarget(n);
+    if (target) {
       setPanelOpen(false);
-      window.location.href = href;
+      if (target.external) {
+        window.open(target.href, "_blank", "noopener");
+      } else {
+        window.location.href = target.href;
+      }
     }
   });
   document.getElementById("notif-backdrop").addEventListener("click", () => setPanelOpen(false));
