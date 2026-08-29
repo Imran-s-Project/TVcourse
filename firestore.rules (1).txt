@@ -1,0 +1,237 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function isAdmin() {
+      return isSignedIn() &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    }
+
+    /* ---------- একটা like/unlike toggle বৈধ কিনা যাচাই (discussions + replies দুই জায়গাতেই ব্যবহৃত) ----------
+       শর্ত: (ক) শুধু request.auth.uid-টাই যোগ/বাদ হয়েছে, বাকি সব uid অপরিবর্তিত আছে,
+       (খ) লিস্টের সাইজ ঠিক ১ বেড়েছে (লাইক) বা ঠিক ১ কমেছে (আনলাইক)।
+       hasAll() ব্যবহার করে অর্ডার-independent ভাবে যাচাই করা হচ্ছে, তাই arrayUnion/arrayRemove
+       মাঝখান থেকে uid সরালেও (order বদলে গেলেও) সঠিকভাবে ধরা পড়ে। এভাবে কেউ নিজের uid ছাড়া
+       অন্য কারো লাইক জোর করে যোগ/মুছে দিতে পারবে না। */
+    function isValidLikeToggle(oldList, newList) {
+      let uid = request.auth.uid;
+      return (
+        (uid in newList && !(uid in oldList) &&
+          newList.size() == oldList.size() + 1 &&
+          newList.hasAll(oldList)) ||
+        (!(uid in newList) && uid in oldList &&
+          newList.size() == oldList.size() - 1 &&
+          oldList.hasAll(newList))
+      );
+    }
+
+    /* ---------- replyCount ঠিক ১ বেড়েছে (নতুন রিপ্লাই) বা ঠিক ১ কমেছে (রিপ্লাই ডিলিট) কিনা ---------- */
+    function isValidReplyCountStep(oldCount, newCount) {
+      return newCount == oldCount + 1 || newCount == oldCount - 1;
+    }
+
+    /* ---------- ইউজার প্রোফাইল ---------- */
+    match /users/{uid} {
+      allow read: if isSignedIn() && (request.auth.uid == uid || isAdmin());
+
+      allow create: if isSignedIn() && request.auth.uid == uid &&
+        request.resource.data.isAdmin == false;
+
+      allow update: if isSignedIn() && (
+        (request.auth.uid == uid && request.resource.data.isAdmin == resource.data.isAdmin) ||
+        isAdmin()
+      );
+
+      // নিজের অ্যাকাউন্ট নিজে ডিলিট করতে পারবে (প্রোফাইল পেজের "অ্যাকাউন্ট মুছে ফেলুন"), অ্যাডমিনও যে-কারো ডিলিট করতে পারবে
+      allow delete: if isAdmin() || (isSignedIn() && request.auth.uid == uid);
+
+      /* ---------- ইউজারের ডিভাইস তালিকা (কোন কোন ফোন/ব্রাউজার থেকে লগইন/সাইন-আপ হয়েছে) ---------- */
+      match /devices/{deviceId} {
+        // নিজের ডিভাইস তালিকা নিজে পড়তে পারবে, অ্যাডমিনও যে-কারো ডিভাইস তালিকা পড়তে পারবে (ওয়ার্নিং দেখানোর জন্য)
+        allow read: if isSignedIn() && (request.auth.uid == uid || isAdmin());
+
+        // লগইন/সাইন-আপের সময় ইউজার নিজেই নিজের ডিভাইস রেকর্ড লিখবে (auth.js এর recordDeviceLogin ফাংশন)
+        allow create, update: if isSignedIn() && request.auth.uid == uid;
+
+        allow delete: if isAdmin();
+      }
+
+      /* ---------- Learning Hub: এই ইউজারের ফ্ল্যাশকার্ড রিভিউ প্রোগ্রেস (স্পেসড রিপিটিশন) ----------
+         শুধু নিজের প্রোগ্রেস নিজে পড়তে/লিখতে পারবে — অন্য কারো রিভিউ শিডিউল কেউ দেখতে/বদলাতে পারবে না। */
+      match /flashcardProgress/{cardId} {
+        allow read, write: if isSignedIn() && request.auth.uid == uid;
+      }
+    }
+
+    /* ---------- কোর্স ---------- */
+    match /courses/{courseId} {
+      allow read: if true;
+      allow write: if isAdmin();
+
+      // সাইন-ইন করা যেকোনো ইউজার এনরোল হওয়ার সময় শুধু enrollCount সংখ্যাটা বাড়াতে পারবে —
+      // বাকি কোনো ফিল্ড বদলাতে পারবে না (কোর্সের তথ্য সুরক্ষিত থাকে, শুধু গণনা বাড়ে)
+      allow update: if isSignedIn()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["enrollCount"])
+        && request.resource.data.enrollCount ==
+           (("enrollCount" in resource.data ? resource.data.enrollCount : 0) + 1);
+
+      match /lessons/{lessonId} {
+        allow read: if true;
+        allow write: if isAdmin();
+      }
+    }
+
+    /* ---------- পরীক্ষা ---------- */
+    match /exams/{examId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+
+      match /questions/{questionId} {
+        allow read: if isSignedIn();
+        allow write: if isAdmin();
+      }
+    }
+
+    /* ---------- পরীক্ষার ফলাফল ---------- */
+    match /results/{resultId} {
+      allow read: if isSignedIn() && (resource.data.uid == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() && request.resource.data.uid == request.auth.uid;
+      allow update: if isSignedIn() && resource.data.uid == request.auth.uid &&
+        request.resource.data.uid == resource.data.uid;
+      allow delete: if isAdmin();
+    }
+
+    /* ---------- সাইট সেটিংস (হোমপেজ হিরো + ফিচার্ড ভিডিও + পেমেন্ট নাম্বার + পারচেজ পজ সুইচ) ----------
+       docId "homepage", "purchases" ইত্যাদি সবাই পড়তে পারবে (লগআউট অবস্থাতেও),
+       শুধু "payment" (পেমেন্ট নাম্বার) পড়তে লগইন লাগবে — বাকি সব নিচের একই rule কভার করে। */
+    match /settings/{docId} {
+      allow read: if docId != "payment" || isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    /* ---------- নোটিফিকেশন (অ্যাডমিন প্যানেল থেকে পাঠানো, কোর্স-ট্যাগসহ) ----------
+       শুধু অ্যাডমিন লিখতে/এডিট/ডিলিট করতে পারবে। যেকোনো লগইন করা ইউজার সবগুলো ডকুমেন্ট
+       পড়তে পারবে (কোনটা আসলে দেখানো হবে তা client-side এ audience/enrolledCourses
+       দিয়ে ফিল্টার হয় — js/notifications.js), তাই read এখানে খোলা রাখা নিরাপদ, কারণ
+       ভেতরের কোনো তথ্যই sensitive না (শুধু টাইটেল/মেসেজ/কোর্স-ট্যাগ)।
+       create/update এ স্ট্রং ভ্যালিডেশন: টাইটেল/মেসেজ খালি রাখা যাবে না,
+       audience অবশ্যই "all" বা "enrolled" হতে হবে, courseIds/courseTitles অবশ্যই list হতে হবে। */
+    match /notifications/{notifId} {
+      allow read: if isSignedIn();
+
+      allow create: if isAdmin()
+        && request.resource.data.title is string && request.resource.data.title.size() > 0
+        && request.resource.data.message is string && request.resource.data.message.size() > 0
+        && request.resource.data.audience in ["all", "enrolled"]
+        && request.resource.data.courseIds is list
+        && request.resource.data.courseTitles is list;
+
+      allow update: if isAdmin()
+        && request.resource.data.title is string && request.resource.data.title.size() > 0
+        && request.resource.data.message is string && request.resource.data.message.size() > 0
+        && request.resource.data.audience in ["all", "enrolled"];
+
+      allow delete: if isAdmin();
+    }
+
+    /* ---------- পেইড কোর্স: ক্রয় অনুরোধ ---------- */
+    match /purchaseRequests/{reqId} {
+      allow read: if isSignedIn() && (resource.data.uid == request.auth.uid || isAdmin());
+
+      allow create: if isSignedIn()
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.status == "pending"
+        && request.resource.data.accessCode == "";
+
+      // ইউজার নিজে স্ট্যাটাস/অ্যাক্সেসকোড বদলাতে পারবে না — শুধু অ্যাডমিন অনুমোদন/বাতিল করতে পারবে
+      allow update, delete: if isAdmin();
+    }
+
+    /* ---------- পেইড কোর্স: অ্যাক্সেস কোড ---------- */
+    // ডকুমেন্ট আইডি = নিজেই অ্যাক্সেস কোড (যেমন accessCodes/AB12CD34)
+    match /accessCodes/{code} {
+      allow read: if isSignedIn() && (resource.data.uid == request.auth.uid || isAdmin());
+      allow create: if isAdmin();
+
+      // ইউজার শুধু নিজের, এখনো-ব্যবহার-না-হওয়া কোডটি "used" করতে পারবে — uid/courseId বদলাতে পারবে না
+      allow update: if isSignedIn()
+        && resource.data.uid == request.auth.uid
+        && resource.data.used == false
+        && request.resource.data.used == true
+        && request.resource.data.uid == resource.data.uid
+        && request.resource.data.courseId == resource.data.courseId
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["used", "usedAt"]);
+
+      allow delete: if isAdmin();
+    }
+
+    /* ---------- Learning Hub: স্পেসড-রিপিটিশন ফ্ল্যাশকার্ড (অ্যাডমিন তৈরি করে) ----------
+       সব সাইন-ইন করা ইউজার পড়তে পারবে (কোন কার্ড আসলে দেখানো হবে তা client-side এ
+       courseId/enrolledCourses দিয়ে ফিল্টার হয় — js/flashcards.js), শুধু অ্যাডমিন
+       লিখতে/এডিট/ডিলিট করতে পারবে। */
+    match /flashcards/{cardId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    /* ---------- Learning Hub: ডিসকাশন থ্রেড (ফেসবুক-স্টাইল পোস্ট ফিড: like, নিজের পোস্ট/রিপ্লাই
+       edit ও delete, অ্যাডমিন-মডারেশন) ----------
+       - read: যেকোনো সাইন-ইন করা ইউজার
+       - create: নিজের uid দিয়েই, title/body খালি রাখা যাবে না, likedBy খালি লিস্ট আর
+         replyCount শূন্য দিয়েই শুরু হতে হবে (কেউ শুরু থেকেই ভুয়া লাইক/রিপ্লাই-সংখ্যা বসাতে পারবে না)
+       - update নিচের ৩টার একটার বাইরে যাবে না:
+           ১) কেউ রিপ্লাই করলে replyCount + lastActivityAt (ঠিক ১ বাড়বে)
+           ২) যেকোনো সাইন-ইন ইউজার likedBy টগল করলে — কিন্তু শুধু নিজের uid যোগ/বাদ দিতে পারবে,
+              isValidLikeToggle() দিয়ে যাচাই হয়
+           ৩) পোস্টের মালিক নিজে title/body/editedAt এডিট করলে (title/body খালি রাখা যাবে না)
+         এসবের বাইরে অ্যাডমিন করতে পারবে (মডারেশন/ঠিক করা দরকার হলে)
+       - delete: পোস্টের মালিক নিজে অথবা অ্যাডমিন */
+    match /discussions/{threadId} {
+      allow read: if isSignedIn();
+
+      allow create: if isSignedIn()
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.title is string && request.resource.data.title.size() > 0
+        && request.resource.data.body is string && request.resource.data.body.size() > 0
+        && request.resource.data.likedBy == []
+        && request.resource.data.replyCount == 0;
+
+      allow update: if isSignedIn() && (
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(["replyCount", "lastActivityAt"])
+          && isValidReplyCountStep(resource.data.replyCount, request.resource.data.replyCount)) ||
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(["likedBy"])
+          && isValidLikeToggle(resource.data.likedBy, request.resource.data.likedBy)) ||
+        (resource.data.uid == request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["title", "body", "editedAt"])
+          && request.resource.data.title is string && request.resource.data.title.size() > 0
+          && request.resource.data.body is string && request.resource.data.body.size() > 0) ||
+        isAdmin()
+      );
+
+      allow delete: if isAdmin() || (isSignedIn() && resource.data.uid == request.auth.uid);
+
+      match /replies/{replyId} {
+        allow read: if isSignedIn();
+
+        allow create: if isSignedIn()
+          && request.resource.data.uid == request.auth.uid
+          && request.resource.data.body is string && request.resource.data.body.size() > 0
+          && request.resource.data.likedBy == [];
+
+        allow update: if isSignedIn() && (
+          (request.resource.data.diff(resource.data).affectedKeys().hasOnly(["likedBy"])
+            && isValidLikeToggle(resource.data.likedBy, request.resource.data.likedBy)) ||
+          (resource.data.uid == request.auth.uid
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["body", "editedAt"])
+            && request.resource.data.body is string && request.resource.data.body.size() > 0) ||
+          isAdmin()
+        );
+
+        allow delete: if isAdmin() || (isSignedIn() && resource.data.uid == request.auth.uid);
+      }
+    }
+  }
+}
