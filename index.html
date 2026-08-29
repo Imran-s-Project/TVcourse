@@ -52,7 +52,7 @@
 <link rel="stylesheet" href="css/dashboard.css">
 <link rel="stylesheet" href="css/course.css">
 <link rel="stylesheet" href="css/video-player.css">
-<link rel="stylesheet" href="css/exam.css">
+<link rel="stylesheet" href="exam/exam.css">
 <link rel="stylesheet" href="css/static.css">
 <link rel="stylesheet" href="css/profile.css">
 <link rel="stylesheet" href="css/auth.css">
@@ -177,19 +177,25 @@
   <div data-footer></div>
   </div>
 
-  <!-- ===== EXAM PAGE (SPA rendered here) =====
-       Markup lives directly in this shell (mirroring page-course above,
-       since js/exam.js's DOM ids are wired to it the same way course.js's
-       are); previously exam.html, now removed — this route no longer
-       exists as its own HTML file at all. -->
-  <div id="page-exam" class="hidden">
+  <!-- ===== EXAM SECTION (SPA rendered here) =====
+       Markup lives directly in this shell (mirroring page-course above),
+       but every bit of exam-section CSS/JS itself is organized into its
+       own top-level /exam folder (exam.css, exam.js + exam-*.js modules) —
+       kept separate from the rest of the site's css/js folders.
+       previously exam.html, now removed — this route no longer exists as
+       its own HTML file at all.
+       Flow for #/exam?id=xxx: exam-list-view → exam-verify-view
+       (verification checklist + rules gate) → exam-take-view → exam-result-view. -->
+  <div id="page-exam" class="hidden exam-shell">
     <main class="container">
       <div id="exam-list-view">
         <div class="section-head mt-24">
-          <div><h2>Test Yourself</h2><p>Take exams for each course, check your score</p></div>
+          <div><h2>নিজেকে যাচাই করুন</h2><p>প্রতিটি কোর্সের জন্য এক্সাম দিন, নিজের স্কোর দেখুন</p></div>
         </div>
         <div class="exam-grid" id="exam-grid"></div>
       </div>
+
+      <div id="exam-verify-view" class="exs-verify-wrap hidden"></div>
 
       <div id="exam-take-view" class="exam-take-wrap hidden">
         <div class="exam-sticky-bar">
@@ -202,9 +208,9 @@
         <form id="exam-submit-form">
           <div id="question-area"></div>
           <div class="exam-nav-row">
-            <button type="button" class="btn btn-outline" id="q-prev"><i class="fa-solid fa-arrow-left"></i> Previous</button>
-            <button type="button" class="btn btn-primary" id="q-next">Next <i class="fa-solid fa-arrow-right"></i></button>
-            <button type="submit" class="btn btn-teal hidden" id="q-submit">Submit Exam</button>
+            <button type="button" class="btn btn-outline" id="q-prev"><i class="fa-solid fa-arrow-left"></i> আগের</button>
+            <button type="button" class="btn btn-primary" id="q-next">পরের <i class="fa-solid fa-arrow-right"></i></button>
+            <button type="submit" class="btn btn-teal hidden" id="q-submit">এক্সাম জমা দিন</button>
           </div>
         </form>
       </div>
