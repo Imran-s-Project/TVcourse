@@ -17,10 +17,8 @@ export function render() {
 
   <main class="static-content" style="max-width: 980px;">
     <div class="credits-grid">
-      <!-- To add a real photo for a team member, replace the <div class="credit-avatar"> icon
-           with: <img class="credit-avatar" src="Https://tvcourse.vercel.app/assets/team/founder_imran.webp" alt="NAME"> -->
       <div class="credit-card">
-        <div class="credit-avatar"><i class="fa-solid fa-user"></i></div>
+        <img class="credit-avatar" src="assets/teams/founder_imran.webp" alt="Imran Ahmed" loading="lazy">
         <div class="credit-name">Imran Ahmed</div>
         <div class="credit-role">Founder &amp; Lead Developer</div>
         <div class="credit-edu">Full-stack developer — design, development &amp; administration</div>

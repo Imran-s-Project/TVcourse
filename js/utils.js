@@ -258,11 +258,10 @@ export function initNav(activePage = "") {
   // login.html or signup.html file to link to.
   const loginHref = onIndexPage ? "#/login" : "index.html#/login";
   const signupHref = onIndexPage ? "#/signup" : "index.html#/signup";
-  // "My Courses" reuses the profile page's own courses tab (it's the default
-  // tab there already) — jumping straight to it via ?tab=courses so users
-  // can find their enrolled courses and open them without digging through
-  // the full profile page first.
-  const myCoursesHref = onIndexPage ? "#/profile?tab=courses" : "index.html#/profile?tab=courses";
+  // "My Courses" is its own dedicated SPA route (see js/page-mycourses.js +
+  // js/app.js) — a smart, filterable view of only the courses this user is
+  // enrolled in, separate from the full profile page.
+  const myCoursesHref = onIndexPage ? "#/mycourses" : "index.html#/mycourses";
   // Exam is likewise a hash route inside index.html now (see js/exam.js +
   // the #page-exam shell) — there is no more exam.html file to link to.
   const examHref = onIndexPage ? "#/exam" : "index.html#/exam";
@@ -814,9 +813,9 @@ export async function useBengaliFont(pdfDoc) {
 
 /* ---------- Course completion certificate (shared) ----------
    Called from both js/course.js (banner shown on the course page once every
-   lesson is marked complete) and js/profile.js ("My Courses" tab, once a
-   course reaches 100%) — kept here, not duplicated in either file, so both
-   entry points always produce an identical certificate. Uses the same
+   lesson is marked complete) and js/page-mycourses.js (the "My Courses"
+   page, once a course reaches 100%) — kept here, not duplicated in either
+   file, so both entry points always produce an identical certificate. Uses the same
    NAVY/AMBER/BG palette as profile.js's enrollment-invoice PDF for a
    consistent brand look across every downloadable document on the site. ---------- */
 let _certLogoCache = null;

@@ -23,18 +23,13 @@ export function render() {
     <div class="profile-stats" id="profile-stats"></div>
 
     <div class="tab-row">
-      <button class="tab-btn active" data-tab="tab-courses"><i class="fa-solid fa-book-open"></i> My Courses</button>
-      <button class="tab-btn" data-tab="tab-purchases"><i class="fa-solid fa-receipt"></i> Purchase History</button>
+      <button class="tab-btn active" data-tab="tab-purchases"><i class="fa-solid fa-receipt"></i> Purchase History</button>
       <button class="tab-btn" data-tab="tab-results"><i class="fa-solid fa-file-pen"></i> Exam Results</button>
       <button class="tab-btn" data-tab="tab-settings"><i class="fa-solid fa-user-pen"></i> Settings</button>
       <button class="tab-btn" data-tab="tab-security"><i class="fa-solid fa-shield-halved"></i> Security</button>
     </div>
 
-    <div id="tab-courses" class="tab-panel">
-      <div id="my-courses-list"></div>
-    </div>
-
-    <div id="tab-purchases" class="tab-panel hidden">
+    <div id="tab-purchases" class="tab-panel">
       <div id="purchases-list"></div>
     </div>
 

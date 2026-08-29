@@ -20,6 +20,7 @@ import { initCoursePage } from "./course.js";
 import { initExamPage } from "./exam.js";
 import { initProfilePage, activateTab } from "./profile.js";
 import * as pageHub from "./hub.js";
+import * as pageMyCourses from "./page-mycourses.js";
 import { initNav } from "./utils.js";
 import * as pageAbout from "./page-about.js";
 import * as pageCredits from "./page-credits.js";
@@ -42,6 +43,8 @@ const pageProfileEl = document.getElementById("page-profile");
 const profileMount = document.getElementById("profile-page-content");
 const pageHubEl = document.getElementById("page-hub");
 const hubMount = document.getElementById("hub-page-content");
+const pageMyCoursesEl = document.getElementById("page-mycourses");
+const myCoursesMount = document.getElementById("mycourses-page-content");
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -52,6 +55,7 @@ function showHome() {
   pageStatic.classList.add("hidden");
   pageProfileEl.classList.add("hidden");
   pageHubEl.classList.add("hidden");
+  pageMyCoursesEl.classList.add("hidden");
   document.title = "Tech Verse Course — A New Destination for Learning";
 }
 
@@ -62,6 +66,7 @@ function showCourse() {
   pageStatic.classList.add("hidden");
   pageProfileEl.classList.add("hidden");
   pageHubEl.classList.add("hidden");
+  pageMyCoursesEl.classList.add("hidden");
 }
 
 function showExam() {
@@ -71,6 +76,7 @@ function showExam() {
   pageStatic.classList.add("hidden");
   pageProfileEl.classList.add("hidden");
   pageHubEl.classList.add("hidden");
+  pageMyCoursesEl.classList.add("hidden");
   document.title = "Exam — Tech Verse Course";
 }
 
@@ -81,6 +87,7 @@ function showStatic() {
   pageStatic.classList.remove("hidden");
   pageProfileEl.classList.add("hidden");
   pageHubEl.classList.add("hidden");
+  pageMyCoursesEl.classList.add("hidden");
 }
 
 function showProfile() {
@@ -90,6 +97,7 @@ function showProfile() {
   pageStatic.classList.add("hidden");
   pageProfileEl.classList.remove("hidden");
   pageHubEl.classList.add("hidden");
+  pageMyCoursesEl.classList.add("hidden");
 }
 
 function showHub() {
@@ -99,6 +107,17 @@ function showHub() {
   pageStatic.classList.add("hidden");
   pageProfileEl.classList.add("hidden");
   pageHubEl.classList.remove("hidden");
+  pageMyCoursesEl.classList.add("hidden");
+}
+
+function showMyCourses() {
+  pageHome.classList.add("hidden");
+  pageCourse.classList.add("hidden");
+  pageExam.classList.add("hidden");
+  pageStatic.classList.add("hidden");
+  pageProfileEl.classList.add("hidden");
+  pageHubEl.classList.add("hidden");
+  pageMyCoursesEl.classList.remove("hidden");
 }
 
 // ── Route handlers ────────────────────────────────────────────────────────
@@ -182,10 +201,7 @@ let profileBooted = false;
 async function profileRoute(params) {
   showProfile();
   document.title = pageProfile.title;
-  const tab = params.get("tab");
-  // Highlight "My Courses" in the navbar specifically when that's how the
-  // user got here, rather than always highlighting the generic Profile link.
-  initNav(tab === "courses" ? "mycourses" : "profile");
+  initNav("profile");
   // The profile markup is mounted once, and profile.js binds its tab/form/
   // account listeners onto it once — re-mounting on every visit would wipe
   // out those listeners (or double-bind them if we re-ran init() too),
@@ -195,9 +211,8 @@ async function profileRoute(params) {
     profileMount.innerHTML = pageProfile.render();
     await initProfilePage();
   }
-  // Honors ?tab=xxx on the hash (e.g. the navbar's "My Courses" link goes to
-  // #/profile?tab=courses) so it always opens on the right tab, even on a
-  // repeat visit where the user had switched to a different tab before.
+  // Honors ?tab=xxx on the hash for direct links to a specific settings tab.
+  const tab = params.get("tab");
   if (tab) activateTab(tab);
 }
 
@@ -216,15 +231,33 @@ async function hubRoute(_params) {
   }
 }
 
+let myCoursesBooted = false;
+
+async function myCoursesRoute(_params) {
+  showMyCourses();
+  document.title = pageMyCourses.title;
+  initNav("mycourses");
+  // Same one-time-mount reasoning as profileRoute/hubRoute above.
+  if (!myCoursesBooted) {
+    myCoursesBooted = true;
+    myCoursesMount.innerHTML = pageMyCourses.render();
+  }
+  // Unlike profile/hub, this page's data (enrollment + progress) can change
+  // every time the user finishes a lesson elsewhere, so its init function
+  // re-fetches and re-renders on every visit, not just the first one.
+  await pageMyCourses.initMyCoursesPage();
+}
+
 // ── Boot ──────────────────────────────────────────────────────────────────
 
 const router = new Router(
   {
-    home:    homeRoute,
-    course:  courseRoute,
-    exam:    examRoute,
-    profile: profileRoute,
-    hub:     hubRoute,
+    home:      homeRoute,
+    course:    courseRoute,
+    exam:      examRoute,
+    profile:   profileRoute,
+    hub:       hubRoute,
+    mycourses: myCoursesRoute,
     about:   staticRoute(pageAbout),
     credits: staticRoute(pageCredits),
     help:    staticRoute(pageHelp),
