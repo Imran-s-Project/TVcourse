@@ -17,7 +17,6 @@ import {
   query,
   orderBy,
   where,
-  limit,
   serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 import { initNav, requireAuth, toast, escapeHtml, toBnDigits, getUserProfile, drivePreviewUrl, isDriveLink, openModal, closeModal, youTubeId, getExamAvailability, formatDateTime, getCoursePricing, getExamQuestionCount, generateCertificatePdf, formatTime } from "./utils.js";
@@ -225,19 +224,17 @@ async function init(params, myToken) {
 
 // Check whether this user has a used access code for this course
 async function checkUnlocked() {
-  try {
-    const q = query(
-      collection(db, "accessCodes"),
-      where("uid", "==", currentUser.uid),
-      where("courseId", "==", courseId),
-      where("used", "==", true),
-      limit(1)
-    );
-    const snap = await getDocs(q);
-    return !snap.empty;
-  } catch {
-    return false;
-  }
+  // Single source of truth: users/{uid}.enrolledCourses. This is exactly the
+  // field the admin panel's "Revoke" button edits (arrayRemove) and the only
+  // field that access-code redemption and free-course auto-enroll both write
+  // (arrayUnion) — see applyAccessCode() and the free-course branch in init().
+  //
+  // This used to instead query accessCodes for a doc with used==true, which
+  // is a record of "a code was redeemed once" and is never touched by revoke,
+  // so a revoked user's old accessCodes doc still said used:true forever and
+  // this always returned unlocked. Checking enrolledCourses makes revoke take
+  // effect immediately, since revoke and this check now read the same field.
+  return !!userProfile?.enrolledCourses?.includes(courseId);
 }
 
 function money(n) {

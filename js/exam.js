@@ -16,17 +16,16 @@ import {
   doc,
   query,
   orderBy,
-  where,
-  limit,
   setDoc,
   addDoc,
   serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-import { initNav, requireAuth, toast, escapeHtml, toBnDigits, formatTime, formatDuration, formatScore, getExamAvailability, formatDateTime, getCoursePricing, useBengaliFont, getExamQuestionCount, openModal, closeModal } from "./utils.js";
+import { initNav, requireAuth, toast, escapeHtml, toBnDigits, formatTime, formatDuration, formatScore, getExamAvailability, formatDateTime, getCoursePricing, useBengaliFont, getExamQuestionCount, openModal, closeModal, getUserProfile } from "./utils.js";
 import { navigate } from "./router.js";
 
 // ── Per-visit state (reset on every initExamPage call) ────────────────────
 let currentUser = null;
+let userProfile = null;
 let examId = null;
 let questions = [];
 let currentIndex = 0;
@@ -108,6 +107,8 @@ export async function initExamPage(params) {
   currentUser = await requireAuth();
   if (myToken !== navToken) return cleanup; // navigated away while awaiting auth
   if (!currentUser) return cleanup;
+  userProfile = await getUserProfile(currentUser.uid);
+  if (myToken !== navToken) return cleanup;
 
   if (examId) {
     await loadExamTaking(examId, myToken);
@@ -164,15 +165,11 @@ async function getCourseLockInfo(courseId) {
     const courseSnap = await getDoc(doc(db, "courses", courseId));
     if (!courseSnap.exists()) return (courseLockCache[courseId] = { locked: false });
     if (!getCoursePricing(courseSnap.data()).isPaid) return (courseLockCache[courseId] = { locked: false });
-    const q = query(
-      collection(db, "accessCodes"),
-      where("uid", "==", currentUser.uid),
-      where("courseId", "==", courseId),
-      where("used", "==", true),
-      limit(1)
-    );
-    const snap = await getDocs(q);
-    const info = { locked: snap.empty };
+    // Single source of truth: users/{uid}.enrolledCourses — the same field the
+    // admin panel's "Revoke" button edits and course.js's checkUnlocked() now
+    // reads. Previously this queried accessCodes for used==true, which never
+    // gets touched by revoke, so a revoked user's exam stayed unlocked forever.
+    const info = { locked: !userProfile?.enrolledCourses?.includes(courseId) };
     courseLockCache[courseId] = info;
     return info;
   } catch {
