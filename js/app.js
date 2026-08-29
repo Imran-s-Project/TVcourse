@@ -6,7 +6,8 @@
 // URL scheme:  mydomain.com/           → home (dashboard)
 //              mydomain.com/#/course?id=xxx   → course page (no reload)
 //              mydomain.com/#/exam             → exam list (no exam.html file)
-//              mydomain.com/#/exam?id=xxx      → take a specific exam
+//              mydomain.com/#/exam?id=xxx      → verification → take a specific exam
+//              (all exam-section code/CSS now lives in the top-level /exam folder)
 //              mydomain.com/#/home            → home (explicit)
 //              mydomain.com/#/profile          → profile page
 //              mydomain.com/#/about (etc.)     → static content page
@@ -17,7 +18,7 @@
 import { Router, parseHash, courseUrl } from "./router.js";
 import { initDashboard } from "./dashboard.js";
 import { initCoursePage } from "./course.js";
-import { initExamPage } from "./exam.js";
+import { initExamPage } from "../exam/exam.js";
 import { initProfilePage, activateTab } from "./profile.js";
 import * as pageHub from "./hub.js";
 import * as pageMyCourses from "./page-mycourses.js";

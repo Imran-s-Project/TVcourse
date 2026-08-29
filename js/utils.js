@@ -262,7 +262,7 @@ export function initNav(activePage = "") {
   // js/app.js) — a smart, filterable view of only the courses this user is
   // enrolled in, separate from the full profile page.
   const myCoursesHref = onIndexPage ? "#/mycourses" : "index.html#/mycourses";
-  // Exam is likewise a hash route inside index.html now (see js/exam.js +
+  // Exam is likewise a hash route inside index.html now (see the exam/ section +
   // the #page-exam shell) — there is no more exam.html file to link to.
   const examHref = onIndexPage ? "#/exam" : "index.html#/exam";
   // Learning Hub is likewise a hash route inside index.html (see js/hub.js +
@@ -726,7 +726,7 @@ export function getExamAvailability(exam) {
 /* ---------- How many questions a student actually sees for this exam ----------
    exam.questionCount is always the FULL pool size (every question the admin
    added). If exam.questionsPerAttempt is set (and smaller than the pool), a
-   random subset is drawn on every attempt — see js/exam.js loadExamTaking()
+   random subset is drawn on every attempt — see exam/exam.js beginAttempt()
    — so that's the number that's actually meaningful to show a student before
    they start (and what the timer/negative-marking math is based on). Every
    card that displays a question count (exam list, lesson exam banner, admin
@@ -809,6 +809,43 @@ export async function useBengaliFont(pdfDoc) {
     console.error("Bengali PDF font failed to load, falling back to default font:", err);
     return false;
   }
+}
+
+/* ---------- Canvas-rasterized Bengali text for PDFs ----------
+   jsPDF embeds TTFs glyph-by-glyph with no OpenType shaping (no GSUB/GPOS),
+   so Bengali conjuncts and matras — which depend on shaping — render broken
+   or out of order even with useBengaliFont() above registered correctly.
+   The browser's own Canvas 2D text renderer *does* do full shaping, so for
+   Bengali lines we draw the text to an offscreen canvas (using this same
+   font, loaded as a real FontFace) and embed the result as a PNG image
+   instead of native PDF text. Pure-English lines keep using native jsPDF
+   text (crisp, selectable, tiny file size) — see exam-pdf.js's hasBengali()
+   split. Returns the CSS font-family name to use once loaded; cached so the
+   font file is only registered with the document once. */
+let _bengaliCanvasFontPromise = null;
+export function loadBengaliCanvasFont() {
+  if (!_bengaliCanvasFontPromise) {
+    _bengaliCanvasFontPromise = (async () => {
+      const { regular, bold } = await _loadBengaliFontFiles();
+      const toBuffer = (b64) => {
+        const bin = atob(b64);
+        const bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        return bytes.buffer;
+      };
+      const family = "NotoSansBengaliCanvas";
+      const regularFace = new FontFace(family, toBuffer(regular), { weight: "400" });
+      const boldFace = new FontFace(family, toBuffer(bold), { weight: "700" });
+      await Promise.all([regularFace.load(), boldFace.load()]);
+      document.fonts.add(regularFace);
+      document.fonts.add(boldFace);
+      return family;
+    })().catch((err) => {
+      _bengaliCanvasFontPromise = null;
+      throw err;
+    });
+  }
+  return _bengaliCanvasFontPromise;
 }
 
 /* ---------- Course completion certificate (shared) ----------

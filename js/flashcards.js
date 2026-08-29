@@ -3,6 +3,8 @@
 // Cards are created by admins in admin.html (see admin-hub.js); this file
 // just handles reviewing them with a lightweight SM-2-style scheduler, all
 // computed/stored client-side (no Cloud Functions, 100% free).
+// Deliberately flat/strong — no gradients, glows, or blur-shadows; see the
+// "Flashcards" block in css/hub.css for the design rationale.
 // ==========================================================================
 import { db } from "./firebase-config.js";
 import {
@@ -40,6 +42,17 @@ function nextSchedule(progress, grade) {
   return { ease, interval, reps, dueDate: grade === "again" ? todayKey() : addDays(interval) };
 }
 
+function doneScreenHtml({ icon, title, sub }) {
+  return `
+    <div class="fc-shell">
+      <div class="fc-done">
+        <div class="fc-done-icon"><i class="fa-solid ${icon}"></i></div>
+        <h3>${title}</h3>
+        <p class="muted">${sub}</p>
+      </div>
+    </div>`;
+}
+
 export async function renderFlashcardsTab(container, user, profile) {
   container.innerHTML = `<div class="loading-screen"><span class="spinner"></span></div>`;
 
@@ -63,7 +76,11 @@ export async function renderFlashcardsTab(container, user, profile) {
   });
 
   if (!allCards.length) {
-    container.innerHTML = `<p class="muted" style="padding:24px 0">No flashcards are available for your enrolled courses yet — check back after your instructor adds some.</p>`;
+    container.innerHTML = doneScreenHtml({
+      icon: "fa-layer-group",
+      title: "No flashcards yet",
+      sub: "None are available for your enrolled courses yet — check back after your instructor adds some.",
+    });
     return;
   }
 
@@ -72,59 +89,66 @@ export async function renderFlashcardsTab(container, user, profile) {
       .map((c) => progressMap[c.id]?.dueDate)
       .filter(Boolean)
       .sort()[0];
-    container.innerHTML = `
-      <div class="flashcard-alldone">
-        <i class="fa-solid fa-circle-check"></i>
-        <h3>All caught up!</h3>
-        <p class="muted">You've reviewed every due flashcard.${nextDue ? ` Next review: ${nextDue}.` : ""}</p>
-      </div>`;
+    container.innerHTML = doneScreenHtml({
+      icon: "fa-circle-check",
+      title: "All caught up!",
+      sub: `You've reviewed every due flashcard.${nextDue ? ` Next review: ${nextDue}.` : ""}`,
+    });
     return;
   }
 
+  const totalCount = dueCards.length;
   let queue = shuffle([...dueCards]);
   let reviewedCount = 0;
   let flipped = false;
 
   function renderCard() {
     if (!queue.length) {
-      container.innerHTML = `
-        <div class="flashcard-alldone">
-          <i class="fa-solid fa-circle-check"></i>
-          <h3>Session complete!</h3>
-          <p class="muted">You reviewed ${reviewedCount} card${reviewedCount === 1 ? "" : "s"}. Come back tomorrow for more.</p>
-        </div>`;
+      container.innerHTML = doneScreenHtml({
+        icon: "fa-circle-check",
+        title: "Session complete!",
+        sub: `You reviewed ${reviewedCount} card${reviewedCount === 1 ? "" : "s"}. Come back tomorrow for more.`,
+      });
       return;
     }
     flipped = false;
     const card = queue[0];
+    const pct = Math.round((reviewedCount / totalCount) * 100);
     container.innerHTML = `
-      <div class="flashcard-progress-row">
-        <span class="muted">${queue.length} card${queue.length === 1 ? "" : "s"} left this session</span>
-        ${card.courseTitle ? `<span class="badge badge-teal">${escapeHtml(card.courseTitle)}</span>` : `<span class="badge">General</span>`}
-      </div>
-      <div class="flashcard-flip" id="flashcard-flip">
-        <div class="flashcard-face flashcard-front">${escapeHtml(card.front)}</div>
-        <div class="flashcard-face flashcard-back hidden">${escapeHtml(card.back)}</div>
-      </div>
-      <p class="muted flashcard-hint" id="flashcard-hint">Tap the card to reveal the answer</p>
-      <div class="flashcard-grade-row hidden" id="flashcard-grade-row">
-        <button type="button" class="btn flashcard-grade-btn grade-again" data-grade="again">Again</button>
-        <button type="button" class="btn flashcard-grade-btn grade-hard" data-grade="hard">Hard</button>
-        <button type="button" class="btn flashcard-grade-btn grade-good" data-grade="good">Good</button>
-        <button type="button" class="btn flashcard-grade-btn grade-easy" data-grade="easy">Easy</button>
+      <div class="fc-shell">
+        <div class="fc-top-row">
+          <span class="fc-progress-text">${reviewedCount}/${totalCount} reviewed</span>
+          ${card.courseTitle ? `<span class="badge badge-teal">${escapeHtml(card.courseTitle)}</span>` : `<span class="badge">General</span>`}
+        </div>
+        <div class="fc-progress-track"><div class="fc-progress-fill" style="width:${pct}%"></div></div>
+
+        <div class="fc-flip" id="flashcard-flip">
+          <span class="fc-face-label" id="flashcard-face-label">Question</span>
+          <div class="fc-face fc-front">${escapeHtml(card.front)}</div>
+          <div class="fc-face fc-back hidden">${escapeHtml(card.back)}</div>
+        </div>
+        <p class="fc-hint" id="flashcard-hint"><i class="fa-solid fa-hand-pointer"></i> Tap the card to reveal the answer</p>
+
+        <div class="fc-grade-row hidden" id="flashcard-grade-row">
+          <button type="button" class="fc-grade-btn fc-grade-again" data-grade="again">Again</button>
+          <button type="button" class="fc-grade-btn fc-grade-hard" data-grade="hard">Hard</button>
+          <button type="button" class="fc-grade-btn fc-grade-good" data-grade="good">Good</button>
+          <button type="button" class="fc-grade-btn fc-grade-easy" data-grade="easy">Easy</button>
+        </div>
       </div>
     `;
 
     document.getElementById("flashcard-flip")?.addEventListener("click", () => {
       if (flipped) return;
       flipped = true;
-      document.querySelector(".flashcard-back")?.classList.remove("hidden");
+      document.querySelector(".fc-back")?.classList.remove("hidden");
       document.getElementById("flashcard-grade-row")?.classList.remove("hidden");
-      document.getElementById("flashcard-hint").textContent = "How well did you know it?";
+      document.getElementById("flashcard-hint").innerHTML = '<i class="fa-solid fa-circle-question"></i> How well did you know it?';
+      document.getElementById("flashcard-face-label").textContent = "Answer";
     });
 
     document.getElementById("flashcard-grade-row")?.addEventListener("click", async (e) => {
-      const btn = e.target.closest(".flashcard-grade-btn");
+      const btn = e.target.closest(".fc-grade-btn");
       if (!btn) return;
       const grade = btn.dataset.grade;
       await gradeCard(card, grade);

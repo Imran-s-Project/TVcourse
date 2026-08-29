@@ -20,7 +20,7 @@ import {
   serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 import { initNav, requireAuth, toast, escapeHtml, toBnDigits, getUserProfile, drivePreviewUrl, isDriveLink, openModal, closeModal, youTubeId, getExamAvailability, formatDateTime, getCoursePricing, getExamQuestionCount, generateCertificatePdf, formatTime } from "./utils.js";
-import { courseUrl } from "./router.js";
+import { courseUrl, navigate } from "./router.js";
 import { createVideoPlayer } from "./video-player.js";
 
 // ── Per-session state (reset on every initCoursePage call) ────────────────
@@ -947,7 +947,14 @@ function renderLessonExamBanner() {
       <div class="lb-text"><i class="fa-solid fa-file-pen"></i> ${matches.length === 1 ? "This lesson has an exam" : `This lesson has ${toBnDigits(matches.length)} exams`}</div>
       <button type="button" class="btn btn-teal btn-sm" id="lesson-exam-banner-btn">Go to Exam <i class="fa-solid fa-arrow-right"></i></button>
     </div>`;
-  els.examBanner.querySelector("#lesson-exam-banner-btn")?.addEventListener("click", () => showTab("exam"));
+  // A single lesson-scoped exam transports straight into the exam section
+  // (verification → rules → attempt) instead of making the student open the
+  // Exam tab first and click again; with more than one, the tab is still
+  // needed to choose which one.
+  els.examBanner.querySelector("#lesson-exam-banner-btn")?.addEventListener("click", () => {
+    if (matches.length === 1) navigate(`#/exam?id=${matches[0].id}`);
+    else showTab("exam");
+  });
 }
 
 /* ---------- Exams shown in the "Exam" tab for the CURRENT context only —
