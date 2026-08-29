@@ -12,6 +12,7 @@ import {
   openModal, closeModal, confirmAction, youTubeId, videoThumbnail, isDirectVideo,
   getCoursePricing, priceBadgeHtml, formatScore, formatDuration, useBengaliFont,
 } from "./utils.js";
+import { initFlashcardsSection, initDiscussionModerationSection } from "./admin-hub.js";
 
 initNav("admin");
 
@@ -70,6 +71,8 @@ function bindSidebar() {
       if (btn.dataset.section === "leaderboard") initLeaderboardSection();
       if (btn.dataset.section === "analytics") loadAnalyticsSection();
       if (btn.dataset.section === "notifications") loadNotificationsList();
+      if (btn.dataset.section === "flashcards") initFlashcardsSection(courses);
+      if (btn.dataset.section === "discussion") initDiscussionModerationSection();
       closeDrawer();
     });
   });
@@ -879,7 +882,11 @@ async function loadExamsTable() {
         <td data-label="Exam"><div class="cell-title"><div><div class="t">${escapeHtml(ex.title)}</div></div></div></td>
         <td data-label="Course Tag">${escapeHtml(ex.courseName || "—")}</td>
         <td data-label="Scope">${examScopeBadge(ex)}</td>
-        <td data-label="Questions">${ex.questionCount || 0}</td>
+        <td data-label="Questions">${
+          ex.questionsPerAttempt > 0 && ex.questionsPerAttempt < (ex.questionCount || 0)
+            ? `${ex.questionsPerAttempt} <span class="muted" style="font-size:0.82em">/ ${ex.questionCount} bank</span>`
+            : (ex.questionCount || 0)
+        }</td>
         <td data-label="Time">${ex.duration || 0} min</td>
         <td data-label="Settings">${examSettingsBadges(ex)}</td>
         <td data-label="Schedule">${scheduleBadge(ex)}</td>
@@ -917,7 +924,10 @@ function examSettingsBadges(ex) {
   const negBadge = Number(ex.negativeMarking) > 0
     ? `<span class="badge badge-coral" title="Deducted per wrong answer"><i class="fa-solid fa-triangle-exclamation"></i> −${formatScore(ex.negativeMarking)}/wrong</span>`
     : "";
-  return `<div class="settings-badges">${attemptsBadge}${layoutBadge}${shuffleBadge}${negBadge}</div>`;
+  const poolBadge = ex.questionsPerAttempt > 0 && ex.questionsPerAttempt < (ex.questionCount || 0)
+    ? `<span class="badge badge-teal" title="A random ${ex.questionsPerAttempt} of ${ex.questionCount} questions is drawn on every attempt"><i class="fa-solid fa-dice"></i> Random Pool</span>`
+    : "";
+  return `<div class="settings-badges">${attemptsBadge}${layoutBadge}${shuffleBadge}${negBadge}${poolBadge}</div>`;
 }
 
 function scheduleBadge(ex) {
@@ -990,6 +1000,20 @@ async function openExamModal(examId) {
           <label>Negative Marking (marks deducted per wrong answer)</label>
           <input type="number" id="em-negative-marking" min="0" step="0.25" placeholder="0" value="${ex && ex.negativeMarking ? ex.negativeMarking : ""}">
           <span class="form-hint">e.g. 0.25 deducts a quarter mark for every wrong answer — unanswered questions are never penalized. Leave empty or 0 to turn negative marking off. This also feeds the Leaderboard's ranking.</span>
+        </div>
+
+        <div class="schedule-box">
+          <div class="schedule-box-title"><i class="fa-solid fa-shuffle"></i> Random Question Pool</div>
+          <div class="field">
+            <label>Questions Per Attempt (leave empty to show every question)</label>
+            <input type="number" id="em-pool-size" min="0" placeholder="e.g. 25" value="${ex && ex.questionsPerAttempt ? ex.questionsPerAttempt : ""}">
+            <span class="form-hint">
+              Add as many questions as you like below (even 1000+) as your full question bank. If you set a number
+              here, every attempt — for every student, every time — a fresh random set of that many questions is
+              drawn from the full bank, so no two students (and no two attempts) are guaranteed to see the same
+              questions. Leave empty to show the full bank to everyone, every time.
+            </span>
+          </div>
         </div>
 
         <div class="schedule-box">
@@ -1284,6 +1308,13 @@ Explanation: Paris has been the capital of France since the 12th century.</pre>
     if (!questionDrafts.length) { switchExamTab("questions"); toast("Please add at least one question", "error"); return; }
     if (questionDrafts.some((q) => !q.text.trim() || q.options.some((o) => !o.trim()))) { switchExamTab("questions"); toast("Please fill in all questions and options", "error"); return; }
 
+    const poolSizeVal = Math.max(0, Number(overlay.querySelector("#em-pool-size").value) || 0);
+    if (poolSizeVal > 0 && poolSizeVal > questionDrafts.length) {
+      switchExamTab("questions");
+      toast(`You set ${poolSizeVal} questions per attempt, but the question bank only has ${questionDrafts.length}. Add more questions or lower that number.`, "error");
+      return;
+    }
+
     const courseIdVal = overlay.querySelector("#em-course-id").value || "";
     const scopeVal = courseIdVal ? overlay.querySelector("#em-scope").value : "course";
     const checkedLessons = scopeVal === "lessons"
@@ -1308,6 +1339,7 @@ Explanation: Paris has been the capital of France since the 12th century.</pre>
         lessonNames: checkedLessons.map((cb) => cb.dataset.title),
         duration: Number(overlay.querySelector("#em-duration").value) || 10,
         questionCount: questionDrafts.length,
+        questionsPerAttempt: poolSizeVal,
         maxAttempts: Math.max(0, Number(overlay.querySelector("#em-max-attempts").value) || 0),
         negativeMarking: Math.max(0, Number(overlay.querySelector("#em-negative-marking").value) || 0),
         layout: overlay.querySelector("#em-layout").value === "all" ? "all" : "one",

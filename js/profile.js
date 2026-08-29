@@ -31,7 +31,7 @@ import {
   where,
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 import { ref, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-storage.js";
-import { requireAuth, getUserProfile, toast, escapeHtml, toBnDigits, formatDate, confirmAction, openModal, closeModal, supportMailto, SUPPORT_EMAIL_GMAIL, SUPPORT_EMAIL_YAHOO, useBengaliFont } from "./utils.js";
+import { requireAuth, getUserProfile, toast, escapeHtml, toBnDigits, formatDate, confirmAction, openModal, closeModal, supportMailto, SUPPORT_EMAIL_GMAIL, SUPPORT_EMAIL_YAHOO, useBengaliFont, generateCertificatePdf } from "./utils.js";
 import { courseUrl } from "./router.js";
 
 let currentUser = null;
@@ -147,17 +147,44 @@ async function loadMyCourses() {
       const doneMap = profile?.progress?.[c.id] || {};
       const doneCount = Object.values(doneMap).filter(Boolean).length;
       const pct = c.lessonCount ? Math.round((doneCount / c.lessonCount) * 100) : 0;
+      const isComplete = c.lessonCount > 0 && pct >= 100;
       return `
-      <a href="index.html#/course?id=${c.id}" class="my-course-row card">
-        <img src="${c.coverImage || ""}" alt="">
-        <div class="info">
-          <h4>${escapeHtml(c.title)}</h4>
-          <div class="progress-track" style="background:var(--bg-elevated-2)"><div class="progress-fill" style="width:${pct}%"></div></div>
-        </div>
-        <span class="badge badge-amber">${pct}%</span>
-      </a>`;
+      <div class="my-course-row card">
+        <a href="index.html#/course?id=${c.id}" class="my-course-row-link">
+          <img src="${c.coverImage || ""}" alt="">
+          <div class="info">
+            <h4>${escapeHtml(c.title)}</h4>
+            <div class="progress-track" style="background:var(--bg-elevated-2)"><div class="progress-fill" style="width:${pct}%"></div></div>
+          </div>
+          <span class="badge badge-amber">${pct}%</span>
+        </a>
+        ${isComplete ? `<button type="button" class="btn btn-teal btn-sm my-course-cert-btn" data-cert-course="${c.id}"><i class="fa-solid fa-award"></i> সার্টিফিকেট</button>` : ""}
+      </div>`;
     })
     .join("");
+
+  wrap.querySelectorAll("[data-cert-course]").forEach((btn) =>
+    btn.addEventListener("click", async (e) => {
+      e.preventDefault();
+      const c = mine.find((x) => x.id === btn.dataset.certCourse);
+      if (!c) return;
+      const original = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span>';
+      try {
+        const certA = (c.id || "").replace(/[^a-zA-Z0-9]/g, "").slice(0, 4).toUpperCase();
+        const certB = (currentUser?.uid || "").replace(/[^a-zA-Z0-9]/g, "").slice(0, 6).toUpperCase();
+        await generateCertificatePdf({
+          studentName: profile?.displayName || currentUser.email.split("@")[0],
+          courseTitle: c.title || "",
+          certificateId: `TVC-${certA}-${certB}`,
+        });
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = original;
+      }
+    })
+  );
 }
 
 /* ---------- Exam results ---------- */

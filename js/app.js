@@ -19,6 +19,7 @@ import { initDashboard } from "./dashboard.js";
 import { initCoursePage } from "./course.js";
 import { initExamPage } from "./exam.js";
 import { initProfilePage, activateTab } from "./profile.js";
+import * as pageHub from "./hub.js";
 import { initNav } from "./utils.js";
 import * as pageAbout from "./page-about.js";
 import * as pageCredits from "./page-credits.js";
@@ -39,6 +40,8 @@ const pageStatic   = document.getElementById("page-static");
 const staticMount  = document.getElementById("static-page-content");
 const pageProfileEl = document.getElementById("page-profile");
 const profileMount = document.getElementById("profile-page-content");
+const pageHubEl = document.getElementById("page-hub");
+const hubMount = document.getElementById("hub-page-content");
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -48,6 +51,7 @@ function showHome() {
   pageExam.classList.add("hidden");
   pageStatic.classList.add("hidden");
   pageProfileEl.classList.add("hidden");
+  pageHubEl.classList.add("hidden");
   document.title = "Tech Verse Course — A New Destination for Learning";
 }
 
@@ -57,6 +61,7 @@ function showCourse() {
   pageExam.classList.add("hidden");
   pageStatic.classList.add("hidden");
   pageProfileEl.classList.add("hidden");
+  pageHubEl.classList.add("hidden");
 }
 
 function showExam() {
@@ -65,6 +70,7 @@ function showExam() {
   pageExam.classList.remove("hidden");
   pageStatic.classList.add("hidden");
   pageProfileEl.classList.add("hidden");
+  pageHubEl.classList.add("hidden");
   document.title = "Exam — Tech Verse Course";
 }
 
@@ -74,6 +80,7 @@ function showStatic() {
   pageExam.classList.add("hidden");
   pageStatic.classList.remove("hidden");
   pageProfileEl.classList.add("hidden");
+  pageHubEl.classList.add("hidden");
 }
 
 function showProfile() {
@@ -82,6 +89,16 @@ function showProfile() {
   pageExam.classList.add("hidden");
   pageStatic.classList.add("hidden");
   pageProfileEl.classList.remove("hidden");
+  pageHubEl.classList.add("hidden");
+}
+
+function showHub() {
+  pageHome.classList.add("hidden");
+  pageCourse.classList.add("hidden");
+  pageExam.classList.add("hidden");
+  pageStatic.classList.add("hidden");
+  pageProfileEl.classList.add("hidden");
+  pageHubEl.classList.remove("hidden");
 }
 
 // ── Route handlers ────────────────────────────────────────────────────────
@@ -184,6 +201,21 @@ async function profileRoute(params) {
   if (tab) activateTab(tab);
 }
 
+let hubBooted = false;
+
+async function hubRoute(_params) {
+  showHub();
+  document.title = pageHub.title;
+  initNav("hub");
+  // Same one-time-mount reasoning as profileRoute above — hub.js's tab
+  // click listeners must only ever be bound once.
+  if (!hubBooted) {
+    hubBooted = true;
+    hubMount.innerHTML = pageHub.render();
+    await pageHub.initHubPage();
+  }
+}
+
 // ── Boot ──────────────────────────────────────────────────────────────────
 
 const router = new Router(
@@ -192,6 +224,7 @@ const router = new Router(
     course:  courseRoute,
     exam:    examRoute,
     profile: profileRoute,
+    hub:     hubRoute,
     about:   staticRoute(pageAbout),
     credits: staticRoute(pageCredits),
     help:    staticRoute(pageHelp),

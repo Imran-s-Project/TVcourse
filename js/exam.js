@@ -22,7 +22,7 @@ import {
   addDoc,
   serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-import { initNav, requireAuth, toast, escapeHtml, toBnDigits, formatTime, formatDuration, formatScore, getExamAvailability, formatDateTime, getCoursePricing, useBengaliFont } from "./utils.js";
+import { initNav, requireAuth, toast, escapeHtml, toBnDigits, formatTime, formatDuration, formatScore, getExamAvailability, formatDateTime, getCoursePricing, useBengaliFont, getExamQuestionCount, openModal, closeModal } from "./utils.js";
 import { navigate } from "./router.js";
 
 // ── Per-visit state (reset on every initExamPage call) ────────────────────
@@ -232,7 +232,7 @@ async function loadExamList(myToken) {
               <p class="muted" style="font-size:0.9rem">${escapeHtml(ex.description || "")}</p>
               <div class="meta-row">
                 <span><i class="fa-solid fa-stopwatch"></i> ${ex.duration || 10} min</span>
-                <span><i class="fa-solid fa-circle-question"></i> ${ex.questionCount || 0} questions</span>
+                <span><i class="fa-solid fa-circle-question"></i> ${getExamQuestionCount(ex)} questions</span>
               </div>
               <span class="badge badge-amber"><i class="fa-solid fa-lock"></i> To be published: ${formatDateTime(publishAt)}</span>
             </div>`;
@@ -262,7 +262,7 @@ async function loadExamList(myToken) {
               <p class="muted" style="font-size:0.9rem">${escapeHtml(ex.description || "")}</p>
               <div class="meta-row">
                 <span><i class="fa-solid fa-stopwatch"></i> ${ex.duration || 10} min</span>
-                <span><i class="fa-solid fa-circle-question"></i> ${ex.questionCount || 0} questions</span>
+                <span><i class="fa-solid fa-circle-question"></i> ${getExamQuestionCount(ex)} questions</span>
               </div>
               ${result ? `<span class="badge badge-amber result-pill">Previous score: ${formatScore(result.score)}/${result.total}</span>` : ""}
               <span class="badge badge-coral"><i class="fa-solid fa-stopwatch"></i> Time's up (was open until ${formatDateTime(closesAt)})</span>
@@ -277,7 +277,7 @@ async function loadExamList(myToken) {
               <p class="muted" style="font-size:0.9rem">${escapeHtml(ex.description || "")}</p>
               <div class="meta-row">
                 <span><i class="fa-solid fa-stopwatch"></i> ${ex.duration || 10} min</span>
-                <span><i class="fa-solid fa-circle-question"></i> ${ex.questionCount || 0} questions</span>
+                <span><i class="fa-solid fa-circle-question"></i> ${getExamQuestionCount(ex)} questions</span>
               </div>
               ${result ? `<span class="badge badge-amber result-pill">Last score: ${formatScore(result.score)}/${result.total}</span>` : ""}
               <span class="badge badge-coral"><i class="fa-solid fa-ban"></i> You have already taken the exam</span>
@@ -293,8 +293,7 @@ async function loadExamList(myToken) {
           <p class="muted" style="font-size:0.9rem">${escapeHtml(ex.description || "")}</p>
           <div class="meta-row">
             <span><i class="fa-solid fa-stopwatch"></i> ${ex.duration || 10} min</span>
-            <span><i class="fa-solid fa-circle-question"></i> ${ex.questionCount || 0} questions</span>
-            ${Number(ex.negativeMarking) > 0 ? `<span><i class="fa-solid fa-triangle-exclamation"></i> −${formatScore(ex.negativeMarking)} per wrong answer</span>` : ""}
+            <span><i class="fa-solid fa-circle-question"></i> ${getExamQuestionCount(ex)} questions</span>
           </div>
           <div class="meta-row">${attemptsMeta}</div>
           ${result ? `<span class="badge badge-amber result-pill">Previous score: ${formatScore(result.score)}/${result.total}</span>` : ""}
@@ -317,14 +316,94 @@ async function loadExamList(myToken) {
   }
 }
 
-/* ---------- Taking an exam ---------- */
-async function loadExamTaking(id, myToken) {
-  listView.classList.add("hidden");
-  takeView.classList.remove("hidden");
+/* ---------- Pre-exam "read the instructions" modal ----------
+   Shown once the person taps Start Exam / Retake, right before the timer
+   actually starts. Deliberately never mentions randomized questions or the
+   exact negative-marking value — those stay admin-only settings; the only
+   attempt-related number shown here is which attempt this will be, same as
+   the "Attempts: x/y" badge already shown on the exam cards.
+   Resolves with "confirmed" only if the person explicitly clicks Start Exam;
+   "cancelled" for Cancel / the × button / clicking outside (caller sends
+   them back to the exam list); "away" if they navigated somewhere else
+   entirely while the modal was open (caller does nothing further, so it
+   doesn't fight whatever navigation they actually chose). ---------- */
+function showExamStartModal(exam, { totalMarks, attemptsSoFar, maxAttempts }) {
+  return new Promise((resolve) => {
+    let settled = false;
+    function finish(result) {
+      if (settled) return;
+      settled = true;
+      window.removeEventListener("hashchange", onNavigateAway);
+      resolve(result);
+      closeModal();
+    }
+    function onNavigateAway() { finish("away"); }
+    window.addEventListener("hashchange", onNavigateAway);
 
+    const attemptsLine = maxAttempts > 0
+      ? `<li>This will be attempt ${attemptsSoFar + 1} of ${maxAttempts} allowed for this exam.</li>`
+      : "";
+
+    const overlay = openModal(
+      `
+      <div class="exam-start-modal">
+        <div class="exam-start-head">
+          <div>
+            <h3>${escapeHtml(exam.title)}</h3>
+            <p class="muted">Please read the instructions carefully before you begin</p>
+          </div>
+          <button type="button" class="modal-close-btn" data-modal-close aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+
+        <div class="exam-start-stats">
+          <div class="exam-start-stat">
+            <span class="exam-start-stat-label">Duration</span>
+            <span class="exam-start-stat-value">${exam.duration || 10} min</span>
+          </div>
+          <div class="exam-start-stat">
+            <span class="exam-start-stat-label">Total Marks</span>
+            <span class="exam-start-stat-value">${totalMarks}</span>
+          </div>
+        </div>
+
+        <div class="exam-start-instructions">
+          <h4>Instructions:</h4>
+          <ul>
+            <li>Once the exam starts, the timer will not stop — make sure you're ready before beginning.</li>
+            <li>You must complete the exam within ${exam.duration || 10} minutes; the timer starts the instant you click "Start Exam".</li>
+            <li>You may go through the questions in any order, but once you pick an answer for a question, it locks immediately and cannot be changed.</li>
+            <li>Please don't refresh or close this page while the exam is running — your progress is only kept for this session.</li>
+            <li>When time runs out, the exam is submitted automatically with whatever you've answered so far.</li>
+            ${attemptsLine}
+          </ul>
+        </div>
+
+        <div class="exam-start-actions">
+          <button type="button" class="btn btn-outline btn-block" data-modal-close>Cancel</button>
+          <button type="button" class="btn btn-primary btn-block" data-exam-start-confirm>Start Exam <i class="fa-solid fa-arrow-right"></i></button>
+        </div>
+      </div>
+      `,
+      { onClose: () => finish("cancelled") }
+    );
+
+    overlay.querySelector("[data-exam-start-confirm]").addEventListener("click", () => finish("confirmed"));
+  });
+}
+
+/* ---------- Taking an exam ----------
+   Stays on the list view (with the "Start Exam"/"Retake" link's target exam
+   loading quietly in the background) until every validity check passes and
+   the person has confirmed the pre-exam instructions modal — only then do
+   we flip to the take-view and actually start the timer. This avoids a
+   flash of the empty exam shell behind the modal, and means Cancel just
+   leaves the person exactly where they already were. ---------- */
+async function loadExamTaking(id, myToken) {
   const examSnap = await getDoc(doc(db, "exams", id));
   if (myToken !== navToken) return;
   if (!examSnap.exists()) {
+    listView.classList.add("hidden");
+    takeView.classList.remove("hidden");
     takeView.innerHTML = `<div class="empty-state"><p>Exam not found</p></div>`;
     return;
   }
@@ -359,18 +438,51 @@ async function loadExamTaking(id, myToken) {
       setTimeout(() => { if (myToken === navToken) navigate("#/exam"); }, 1400);
       return;
     }
+  } else {
+    attemptsSoFar = 0;
   }
+
+  // ---------- Pre-exam instructions modal — must be confirmed before the timer starts ----------
+  const modalResult = await showExamStartModal(exam, {
+    totalMarks: getExamQuestionCount(exam),
+    attemptsSoFar,
+    maxAttempts,
+  });
+  if (myToken !== navToken) return; // this exam.js visit was superseded while the modal was open
+  if (modalResult === "away") return; // the person navigated somewhere else entirely — don't fight that
+  if (modalResult !== "confirmed") {
+    navigate("#/exam"); // Cancel / × / clicked outside — back to the list, URL stays clean
+    return;
+  }
+
+  listView.classList.add("hidden");
+  takeView.classList.remove("hidden");
 
   window.__currentExam = exam;
   document.getElementById("exam-take-title").textContent = exam.title;
 
   const qSnap = await getDocs(query(collection(db, "exams", id, "questions"), orderBy("order", "asc")));
   if (myToken !== navToken) return;
-  questions = qSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
-  if (!questions.length) {
+  const questionBank = qSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  if (!questionBank.length) {
     takeView.innerHTML = `<div class="empty-state"><p>This exam has no questions</p></div>`;
     return;
   }
+
+  /* ---------- Random question pool ----------
+     If the admin set exam.questionsPerAttempt (and it's smaller than the full
+     question bank), a fresh random subset is drawn right here, on every single
+     load of this function — i.e. every attempt, for every user. Since this
+     runs independently per browser session with no shared seed, two students
+     taking the exam at the same moment (or the same student retaking it) will
+     essentially never see the identical subset in the identical order. This
+     is intentionally separate from the exam.shuffle toggle below: the subset
+     draw always happens when a pool size is set, regardless of whether
+     display-order shuffling is also on. */
+  const perAttempt = Number(exam.questionsPerAttempt) || 0;
+  questions = perAttempt > 0 && perAttempt < questionBank.length
+    ? shuffleArray(questionBank).slice(0, perAttempt)
+    : questionBank.slice();
 
   /* Question and option order is shuffled on each attempt (enabled by default) — to make cheating harder */
   if (exam.shuffle !== false) {

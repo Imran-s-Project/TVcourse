@@ -266,10 +266,14 @@ export function initNav(activePage = "") {
   // Exam is likewise a hash route inside index.html now (see js/exam.js +
   // the #page-exam shell) — there is no more exam.html file to link to.
   const examHref = onIndexPage ? "#/exam" : "index.html#/exam";
+  // Learning Hub is likewise a hash route inside index.html (see js/hub.js +
+  // the #page-hub shell) — badges, discussion and flashcards live there.
+  const hubHref = onIndexPage ? "#/hub" : "index.html#/hub";
   const baseLinks = [
     { href: homeHref, label: '<i class="fa-solid fa-house"></i> Home', key: "home" },
     { href: myCoursesHref, label: '<i class="fa-solid fa-book-open"></i> My Courses', key: "mycourses" },
     { href: examHref, label: '<i class="fa-solid fa-file-pen"></i> Exam', key: "exam" },
+    { href: hubHref, label: `<i class="fa-solid fa-layer-group"></i> Hub ${newPillHtml("hub_nav")}`, key: "hub" },
     { href: profileHref, label: '<i class="fa-solid fa-user"></i> Profile', key: "profile" },
   ];
   const navLinksDesktop = document.getElementById("nav-links");
@@ -418,6 +422,11 @@ export function initNav(activePage = "") {
       // Dynamic import (not a static one) so utils.js and notifications.js don't form
       // a circular import — notifications.js itself statically imports escapeHtml from here.
       import("./notifications.js").then(({ mountNotificationBell }) => mountNotificationBell(user.uid, profile)).catch(() => {});
+      // Same dynamic-import reasoning as notifications.js above — keeps the
+      // daily login-streak counter (used by the Learning Hub's Achievements
+      // tab) ticking forward from every page the person visits, not just
+      // the Hub itself, without utils.js <-> badges.js forming a cycle.
+      import("./badges.js").then(({ updateDailyStreak }) => updateDailyStreak(user.uid)).catch(() => {});
       const isAdmin = !!profile?.isAdmin;
       const name = profile?.displayName || user.email?.split("@")[0] || "User";
       const email = user.email || "";
@@ -642,6 +651,53 @@ export function formatDate(ts) {
   return `${date.getDate()} ${months[date.getMonth()]}, ${date.getFullYear()}`;
 }
 
+/* ---------- Relative "time ago" string (e.g. "3h ago", "2d ago") ----------
+   Used by the Learning Hub's Discussion tab for thread/reply timestamps —
+   falls back to formatDate() once something is more than a week old, since
+   "23d ago" is less useful to read than an actual date at that point. ---------- */
+export function timeAgo(ts) {
+  if (!ts) return "";
+  const date = ts.toDate ? ts.toDate() : new Date(ts);
+  const diffSec = Math.max(0, Math.floor((Date.now() - date.getTime()) / 1000));
+  if (diffSec < 60) return "just now";
+  const diffMin = Math.floor(diffSec / 60);
+  if (diffMin < 60) return `${diffMin}m ago`;
+  const diffHr = Math.floor(diffMin / 60);
+  if (diffHr < 24) return `${diffHr}h ago`;
+  const diffDay = Math.floor(diffHr / 24);
+  if (diffDay < 7) return `${diffDay}d ago`;
+  return formatDate(ts);
+}
+
+/* ---------- "NEW" feature-discovery pills ----------
+   A small, reusable, site-wide system for marking freshly-shipped features
+   with a "NEW" pill until the person actually opens/uses them — so future
+   additions (not just today's Hub) can plug into the same mechanism instead
+   of each one inventing its own "is this new" flag. Purely local (per
+   browser) via localStorage; nothing server-side to manage. Once a key is
+   marked seen it stays seen forever on that device. ---------- */
+const FEATURE_SEEN_PREFIX = "tv_seen_";
+
+export function isFeatureSeen(key) {
+  try {
+    return localStorage.getItem(FEATURE_SEEN_PREFIX + key) === "1";
+  } catch {
+    return true; // if storage is unavailable, don't nag with a pill we can't ever clear
+  }
+}
+
+export function markFeatureSeen(key) {
+  try {
+    localStorage.setItem(FEATURE_SEEN_PREFIX + key, "1");
+  } catch { /* ignore — storage unavailable */ }
+}
+
+/** Returns a <span class="new-pill">NEW</span> if this feature key hasn't been
+ *  marked seen yet on this device, otherwise an empty string. */
+export function newPillHtml(key) {
+  return isFeatureSeen(key) ? "" : `<span class="new-pill">New</span>`;
+}
+
 /* ---------- Format date + time in English (used in exam scheduling) ---------- */
 export function formatDateTime(ts) {
   if (!ts) return "";
@@ -666,6 +722,25 @@ export function getExamAvailability(exam) {
   if (publishAt && now < publishAt) state = "upcoming";
   else if (closesAt && now > closesAt) state = "closed";
   return { state, publishAt, closesAt };
+}
+
+/* ---------- How many questions a student actually sees for this exam ----------
+   exam.questionCount is always the FULL pool size (every question the admin
+   added). If exam.questionsPerAttempt is set (and smaller than the pool), a
+   random subset is drawn on every attempt — see js/exam.js loadExamTaking()
+   — so that's the number that's actually meaningful to show a student before
+   they start (and what the timer/negative-marking math is based on). Every
+   card that displays a question count (exam list, lesson exam banner, admin
+   table) should go through this helper instead of reading ex.questionCount
+   directly, so they all stay consistent if the pool logic ever changes. ---------- */
+export function getExamQuestionCount(exam = {}) {
+  const perAttempt = Number(exam.questionsPerAttempt) || 0;
+  const pool = Number(exam.questionCount) || 0;
+  return perAttempt > 0 && perAttempt < pool ? perAttempt : pool;
+}
+export function isExamRandomPool(exam = {}) {
+  const perAttempt = Number(exam.questionsPerAttempt) || 0;
+  return perAttempt > 0 && perAttempt < (Number(exam.questionCount) || 0);
 }
 
 /* -------- Shared Bengali-Unicode font loader for jsPDF --------
@@ -735,4 +810,143 @@ export async function useBengaliFont(pdfDoc) {
     console.error("Bengali PDF font failed to load, falling back to default font:", err);
     return false;
   }
+}
+
+/* ---------- Course completion certificate (shared) ----------
+   Called from both js/course.js (banner shown on the course page once every
+   lesson is marked complete) and js/profile.js ("My Courses" tab, once a
+   course reaches 100%) — kept here, not duplicated in either file, so both
+   entry points always produce an identical certificate. Uses the same
+   NAVY/AMBER/BG palette as profile.js's enrollment-invoice PDF for a
+   consistent brand look across every downloadable document on the site. ---------- */
+let _certLogoCache = null;
+function _loadCertLogo() {
+  if (_certLogoCache !== null) return Promise.resolve(_certLogoCache);
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => { _certLogoCache = img; resolve(img); };
+    img.onerror = () => { _certLogoCache = false; resolve(false); };
+    img.src = "assets/logo.png";
+  });
+}
+
+/**
+ * Generates and downloads a "Certificate of Completion" PDF.
+ * @param {{studentName:string, courseTitle:string, completionDate?:Date, certificateId?:string}} opts
+ * Returns true on success, false if the PDF engine/font couldn't be prepared
+ * (caller should toast; this function only toasts the "no jsPDF" case since
+ * that's the one true failure — a missing Bengali font still falls back and succeeds).
+ */
+export async function generateCertificatePdf({ studentName, courseTitle, completionDate = new Date(), certificateId = "" } = {}) {
+  const { jsPDF } = window.jspdf || {};
+  if (!jsPDF) {
+    toast("Couldn't load the PDF engine. Check your connection and try again.", "error");
+    return false;
+  }
+
+  const logoImg = await _loadCertLogo();
+  const pdfDoc = new jsPDF({ unit: "pt", format: "a4", orientation: "landscape" });
+  const bnLoaded = await useBengaliFont(pdfDoc);
+  const bnFont = bnLoaded ? "NotoSansBengali" : undefined;
+
+  const W = pdfDoc.internal.pageSize.getWidth();
+  const H = pdfDoc.internal.pageSize.getHeight();
+
+  const hex = (h) => {
+    h = h.replace("#", "");
+    return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
+  };
+  const setFill = (c) => { const [r, g, b] = hex(c); pdfDoc.setFillColor(r, g, b); };
+  const setDraw = (c) => { const [r, g, b] = hex(c); pdfDoc.setDrawColor(r, g, b); };
+  const setTxt = (c) => { const [r, g, b] = hex(c); pdfDoc.setTextColor(r, g, b); };
+
+  const NAVY = "#14182B";
+  const AMBER = "#E8A33D";
+  const BG = "#FAF7F1";
+  const MUTED = "#6b7280";
+
+  // Background
+  setFill(BG);
+  pdfDoc.rect(0, 0, W, H, "F");
+
+  // Outer navy border + inner amber accent border
+  setDraw(NAVY);
+  pdfDoc.setLineWidth(2.2);
+  pdfDoc.rect(24, 24, W - 48, H - 48);
+  setDraw(AMBER);
+  pdfDoc.setLineWidth(0.8);
+  pdfDoc.rect(34, 34, W - 68, H - 68);
+
+  // Faint centered watermark logo
+  if (logoImg) {
+    pdfDoc.saveGraphicsState();
+    pdfDoc.setGState(new pdfDoc.GState({ opacity: 0.06 }));
+    const wm = 260;
+    pdfDoc.addImage(logoImg, "PNG", (W - wm) / 2, (H - wm) / 2, wm, wm);
+    pdfDoc.restoreGraphicsState();
+  }
+
+  let y = 90;
+  if (logoImg) pdfDoc.addImage(logoImg, "PNG", W / 2 - 20, y - 34, 40, 40);
+  pdfDoc.setFont(bnFont, "bold");
+  pdfDoc.setFontSize(15);
+  setTxt(NAVY);
+  pdfDoc.text("Tech Verse Course", W / 2, y + 20, { align: "center" });
+
+  y += 46;
+  pdfDoc.setFont(bnFont, "bold");
+  pdfDoc.setFontSize(28);
+  setTxt(AMBER);
+  pdfDoc.text("CERTIFICATE OF COMPLETION", W / 2, y, { align: "center" });
+
+  y += 34;
+  pdfDoc.setFont(bnFont, "normal");
+  pdfDoc.setFontSize(12);
+  setTxt(MUTED);
+  pdfDoc.text("This is to certify that", W / 2, y, { align: "center" });
+
+  y += 42;
+  pdfDoc.setFont(bnFont, "bold");
+  pdfDoc.setFontSize(26);
+  setTxt(NAVY);
+  pdfDoc.text(studentName || "Student", W / 2, y, { align: "center" });
+  const nameWidth = pdfDoc.getTextWidth(studentName || "Student");
+  setDraw(AMBER);
+  pdfDoc.setLineWidth(1.4);
+  pdfDoc.line(W / 2 - nameWidth / 2 - 10, y + 8, W / 2 + nameWidth / 2 + 10, y + 8);
+
+  y += 38;
+  pdfDoc.setFont(bnFont, "normal");
+  pdfDoc.setFontSize(12);
+  setTxt(MUTED);
+  pdfDoc.text("has successfully completed the course", W / 2, y, { align: "center" });
+
+  y += 34;
+  pdfDoc.setFont(bnFont, "bold");
+  pdfDoc.setFontSize(19);
+  setTxt(NAVY);
+  const courseLines = pdfDoc.splitTextToSize(courseTitle || "Course", W - 220);
+  pdfDoc.text(courseLines, W / 2, y, { align: "center" });
+  y += courseLines.length * 22;
+
+  // Footer row: date on the left, certificate ID on the right
+  const footerY = H - 66;
+  setDraw("#e8e2d6");
+  pdfDoc.setLineWidth(0.6);
+  pdfDoc.line(70, footerY - 18, W - 70, footerY - 18);
+
+  pdfDoc.setFont(bnFont, "normal");
+  pdfDoc.setFontSize(10);
+  setTxt(MUTED);
+  const dateStr = completionDate.toLocaleDateString("en-GB", { day: "2-digit", month: "long", year: "numeric" });
+  pdfDoc.text(`Date of Completion: ${dateStr}`, 70, footerY);
+  if (certificateId) {
+    pdfDoc.text(`Certificate ID: ${certificateId}`, W - 70, footerY, { align: "right" });
+  }
+
+  const safeName = (studentName || "student").replace(/[^a-z0-9\u0980-\u09FF]+/gi, "_").slice(0, 40);
+  const safeCourse = (courseTitle || "course").replace(/[^a-z0-9\u0980-\u09FF]+/gi, "_").slice(0, 50);
+  pdfDoc.save(`${safeCourse}_certificate_${safeName}.pdf`);
+  return true;
 }

@@ -20,7 +20,7 @@ import {
   limit,
   serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-import { initNav, requireAuth, toast, escapeHtml, toBnDigits, getUserProfile, drivePreviewUrl, isDriveLink, openModal, closeModal, youTubeId, getExamAvailability, formatDateTime, getCoursePricing } from "./utils.js";
+import { initNav, requireAuth, toast, escapeHtml, toBnDigits, getUserProfile, drivePreviewUrl, isDriveLink, openModal, closeModal, youTubeId, getExamAvailability, formatDateTime, getCoursePricing, getExamQuestionCount, generateCertificatePdf, formatTime } from "./utils.js";
 import { courseUrl } from "./router.js";
 
 // ── Per-session state (reset on every initCoursePage call) ────────────────
@@ -35,6 +35,16 @@ let currentCourse = null;
 let unlocked = true;
 let courseExams = [];
 let marqueeRAF = null;
+
+// ── Video resume state ─────────────────────────────────────────────────────
+// activeVideoCleanup: torn down (flushing one last progress save) every time
+// renderVideo() is about to swap in a new lesson's player, and again from
+// initCoursePage()'s returned cleanup() when the user leaves the course page
+// entirely — mirrors the marqueeRAF / navToken teardown pattern already used
+// on this page for the same reason (don't leak timers/listeners across visits).
+let activeVideoCleanup = null;
+let videoToken = 0;
+let ytApiPromise = null;
 
 // Bumped on every initCoursePage() call. Any async work (Firestore awaits)
 // started for an older navigation checks this before touching shared state
@@ -125,6 +135,7 @@ export async function initCoursePage(id, params) {
   // Return a cleanup function for app.js to call before the next navigation
   return function cleanup() {
     if (marqueeRAF !== null) { cancelAnimationFrame(marqueeRAF); marqueeRAF = null; }
+    if (activeVideoCleanup) { activeVideoCleanup(); activeVideoCleanup = null; }
   };
 }
 
@@ -200,6 +211,7 @@ async function init(params, myToken) {
 
   els.sidebarSub.textContent = `${lessons.length} lessons`;
   initLessonMarquee();
+  renderCertificateBanner();
 
   // Start from where they left off, otherwise the first lesson
   const progress = userProfile?.progress?.[courseId] || {};
@@ -659,9 +671,197 @@ function selectLesson(id) {
 }
 
 function renderVideo() {
+  const myVToken = ++videoToken;
+  // Flush/stop whatever the previous lesson's player was doing before this
+  // lesson's markup replaces it — otherwise its save-interval/listeners would
+  // keep firing against a video element that's no longer in the DOM.
+  if (activeVideoCleanup) { activeVideoCleanup(); activeVideoCleanup = null; }
+
   const url = activeLesson.videoURL || "";
+  const lessonId = activeLesson.id;
+  const yid = youTubeId(url);
+
+  // YouTube lessons get the scriptable IFrame Player (not a bare <iframe>) so
+  // playback position can be read/restored — see initYouTubeResume(). Drive
+  // embeds and direct video files fall through to the existing buildVideoEmbedHtml();
+  // direct files additionally get native <video> resume via initNativeVideoResume().
+  if (yid) {
+    els.videoFrame.innerHTML = `<div class="loading-screen" style="width:100%"><span class="spinner"></span></div>`;
+    initYouTubeResume(els.videoFrame, yid, lessonId, myVToken);
+    return;
+  }
+
   els.videoFrame.innerHTML = buildVideoEmbedHtml(url, "No video has been added to this lesson yet");
   bindVideoErrorFallback(url);
+  const videoEl = els.videoFrame.querySelector("video");
+  if (videoEl) activeVideoCleanup = initNativeVideoResume(videoEl, lessonId, myVToken);
+}
+
+/* ---------- Video resume: read/write saved position ----------
+   Stored on the user doc as users/{uid}.videoProgress[courseId][lessonId] =
+   { seconds, duration, updatedAt } — same shallow-merge shape as the existing
+   `progress` (lesson-done) map, so a single setDoc(..., {merge:true}) never
+   clobbers other lessons/courses. Writes are throttled (see the ~5s interval/
+   timeupdate-delta checks in the two init*Resume() functions below) rather
+   than firing on every frame — video position doesn't need sub-5-second
+   precision, and this keeps Firestore writes cheap even on a long lecture. ---------- */
+function getSavedVideoProgress(lessonId) {
+  return userProfile?.videoProgress?.[courseId]?.[lessonId] || null;
+}
+
+async function saveVideoProgress(lessonId, seconds, duration) {
+  if (!currentUser || !lessonId || !Number.isFinite(seconds) || seconds < 1) return;
+  try {
+    const ref = doc(db, "users", currentUser.uid);
+    await setDoc(ref, { videoProgress: { [courseId]: { [lessonId]: { seconds: Math.floor(seconds), duration: Math.floor(duration || 0), updatedAt: serverTimestamp() } } } }, { merge: true });
+    userProfile.videoProgress = userProfile.videoProgress || {};
+    userProfile.videoProgress[courseId] = { ...(userProfile.videoProgress[courseId] || {}), [lessonId]: { seconds: Math.floor(seconds), duration: Math.floor(duration || 0) } };
+  } catch {
+    // Non-critical — losing one progress tick just means resume falls back a little further next time
+  }
+}
+
+/* ---------- Auto-complete once a lesson's been watched through ----------
+   Quietly (no toast, no auto-advance to the next lesson — that's reserved for
+   the deliberate "Mark Lesson as Complete" button click) flips the same
+   `progress` flag once watch time crosses 90%, so lessons finished just by
+   watching still count toward course completion / the certificate below. ---------- */
+async function autoMarkLessonComplete(lessonId) {
+  if (isDone(lessonId) || !currentUser) return;
+  try {
+    const ref = doc(db, "users", currentUser.uid);
+    await setDoc(ref, { progress: { [courseId]: { [lessonId]: true } } }, { merge: true });
+    userProfile.progress = userProfile.progress || {};
+    userProfile.progress[courseId] = { ...(userProfile.progress[courseId] || {}), [lessonId]: true };
+    renderLessonList();
+    if (activeLesson?.id === lessonId) updateCompleteBtn();
+    renderCertificateBanner();
+  } catch {
+    // Non-critical — the manual "Mark as Complete" button still works as a fallback
+  }
+}
+
+/* ---------- Native <video> resume ---------- */
+function initNativeVideoResume(videoEl, lessonId, myVToken) {
+  const saved = getSavedVideoProgress(lessonId);
+  let lastSavedAt = 0;
+
+  const onLoadedMetadata = () => {
+    if (myVToken !== videoToken) return;
+    if (saved?.seconds > 5 && (!videoEl.duration || saved.seconds < videoEl.duration - 10)) {
+      videoEl.currentTime = saved.seconds;
+      toast(`ভিডিওটি আগের জায়গা থেকে চালু হলো (${formatTime(saved.seconds)})`, "info");
+    }
+  };
+  const onTimeUpdate = () => {
+    if (myVToken !== videoToken) return;
+    if (videoEl.currentTime - lastSavedAt >= 5) {
+      lastSavedAt = videoEl.currentTime;
+      saveVideoProgress(lessonId, videoEl.currentTime, videoEl.duration);
+    }
+    if (videoEl.duration && videoEl.currentTime / videoEl.duration >= 0.9) autoMarkLessonComplete(lessonId);
+  };
+  const onPause = () => saveVideoProgress(lessonId, videoEl.currentTime, videoEl.duration);
+
+  videoEl.addEventListener("loadedmetadata", onLoadedMetadata);
+  videoEl.addEventListener("timeupdate", onTimeUpdate);
+  videoEl.addEventListener("pause", onPause);
+
+  return function cleanupNative() {
+    videoEl.removeEventListener("loadedmetadata", onLoadedMetadata);
+    videoEl.removeEventListener("timeupdate", onTimeUpdate);
+    videoEl.removeEventListener("pause", onPause);
+    if (videoEl.currentTime > 0) saveVideoProgress(lessonId, videoEl.currentTime, videoEl.duration);
+  };
+}
+
+/* ---------- YouTube resume (via the scriptable IFrame Player API) ----------
+   A bare <iframe src="...youtube.com/embed/...">, which is what
+   buildVideoEmbedHtml() normally renders, has no way to read or set playback
+   position. Swapping in YT.Player unlocks getCurrentTime()/seekTo() so the
+   same resume behaviour works for YouTube lessons too. The API script is
+   loaded once (cached in ytApiPromise) and reused for every lesson/visit. ---------- */
+function loadYouTubeApi() {
+  if (window.YT && window.YT.Player) return Promise.resolve(window.YT);
+  if (ytApiPromise) return ytApiPromise;
+  ytApiPromise = new Promise((resolve) => {
+    const prevReady = window.onYouTubeIframeAPIReady;
+    window.onYouTubeIframeAPIReady = () => {
+      if (typeof prevReady === "function") prevReady();
+      resolve(window.YT);
+    };
+    if (!document.getElementById("yt-iframe-api-script")) {
+      const tag = document.createElement("script");
+      tag.id = "yt-iframe-api-script";
+      tag.src = "https://www.youtube.com/iframe_api";
+      document.head.appendChild(tag);
+    }
+  });
+  return ytApiPromise;
+}
+
+async function initYouTubeResume(containerEl, yid, lessonId, myVToken) {
+  let YT;
+  try {
+    YT = await loadYouTubeApi();
+  } catch {
+    // Couldn't load the API (e.g. offline / blocked) — fall back to a plain embed, just without resume
+    if (myVToken !== videoToken) return;
+    containerEl.innerHTML = `<iframe src="https://www.youtube.com/embed/${yid}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
+    return;
+  }
+  if (myVToken !== videoToken) return; // navigated to a different lesson/page while the API was loading
+
+  const divId = `yt-player-${lessonId}-${myVToken}`;
+  containerEl.innerHTML = `<div id="${divId}"></div>`;
+
+  let saveInterval = null;
+  let player = null;
+  const flush = () => {
+    if (!player) return;
+    try {
+      const t = player.getCurrentTime?.() || 0;
+      const d = player.getDuration?.() || 0;
+      if (t > 0) saveVideoProgress(lessonId, t, d);
+    } catch { /* player may already be torn down */ }
+  };
+
+  player = new YT.Player(divId, {
+    videoId: yid,
+    playerVars: { rel: 0 },
+    events: {
+      onReady: (e) => {
+        if (myVToken !== videoToken) return;
+        const saved = getSavedVideoProgress(lessonId);
+        const dur = e.target.getDuration?.() || 0;
+        if (saved?.seconds > 5 && (!dur || saved.seconds < dur - 10)) {
+          e.target.seekTo(saved.seconds, true);
+          toast(`ভিডিওটি আগের জায়গা থেকে চালু হলো (${formatTime(saved.seconds)})`, "info");
+        }
+      },
+      onStateChange: (e) => {
+        if (myVToken !== videoToken) return;
+        if (e.data === YT.PlayerState.PLAYING) {
+          if (saveInterval) clearInterval(saveInterval);
+          saveInterval = setInterval(() => {
+            const t = player.getCurrentTime?.() || 0;
+            const d = player.getDuration?.() || 0;
+            saveVideoProgress(lessonId, t, d);
+            if (d && t / d >= 0.9) autoMarkLessonComplete(lessonId);
+          }, 5000);
+        } else {
+          if (saveInterval) { clearInterval(saveInterval); saveInterval = null; }
+          flush();
+        }
+      },
+    },
+  });
+
+  activeVideoCleanup = () => {
+    if (saveInterval) { clearInterval(saveInterval); saveInterval = null; }
+    flush();
+    try { player?.destroy?.(); } catch { /* ignore */ }
+  };
 }
 
 /* ---------- Shared video-embed builder — used for lesson videos and the buy-preview video ----------
@@ -872,7 +1072,7 @@ async function buildExamCardHtml(ex, showLessonTag) {
       <p class="muted" style="font-size:0.9rem">${escapeHtml(ex.description || "")}</p>
       <div class="meta-row">
         <span><i class="fa-solid fa-stopwatch"></i> ${ex.duration || 10} min</span>
-        <span><i class="fa-solid fa-circle-question"></i> ${ex.questionCount || 0} questions</span>
+        <span><i class="fa-solid fa-circle-question"></i> ${getExamQuestionCount(ex)} questions</span>
       </div>
       <span class="badge badge-amber"><i class="fa-solid fa-lock"></i> To be published: ${formatDateTime(publishAt)}</span>
     </div>`;
@@ -901,7 +1101,7 @@ async function buildExamCardHtml(ex, showLessonTag) {
       <p class="muted" style="font-size:0.9rem">${escapeHtml(ex.description || "")}</p>
       <div class="meta-row">
         <span><i class="fa-solid fa-stopwatch"></i> ${ex.duration || 10} min</span>
-        <span><i class="fa-solid fa-circle-question"></i> ${ex.questionCount || 0} questions</span>
+        <span><i class="fa-solid fa-circle-question"></i> ${getExamQuestionCount(ex)} questions</span>
       </div>
       ${result ? `<span class="badge badge-amber result-pill">Previous score: ${result.score}/${result.total}</span>` : ""}
       <span class="badge badge-coral"><i class="fa-solid fa-stopwatch"></i> Time's up (was open until ${formatDateTime(closesAt)})</span>
@@ -916,7 +1116,7 @@ async function buildExamCardHtml(ex, showLessonTag) {
       <p class="muted" style="font-size:0.9rem">${escapeHtml(ex.description || "")}</p>
       <div class="meta-row">
         <span><i class="fa-solid fa-stopwatch"></i> ${ex.duration || 10} min</span>
-        <span><i class="fa-solid fa-circle-question"></i> ${ex.questionCount || 0} questions</span>
+        <span><i class="fa-solid fa-circle-question"></i> ${getExamQuestionCount(ex)} questions</span>
       </div>
       ${result ? `<span class="badge badge-amber result-pill">Last score: ${result.score}/${result.total}</span>` : ""}
       <span class="badge badge-coral"><i class="fa-solid fa-ban"></i> You have already taken the exam</span>
@@ -930,7 +1130,7 @@ async function buildExamCardHtml(ex, showLessonTag) {
     <p class="muted" style="font-size:0.9rem">${escapeHtml(ex.description || "")}</p>
     <div class="meta-row">
       <span><i class="fa-solid fa-stopwatch"></i> ${ex.duration || 10} min</span>
-      <span><i class="fa-solid fa-circle-question"></i> ${ex.questionCount || 0} questions</span>
+      <span><i class="fa-solid fa-circle-question"></i> ${getExamQuestionCount(ex)} questions</span>
       ${attemptsMeta}
     </div>
     ${result ? `<span class="badge badge-amber result-pill">Last score: ${result.score}/${result.total}</span>` : ""}
@@ -945,6 +1145,51 @@ function updateCompleteBtn() {
   els.completeBtn.classList.toggle("btn-primary", !done);
 }
 
+/* ---------- Course completion certificate banner ----------
+   Shown in the course header once every lesson in this course is marked done
+   (manually via the button, or automatically by watching a video through —
+   see autoMarkLessonComplete()). Re-checked after every completion event, not
+   just once on page load, so the banner appears the instant the last lesson
+   is finished without needing a page refresh. ---------- */
+function isCourseFullyComplete() {
+  if (!lessons.length) return false;
+  const doneMap = userProfile?.progress?.[courseId] || {};
+  return lessons.every((l) => !!doneMap[l.id]);
+}
+
+function certificateIdFor() {
+  const a = (courseId || "").replace(/[^a-zA-Z0-9]/g, "").slice(0, 4).toUpperCase();
+  const b = (currentUser?.uid || "").replace(/[^a-zA-Z0-9]/g, "").slice(0, 6).toUpperCase();
+  return `TVC-${a}-${b}`;
+}
+
+function renderCertificateBanner() {
+  const box = document.getElementById("course-certificate-box");
+  if (!box) return;
+  if (!isCourseFullyComplete()) {
+    box.innerHTML = "";
+    return;
+  }
+  box.innerHTML = `
+    <div class="course-enroll-pill certificate-pill" id="course-certificate-btn" style="display:inline-flex;cursor:pointer;">
+      <i class="fa-solid fa-award"></i> কোর্সটি সম্পূর্ণ হয়েছে — সার্টিফিকেট ডাউনলোড করুন
+    </div>`;
+  document.getElementById("course-certificate-btn")?.addEventListener("click", async (e) => {
+    const btn = e.currentTarget;
+    const original = btn.innerHTML;
+    btn.innerHTML = '<span class="spinner"></span> তৈরি হচ্ছে...';
+    try {
+      await generateCertificatePdf({
+        studentName: userProfile?.displayName || currentUser?.email?.split("@")[0] || "Student",
+        courseTitle: currentCourse?.title || "",
+        certificateId: certificateIdFor(),
+      });
+    } finally {
+      btn.innerHTML = original;
+    }
+  });
+}
+
 function bindCompleteButton() {
   els.completeBtn?.addEventListener("click", async () => {
     if (!activeLesson || isDone(activeLesson.id)) return;
@@ -954,6 +1199,7 @@ function bindCompleteButton() {
     userProfile.progress[courseId] = { ...(userProfile.progress[courseId] || {}), [activeLesson.id]: true };
     renderLessonList();
     updateCompleteBtn();
+    renderCertificateBanner();
     toast("Lesson complete! Moving on to the next lesson", "success");
 
     const idx = lessons.findIndex((l) => l.id === activeLesson.id);
