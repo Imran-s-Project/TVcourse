@@ -320,3 +320,202 @@
 @media (prefers-reduced-motion: reduce) {
   .coming-soon-view * { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; }
 }
+
+/* ==========================================================================
+   PATCH v2 — Remove header box + add horizontal lesson strip + stronger UI
+   ========================================================================== */
+
+/* ── Hide the old header box above the player ── */
+.course-header,
+.course-header-box { display: none !important; }
+
+/* ── Stronger media panel: no flat border, deep shadow ── */
+.media-panel {
+  background: var(--bg-elevated);
+  border: 1px solid rgba(124,92,252,0.18);
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.38), 0 0 0 1px rgba(124,92,252,0.08);
+}
+
+/* ── Video frame: slightly taller ratio + subtle glow ring ── */
+.video-frame {
+  position: relative; width: 100%;
+  aspect-ratio: 16/9;
+  background: #000;
+  box-shadow: inset 0 0 0 1px rgba(124,92,252,0.12);
+}
+
+/* ── Course layout: full-width when no sidebar shown below player ── */
+.course-layout {
+  display: grid;
+  grid-template-columns: 1fr;   /* stack: player on top, strip below */
+  gap: 20px;
+  padding: 18px 0 70px;
+  align-items: start;
+}
+
+/* ── Lesson sidebar hidden — replaced by horizontal strip ── */
+.lesson-sidebar { display: none !important; }
+
+/* ═══════════════════════════════════════════════════════════
+   HORIZONTAL LESSON STRIP  (right → left, newest first)
+   Injected by JS below .media-panel as  .lesson-h-strip
+   ══════════════════════════════════════════════════════════ */
+.lesson-h-strip {
+  width: 100%;
+  background: var(--bg-elevated);
+  border: 1px solid rgba(124,92,252,0.14);
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.22);
+}
+
+.lesson-h-strip-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 20px 10px;
+  border-bottom: 1px solid var(--border);
+}
+.lesson-h-strip-title {
+  font-size: 0.85rem; font-weight: 700; letter-spacing: 0.04em;
+  text-transform: uppercase; color: var(--text-muted);
+  display: flex; align-items: center; gap: 8px;
+}
+.lesson-h-strip-title i { color: var(--accent-amber-soft); }
+.lesson-h-strip-count {
+  font-size: 0.76rem; font-weight: 700;
+  background: rgba(124,92,252,0.14);
+  color: var(--accent-amber-soft);
+  padding: 3px 10px; border-radius: 999px;
+}
+
+/* Scrollable track */
+.lesson-h-track-wrap {
+  overflow-x: auto; overflow-y: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(124,92,252,0.35) transparent;
+  -webkit-overflow-scrolling: touch;
+  padding: 14px 20px 16px;
+  /* fade edges */
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 24px, #000 calc(100% - 24px), transparent 100%);
+  mask-image: linear-gradient(to right, transparent 0, #000 24px, #000 calc(100% - 24px), transparent 100%);
+  cursor: grab;
+}
+.lesson-h-track-wrap:active { cursor: grabbing; }
+.lesson-h-track-wrap::-webkit-scrollbar { height: 4px; }
+.lesson-h-track-wrap::-webkit-scrollbar-thumb {
+  background: rgba(124,92,252,0.35); border-radius: 999px;
+}
+
+.lesson-h-track {
+  display: flex;
+  flex-direction: row-reverse;   /* right-to-left: latest lesson appears first on right */
+  gap: 10px;
+  width: max-content;
+  padding-bottom: 2px;
+}
+
+/* Individual lesson card in strip */
+.lesson-h-card {
+  flex-shrink: 0;
+  width: 210px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background: var(--bg-elevated-2, rgba(255,255,255,0.04));
+  cursor: pointer;
+  transition: background 0.18s, border-color 0.18s, transform 0.18s, box-shadow 0.18s;
+  position: relative;
+  overflow: hidden;
+}
+.lesson-h-card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, #7C5CFC, #A98CFF);
+  opacity: 0; transition: opacity 0.18s;
+  border-radius: 10px 10px 0 0;
+}
+.lesson-h-card:hover {
+  background: rgba(124,92,252,0.1);
+  border-color: rgba(124,92,252,0.3);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(124,92,252,0.15);
+}
+.lesson-h-card:hover::before { opacity: 1; }
+
+.lesson-h-card.active {
+  background: rgba(124,92,252,0.16);
+  border-color: rgba(124,92,252,0.45);
+  box-shadow: 0 0 0 1px rgba(124,92,252,0.25), 0 6px 20px rgba(124,92,252,0.2);
+}
+.lesson-h-card.active::before { opacity: 1; }
+
+.lesson-h-card.done .lh-num { background: var(--accent-teal, #1F9E93); color: #EFFAF8; }
+
+/* Card internals */
+.lh-top { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.lh-num {
+  flex-shrink: 0; width: 24px; height: 24px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.7rem; font-weight: 700;
+  background: var(--bg-elevated-2); color: var(--text-muted);
+  font-family: var(--font-utility, monospace);
+  transition: background 0.18s, color 0.18s;
+}
+.lesson-h-card.active .lh-num {
+  background: var(--accent-amber, #7C5CFC);
+  color: #fff;
+}
+
+/* Now Playing badge */
+.lh-now {
+  display: none; align-items: center; gap: 5px;
+  font-size: 0.66rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.06em; color: var(--accent-amber-soft, #A98CFF);
+}
+.lesson-h-card.active .lh-now { display: inline-flex; }
+.lh-now-dot {
+  width: 5px; height: 5px; border-radius: 50%;
+  background: var(--accent-amber, #7C5CFC);
+  animation: lh-pulse 1.6s ease-out infinite;
+}
+@keyframes lh-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(124,92,252,0.65); }
+  70%  { box-shadow: 0 0 0 6px rgba(124,92,252,0); }
+  100% { box-shadow: 0 0 0 0 rgba(124,92,252,0); }
+}
+
+.lh-title {
+  font-size: 0.88rem; font-weight: 600; line-height: 1.4;
+  color: var(--text-primary); margin-bottom: 6px;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.lh-meta {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 0.73rem; color: var(--text-muted);
+}
+.lh-meta i { font-size: 0.65rem; opacity: 0.75; }
+
+/* Play hint icon on right */
+.lh-play {
+  position: absolute; top: 12px; right: 12px;
+  width: 22px; height: 22px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(124,92,252,0.14);
+  color: var(--accent-amber-soft, #A98CFF); font-size: 0.6rem;
+  opacity: 0; transform: scale(0.65); transition: opacity 0.18s, transform 0.18s;
+}
+.lesson-h-card:hover .lh-play { opacity: 1; transform: scale(1); }
+
+/* ── Responsive: on mobile strip gets full width ── */
+@media (max-width: 940px) {
+  .course-layout { grid-template-columns: 1fr; }
+  .lesson-h-card { width: 180px; }
+}
+@media (max-width: 560px) {
+  .lesson-h-strip-header { padding: 12px 14px 8px; }
+  .lesson-h-track-wrap { padding: 10px 14px 12px; }
+  .lesson-h-card { width: 160px; padding: 10px 12px; }
+  .lh-title { font-size: 0.82rem; }
+}
