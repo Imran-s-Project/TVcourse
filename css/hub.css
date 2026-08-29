@@ -76,63 +76,231 @@
 .badge-card-status { display: inline-flex; align-items: center; gap: 5px; margin-top: 10px; font-size: 0.75rem; font-weight: 700; color: var(--accent-green-soft); }
 .badge-card-status.locked { color: var(--text-muted); }
 
-/* ---------- Discussion ---------- */
-.discussion-toolbar { display: flex; gap: 10px; align-items: center; margin: 18px 0; flex-wrap: wrap; }
-.discussion-filter-select {
-  background: var(--bg-elevated-2); border: 1.5px solid var(--border-strong); color: var(--text-primary);
-  padding: 10px 14px; border-radius: var(--radius-sm); flex: 1; min-width: 160px;
-}
-.discussion-list { display: flex; flex-direction: column; gap: 10px; }
-.discussion-thread-card {
-  display: flex; gap: 12px; text-align: left; width: 100%;
-  background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-md);
-  padding: 14px 16px; transition: border-color .15s;
-}
-.discussion-thread-card:hover { border-color: var(--border-strong); }
-.discussion-thread-avatar {
-  flex-shrink: 0; width: 40px; height: 40px; border-radius: 50%; overflow: hidden;
-  background: var(--accent-amber); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700;
-}
-.discussion-thread-avatar.sm { width: 32px; height: 32px; font-size: 0.85rem; }
-.discussion-thread-avatar img { width: 100%; height: 100%; object-fit: cover; }
-.discussion-thread-main { flex: 1; min-width: 0; }
-.discussion-thread-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.discussion-thread-title { font-weight: 700; }
-.discussion-thread-preview { color: var(--text-muted); font-size: 0.85rem; margin-top: 4px; }
-.discussion-thread-meta { display: flex; gap: 6px; align-items: center; color: var(--text-muted); font-size: 0.76rem; margin-top: 8px; flex-wrap: wrap; }
+/* ==========================================================================
+   Discussion + Flashcards — deliberately flat/strong, matching the exam
+   module's design language: solid 2px borders and flat color blocks for
+   depth, no gradients, no blur-shadows, no glow. Each is scoped under its
+   own shell with its own accent variable so it stays visually distinct
+   from the rest of the site's purple "lamp-glow" theme without touching
+   any shared/global button or card styles.
+   ========================================================================== */
 
-.discussion-detail-head p { color: var(--text-primary); }
-.discussion-replies { display: flex; flex-direction: column; gap: 12px; margin: 18px 0; max-height: 300px; overflow-y: auto; }
-.discussion-reply { display: flex; gap: 10px; }
-.discussion-reply-head { display: flex; gap: 8px; align-items: baseline; font-size: 0.85rem; }
-.discussion-reply-body { font-size: 0.88rem; margin-top: 2px; }
-.discussion-reply-form { display: flex; gap: 8px; align-items: flex-end; }
-.discussion-reply-form textarea {
-  flex: 1; background: var(--bg-elevated-2); border: 1.5px solid var(--border-strong); color: var(--text-primary);
-  padding: 10px 12px; border-radius: var(--radius-sm); resize: vertical;
+/* ---------- Discussion — post-feed layout ---------- */
+.discussion-shell {
+  --dsc-accent: #2F6FED;
+  --dsc-line: var(--border-strong);
+  --dsc-surface: var(--bg-elevated);
+  --dsc-surface-2: var(--bg-elevated-2);
+}
+:root[data-theme="light"] .discussion-shell { --dsc-accent: #1D54C7; }
+.discussion-shell, .discussion-shell input, .discussion-shell textarea, .discussion-shell select, .discussion-shell button {
+  font-family: var(--font-body);
 }
 
-/* ---------- Flashcards ---------- */
-.flashcard-progress-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-.flashcard-flip {
-  cursor: pointer; min-height: 220px; border-radius: var(--radius-lg);
-  background: var(--bg-elevated); border: 1.5px solid var(--border-strong);
+.dsc-avatar {
+  flex-shrink: 0; width: 42px; height: 42px; border-radius: 12px; overflow: hidden;
+  background: var(--dsc-accent); color: #fff; display: flex; align-items: center; justify-content: center;
+  font-weight: 800; font-size: 1rem; border: 2px solid var(--dsc-accent);
+}
+.dsc-avatar.sm { width: 34px; height: 34px; border-radius: 10px; font-size: 0.86rem; }
+.dsc-avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+/* Composer — a tappable "start a post" prompt bar, not a plain button */
+.dsc-composer {
+  display: flex; align-items: center; gap: 12px; width: 100%; text-align: left;
+  background: var(--dsc-surface); border: 2px solid var(--dsc-line); border-radius: 14px;
+  padding: 14px 16px; margin: 20px 0 14px; transition: border-color .15s ease;
+}
+.dsc-composer:hover { border-color: var(--dsc-accent); }
+.dsc-composer-text { flex: 1; color: var(--text-muted); font-size: 0.92rem; }
+.dsc-composer-cta {
+  display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 10px;
+  background: var(--dsc-accent); color: #fff; font-weight: 700; font-size: 0.84rem; flex-shrink: 0;
+}
+
+.dsc-toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+.dsc-toolbar-label { display: flex; align-items: center; gap: 6px; color: var(--text-muted); font-size: 0.84rem; font-weight: 700; flex-shrink: 0; }
+.dsc-filter-select {
+  background: var(--dsc-surface-2); border: 2px solid var(--dsc-line); color: var(--text-primary);
+  padding: 9px 14px; border-radius: 10px; flex: 1; min-width: 140px;
+}
+.dsc-search-input {
+  background: var(--dsc-surface-2); border: 2px solid var(--dsc-line); color: var(--text-primary);
+  padding: 9px 14px; border-radius: 10px; flex: 2; min-width: 160px; transition: border-color .15s ease;
+}
+.dsc-search-input:focus { border-color: var(--dsc-accent); outline: none; }
+
+.dsc-feed { display: flex; flex-direction: column; gap: 12px; }
+
+/* Post card — header row (avatar/name/time/topic), headline, body, footer stats */
+.dsc-post-card {
+  display: block; text-align: left; width: 100%; cursor: pointer;
+  background: var(--dsc-surface); border: 2px solid var(--dsc-line); border-radius: 14px;
+  padding: 16px 18px; transition: border-color .15s ease;
+}
+.dsc-post-card:hover, .dsc-post-card:focus-visible { border-color: var(--dsc-accent); outline: none; }
+.dsc-post-head { display: flex; align-items: flex-start; gap: 12px; }
+.dsc-post-headtext { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+.dsc-post-name-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.dsc-post-name { font-weight: 800; font-size: 0.94rem; }
+.dsc-post-dot { color: var(--text-muted); }
+.dsc-post-time { color: var(--text-muted); font-size: 0.78rem; }
+.dsc-edited-tag { color: var(--text-muted); font-size: 0.76rem; font-style: italic; }
+.dsc-post-title { font-weight: 800; font-size: 1.05rem; margin-top: 12px; }
+.dsc-post-body {
+  color: var(--text-muted); font-size: 0.9rem; line-height: 1.55; margin-top: 6px;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+}
+.dsc-post-foot {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  margin-top: 14px; padding-top: 12px; border-top: 1.5px solid var(--dsc-line);
+}
+.dsc-post-foot-left { display: flex; align-items: center; gap: 14px; }
+.dsc-post-stat { display: flex; align-items: center; gap: 7px; color: var(--text-muted); font-size: 0.82rem; font-weight: 700; }
+.dsc-post-stat i { color: var(--dsc-accent); }
+.dsc-post-open { display: flex; align-items: center; gap: 6px; color: var(--dsc-accent); font-size: 0.82rem; font-weight: 700; }
+
+/* Like button — flat color toggle, no glow; same component used on posts
+   and replies, in the feed and in the detail modal. */
+.dsc-like-btn {
+  display: flex; align-items: center; gap: 6px; color: var(--text-muted);
+  font-size: 0.82rem; font-weight: 700; padding: 4px 2px;
+}
+.dsc-like-btn i { font-size: 0.92rem; }
+.dsc-like-btn.is-liked { color: var(--accent-coral); }
+.dsc-like-btn[disabled] { opacity: 0.6; }
+.dsc-detail-actions { margin-top: 14px; padding-top: 12px; border-top: 1.5px solid var(--dsc-line); }
+
+/* Load more */
+.dsc-load-more { margin-top: 14px; }
+
+/* Owner/admin actions (edit / delete) — small flat icon buttons */
+.dsc-owner-actions { display: flex; align-items: center; gap: 4px; margin-left: auto; flex-shrink: 0; }
+.dsc-icon-btn {
+  display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px;
+  border-radius: 8px; border: 2px solid var(--dsc-line); color: var(--text-muted); font-size: 0.8rem;
+  transition: border-color .15s ease, color .15s ease;
+}
+.dsc-icon-btn:hover { border-color: var(--dsc-accent); color: var(--dsc-accent); }
+.dsc-icon-btn--danger:hover { border-color: var(--accent-coral); color: var(--accent-coral); }
+.dsc-comment-head { position: relative; }
+
+/* Inline edit block — reuses the flat card language, no gradients */
+.dsc-edit-block {
+  display: flex; flex-direction: column; gap: 8px; margin-top: 10px;
+  padding: 12px; border: 2px dashed var(--dsc-line); border-radius: 12px; background: var(--dsc-surface-2);
+}
+.dsc-edit-block--reply { margin-top: 4px; padding: 8px; }
+.dsc-edit-title {
+  background: var(--dsc-surface); border: 2px solid var(--dsc-line); color: var(--text-primary);
+  padding: 9px 12px; border-radius: 10px; font-weight: 700;
+}
+.dsc-edit-body {
+  background: var(--dsc-surface); border: 2px solid var(--dsc-line); color: var(--text-primary);
+  padding: 9px 12px; border-radius: 10px; resize: vertical; font-family: var(--font-body);
+}
+.dsc-edit-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.dsc-char-count { text-align: right; color: var(--text-muted); font-size: 0.76rem; margin-top: 4px; }
+
+.dsc-empty {
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+  padding: 50px 20px; color: var(--text-muted); text-align: center;
+  border: 2px dashed var(--dsc-line); border-radius: 14px;
+}
+.dsc-empty i { font-size: 2rem; opacity: 0.6; }
+
+/* ---------- Discussion detail modal (post + comments) ---------- */
+.dsc-modal, .dsc-modal input, .dsc-modal textarea, .dsc-modal select, .dsc-modal button { font-family: var(--font-body); }
+.dsc-detail-head { display: flex; align-items: flex-start; gap: 12px; }
+.dsc-detail-title { font-size: 1.15rem; font-weight: 800; margin-top: 14px; }
+.dsc-detail-body { color: var(--text-primary); font-size: 0.94rem; line-height: 1.6; margin-top: 8px; white-space: pre-wrap; }
+
+.dsc-divider {
+  display: flex; align-items: center; gap: 8px; margin: 20px 0 12px; padding-top: 16px;
+  border-top: 2px solid var(--dsc-line); color: var(--text-muted); font-size: 0.82rem; font-weight: 800;
+}
+.dsc-comments { display: flex; flex-direction: column; gap: 14px; margin-bottom: 16px; max-height: 300px; overflow-y: auto; }
+.dsc-comment { display: flex; gap: 10px; }
+.dsc-comment-body-wrap { flex: 1; min-width: 0; }
+.dsc-comment-head { display: flex; gap: 6px; align-items: center; font-size: 0.85rem; flex-wrap: wrap; }
+.dsc-comment-body-row { margin-top: 3px; }
+.dsc-comment-body { font-size: 0.88rem; line-height: 1.5; color: var(--text-primary); }
+
+.dsc-reply-form { display: flex; gap: 8px; align-items: flex-end; }
+.dsc-reply-form textarea {
+  flex: 1; background: var(--dsc-surface-2); border: 2px solid var(--dsc-line); color: var(--text-primary);
+  padding: 10px 12px; border-radius: 10px; resize: vertical;
+}
+
+/* Flat button set for this module's modals — deliberately no gradient/shadow,
+   unlike the site's shared .btn-primary. */
+.dsc-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 12px 22px; border-radius: 10px; font-weight: 700; font-size: 0.92rem;
+  border: 2px solid transparent; transition: opacity .15s ease, transform .15s ease;
+}
+.dsc-btn:active { transform: scale(0.97); }
+.dsc-btn--primary { background: var(--dsc-accent); color: #fff; }
+.dsc-btn--primary:hover { opacity: 0.9; }
+.dsc-btn--ghost { background: transparent; border-color: var(--dsc-line); color: var(--text-primary); }
+.dsc-btn--ghost:hover { border-color: var(--dsc-accent); color: var(--dsc-accent); }
+.dsc-btn--block { width: 100%; }
+.dsc-btn--icon { padding: 12px 16px; flex-shrink: 0; }
+.dsc-btn[disabled] { opacity: 0.5; pointer-events: none; }
+
+/* ---------- Flashcards — flat, modern review card ---------- */
+.fc-shell {
+  --fc-accent: #0F9C8E;
+  --fc-line: var(--border-strong);
+  --fc-surface: var(--bg-elevated);
+  --fc-surface-2: var(--bg-elevated-2);
+  font-family: var(--font-body);
+}
+:root[data-theme="light"] .fc-shell { --fc-accent: #0B8177; }
+
+.fc-top-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.fc-progress-text { color: var(--text-muted); font-size: 0.84rem; font-weight: 700; }
+.fc-progress-track { height: 6px; background: var(--fc-surface-2); border-radius: 999px; overflow: hidden; margin-bottom: 20px; }
+.fc-progress-fill { height: 100%; background: var(--fc-accent); transition: width .3s ease; }
+
+.fc-flip {
+  cursor: pointer; min-height: 240px; border-radius: 16px;
+  background: var(--fc-surface); border: 2px solid var(--fc-line);
   display: flex; align-items: center; justify-content: center; text-align: center;
-  padding: 32px 24px; font-size: 1.15rem; font-weight: 600; position: relative;
+  padding: 40px 26px; font-size: 1.2rem; font-weight: 700; position: relative;
+  transition: border-color .15s ease;
 }
-.flashcard-face.hidden { display: none; }
-.flashcard-back { color: var(--accent-amber-soft); }
-.flashcard-hint { text-align: center; margin-top: 12px; font-size: 0.85rem; }
-.flashcard-grade-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 16px; }
-.flashcard-grade-btn { padding: 12px 8px; font-weight: 700; color: #fff; border-radius: var(--radius-sm); }
-.grade-again { background: var(--accent-coral); }
-.grade-hard  { background: #C97A2E; }
-.grade-good  { background: var(--accent-teal); }
-.grade-easy  { background: var(--accent-green); }
-.flashcard-alldone { text-align: center; padding: 60px 20px; }
-.flashcard-alldone i { font-size: 2.6rem; color: var(--accent-green-soft); margin-bottom: 12px; }
+.fc-flip:hover { border-color: var(--fc-accent); }
+.fc-face-label {
+  position: absolute; top: 14px; left: 16px; font-size: 0.68rem; font-weight: 800;
+  letter-spacing: 0.06em; text-transform: uppercase; color: var(--fc-accent);
+}
+.fc-face.hidden { display: none; }
+.fc-back { color: var(--fc-accent); }
+.fc-hint { display: flex; align-items: center; justify-content: center; gap: 7px; text-align: center; margin-top: 14px; font-size: 0.85rem; color: var(--text-muted); }
+
+.fc-grade-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 18px; }
+.fc-grade-btn {
+  padding: 13px 8px; font-weight: 800; color: #fff; border-radius: 10px; font-size: 0.88rem;
+  border: 2px solid transparent; transition: transform .15s ease, opacity .15s ease;
+}
+.fc-grade-btn:active { transform: scale(0.96); }
+.fc-grade-btn:hover { opacity: 0.9; }
+.fc-grade-again { background: var(--accent-coral); }
+.fc-grade-hard  { background: #C97A2E; }
+.fc-grade-good  { background: var(--fc-accent); }
+.fc-grade-easy  { background: var(--accent-green); }
+
+.fc-done { text-align: center; padding: 60px 20px; border: 2px solid var(--fc-line); border-radius: 16px; background: var(--fc-surface); }
+.fc-done-icon {
+  width: 60px; height: 60px; border-radius: 16px; margin: 0 auto 16px;
+  display: flex; align-items: center; justify-content: center; font-size: 1.6rem;
+  color: var(--fc-accent); border: 2px solid var(--fc-accent);
+}
+.fc-done h3 { font-size: 1.1rem; }
 
 @media (max-width: 640px) {
   .badge-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
-  .flashcard-grade-row { grid-template-columns: repeat(2, 1fr); }
+  .fc-grade-row { grid-template-columns: repeat(2, 1fr); }
+  .dsc-post-body { -webkit-line-clamp: 4; }
 }

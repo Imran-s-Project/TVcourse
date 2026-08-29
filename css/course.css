@@ -77,6 +77,29 @@
 #exam-panel .exam-section-title:first-child { margin-top: 0; }
 .exam-lesson-tag { align-self: flex-start; font-size: 0.74rem; }
 
+/* Exam cards as embedded in the course page's own Exam tab — the dedicated
+   /exam section (exam/exam.css) has its own completely separate redesigned
+   card style; these only apply here, inside #exam-panel/.exam-grid. */
+.exam-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; padding: 28px 0 70px; }
+.exam-card { padding: 22px; display: flex; flex-direction: column; gap: 12px; }
+.exam-card h3 { font-size: 1.1rem; }
+.exam-card .meta-row { display: flex; gap: 16px; color: var(--text-muted); font-size: 0.85rem; }
+.exam-card .meta-row span { display: flex; align-items: center; gap: 6px; }
+.exam-card .result-pill { align-self: flex-start; }
+.exam-card-locked { opacity: 0.72; }
+.exam-card-locked h3 { color: var(--text-muted); }
+.exam-card-header-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.exam-countdown-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 9px; border-radius: 999px;
+  background: rgba(124, 92, 252, 0.12);
+  border: 1px solid rgba(124, 92, 252, 0.28);
+  color: var(--accent-amber-soft);
+  font-size: 0.72rem; font-weight: 700; letter-spacing: 0.02em;
+  white-space: nowrap; flex-shrink: 0;
+}
+.exam-countdown-chip i { font-size: 0.68rem; }
+
 /* ---------- স্লাইড ভিউয়ার ---------- */
 .slide-viewer { position: relative; }
 .slide-frame {
