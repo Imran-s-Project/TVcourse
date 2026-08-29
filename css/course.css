@@ -217,3 +217,106 @@
   padding: 10px 12px; border-radius: var(--radius-sm); font-size: 0.88rem;
 }
 .pay-number-item i { color: var(--accent-teal); }
+
+
+/* ---------- "Coming Soon" — unlocked course with no lessons yet ----------
+   Spans the full .course-layout grid (both columns) instead of sitting in
+   just the media-panel slot, since there's no lesson sidebar to pair it
+   with. One of 4 variant classes (cs-scan / cs-sweep / cs-skeleton /
+   cs-typing) is applied at random by course.js on every load; each loops
+   forever (infinite keyframes) so nothing ever settles into a static frame.
+   Deliberately restrained: everything is border/text-muted/bg-elevated —
+   ONE accent color (--accent-amber-soft) is used, and only on the single
+   element that's actually in motion for that variant. No blur, no glow
+   blobs, no mixed hues. All decorative pieces are hidden by default and
+   only the active variant's selectors turn its own pieces on, so one
+   markup block serves all four. */
+.coming-soon-view {
+  grid-column: 1 / -1;
+  display: flex; flex-direction: column; align-items: center; text-align: center;
+  padding: 56px 20px 52px;
+}
+
+/* -- Frame: bordered square holding the ring/sweep/core icon -- */
+.cs-frame {
+  position: relative; width: 128px; height: 128px; margin-bottom: 22px;
+  border-radius: var(--radius-lg); border: 1px solid var(--border-strong);
+  background: var(--bg-elevated-2);
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden;
+}
+.cs-core {
+  position: relative; z-index: 2; width: 46px; height: 46px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center; font-size: 1.15rem;
+  background: var(--bg-elevated); border: 1px solid var(--border-strong); color: var(--text-primary);
+  animation: csCoreBeat 2.4s ease-in-out infinite;
+}
+@keyframes csCoreBeat { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
+
+/* Rotating ring — a single accent-colored arc on an otherwise neutral ring */
+.cs-ring {
+  position: absolute; inset: 18px; border-radius: 50%; display: none;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent-amber-soft);
+}
+
+/* Sweep — a single soft light bar passing through the frame */
+.cs-sweep { position: absolute; inset: 0; display: none; overflow: hidden; }
+.cs-sweep::after {
+  content: ""; position: absolute; top: 0; left: -60%; width: 45%; height: 100%;
+  background: linear-gradient(100deg, transparent, rgba(169,140,255,0.16), transparent);
+}
+
+/* -- Skeleton rows: mimics the lesson list that will appear once ready -- */
+.cs-skeleton { width: 100%; max-width: 300px; margin-bottom: 4px; display: none; }
+.cs-skel-row {
+  height: 12px; border-radius: 6px; margin-bottom: 10px;
+  background: var(--bg-elevated-2); border: 1px solid var(--border);
+  position: relative; overflow: hidden;
+}
+.cs-skel-row.short { width: 62%; }
+.cs-skel-row::after {
+  content: ""; position: absolute; inset: 0; transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(230,225,255,0.10), transparent);
+  animation: csSkelShimmer 1.8s ease-in-out infinite;
+}
+.cs-skel-row:nth-child(2)::after { animation-delay: 0.15s; }
+.cs-skel-row:nth-child(3)::after { animation-delay: 0.3s; }
+@keyframes csSkelShimmer { to { transform: translateX(100%); } }
+
+/* -- Variant: scan — a slow rotating ring around the core -- */
+.cs-scan .cs-ring { display: block; animation: csSpin 2.2s linear infinite; }
+@keyframes csSpin { to { transform: rotate(360deg); } }
+
+/* -- Variant: sweep — a light bar passing across the frame, on a loop -- */
+.cs-sweep .cs-sweep { display: block; }
+.cs-sweep .cs-sweep::after { animation: csSweepMove 2.6s ease-in-out infinite; }
+@keyframes csSweepMove { 0% { left: -60%; } 100% { left: 115%; } }
+
+/* -- Variant: skeleton — the lesson-list preview does the talking -- */
+.cs-skeleton .cs-skeleton { display: block; margin-top: 6px; }
+.cs-skeleton .cs-frame { margin-bottom: 18px; }
+.cs-skeleton .cs-ring { display: block; animation: csSpin 3s linear infinite; opacity: 0.6; }
+
+/* -- Variant: typing — a blinking status cursor, icon stays quietly still -- */
+.cs-typing .cs-status-text::after {
+  content: "|"; margin-left: 2px; color: var(--accent-amber-soft);
+  animation: csCaretBlink 1s step-end infinite;
+}
+@keyframes csCaretBlink { 50% { opacity: 0; } }
+
+.cs-title { font-family: var(--font-display); font-size: 1.55rem; font-weight: 700; margin: 4px 0 8px; color: var(--text-primary); }
+.cs-sub { color: var(--text-muted); font-size: 0.9rem; max-width: 400px; line-height: 1.6; margin: 0 auto; }
+.cs-status {
+  display: inline-flex; align-items: center; gap: 7px; margin-top: 16px;
+  font-size: 0.82rem; color: var(--text-muted); letter-spacing: 0.2px;
+}
+.cs-status-dot {
+  width: 6px; height: 6px; border-radius: 50%; background: var(--accent-amber-soft);
+  animation: csDotBlink 1.4s ease-in-out infinite;
+}
+@keyframes csDotBlink { 0%, 100% { opacity: 0.35; } 50% { opacity: 1; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .coming-soon-view * { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; }
+}
