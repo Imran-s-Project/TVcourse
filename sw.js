@@ -8,7 +8,7 @@
 //                    Firestore নিজেই IndexedDB-তে ডেটা রাখে)
 // ==========================================================================
 
-const CACHE_NAME = "techversecourse-v01.00.16";
+const CACHE_NAME = "techversecourse-v01.00.17";
 
 /* ── নিজের ফাইল (app shell) ── */
 const SHELL_FILES = [
