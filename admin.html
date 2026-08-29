@@ -59,6 +59,8 @@
         <button class="admin-nav-item" data-section="exams" data-label="Exams"><span><i class="fa-solid fa-file-pen"></i></span> Exams</button>
         <button class="admin-nav-item" data-section="leaderboard" data-label="Leaderboard"><span><i class="fa-solid fa-trophy"></i></span> Leaderboard</button>
         <button class="admin-nav-item" data-section="notifications" data-label="Notifications"><span><i class="fa-solid fa-bell"></i></span> Notifications</button>
+        <button class="admin-nav-item" data-section="flashcards" data-label="Flashcards"><span><i class="fa-solid fa-clone"></i></span> Flashcards</button>
+        <button class="admin-nav-item" data-section="discussion" data-label="Discussion"><span><i class="fa-solid fa-comments"></i></span> Discussion</button>
         <button class="admin-nav-item" data-section="purchases" data-label="Purchase Requests"><span><i class="fa-solid fa-money-bill-wave"></i></span> Purchase Requests <span class="nav-pending-badge hidden" id="nav-pending-badge">0</span></button>
         <button class="admin-nav-item" data-section="users" data-label="Users"><span><i class="fa-solid fa-users"></i></span> Users</button>
       </nav>
@@ -240,6 +242,33 @@
         <div class="card">
           <div id="notifications-list"><div class="loading-screen"><span class="spinner"></span></div></div>
         </div>
+      </section>
+
+      <!-- Flashcards -->
+      <section class="admin-section" id="section-flashcards">
+        <div class="admin-section-head">
+          <h1>Flashcards</h1>
+          <p class="muted">Create spaced-repetition flashcards for students to review in the Learning Hub — General cards are visible to everyone, course-tagged cards only to students enrolled in that course</p>
+          <button class="btn btn-primary" id="add-flashcard-btn-top">+ New Flashcard</button>
+        </div>
+        <div class="card">
+          <div class="lb-toolbar" style="margin-bottom:0">
+            <div class="field" style="margin:0; flex:1; min-width:200px;">
+              <label>Filter by Course</label>
+              <select id="fc-course-filter"><option value="">All Cards</option></select>
+            </div>
+          </div>
+        </div>
+        <div class="card mt-16"><div id="flashcards-list"><div class="loading-screen"><span class="spinner"></span></div></div></div>
+      </section>
+
+      <!-- Discussion moderation -->
+      <section class="admin-section" id="section-discussion">
+        <div class="admin-section-head">
+          <h1>Discussion</h1>
+          <p class="muted">Moderate threads students post in the Learning Hub — remove anything off-topic or inappropriate</p>
+        </div>
+        <div class="card"><div id="discussion-mod-list"><div class="loading-screen"><span class="spinner"></span></div></div></div>
       </section>
 
       <!-- Purchase Requests -->

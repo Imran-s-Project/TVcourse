@@ -8,7 +8,7 @@
 //                    Firestore নিজেই IndexedDB-তে ডেটা রাখে)
 // ==========================================================================
 
-const CACHE_NAME = "techversecourse-v01.00.13";
+const CACHE_NAME = "techversecourse-v01.00.14";
 
 /* ── নিজের ফাইল (app shell) ── */
 const SHELL_FILES = [
@@ -27,6 +27,7 @@ const SHELL_FILES = [
   "css/admin.css",
   "css/error.css",
   "css/static.css",
+  "css/hub.css",
 
   /* JS core */
   "js/app.js",
@@ -42,6 +43,10 @@ const SHELL_FILES = [
   "js/course.js",
   "js/exam.js",
   "js/profile.js",
+  "js/hub.js",
+  "js/badges.js",
+  "js/discussion.js",
+  "js/flashcards.js",
   "js/admin.js",
   "js/error.js",
 

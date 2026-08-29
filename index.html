@@ -55,6 +55,7 @@
 <link rel="stylesheet" href="css/static.css">
 <link rel="stylesheet" href="css/profile.css">
 <link rel="stylesheet" href="css/auth.css">
+<link rel="stylesheet" href="css/hub.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
@@ -133,6 +134,7 @@
             <div class="course-enroll-pill" id="course-enroll-pill" style="display:none">
               <i class="fa-solid fa-users"></i> <span id="course-enroll-count">0</span> people are taking this course
             </div>
+            <div id="course-certificate-box"></div>
           </div>
         </div>
       </div>
@@ -216,6 +218,15 @@
        just the mount point the router (js/app.js) renders into. -->
   <div id="page-static" class="hidden">
     <div id="static-page-content"></div>
+  <div data-footer></div>
+  </div>
+
+  <!-- ===== LEARNING HUB PAGE (SPA rendered here) =====
+       Markup comes from js/hub.js's render(); behavior comes from its
+       initHubPage(), both wired together by the router in js/app.js.
+       Houses Achievements (badges), Discussion, and Flashcards. -->
+  <div id="page-hub" class="hidden">
+    <div id="hub-page-content"></div>
   <div data-footer></div>
   </div>
 
