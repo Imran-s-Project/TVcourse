@@ -21,6 +21,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 import { initNav, requireAuth, toast, escapeHtml, toBnDigits, getUserProfile, drivePreviewUrl, isDriveLink, openModal, closeModal, youTubeId, getExamAvailability, formatDateTime, getCoursePricing, getExamQuestionCount, generateCertificatePdf, formatTime } from "./utils.js";
 import { courseUrl } from "./router.js";
+import { createVideoPlayer } from "./video-player.js";
 
 // ── Per-session state (reset on every initCoursePage call) ────────────────
 let courseId = null;
@@ -43,7 +44,8 @@ let marqueeRAF = null;
 // on this page for the same reason (don't leak timers/listeners across visits).
 let activeVideoCleanup = null;
 let videoToken = 0;
-let ytApiPromise = null;
+let activePlayerCtl = null; // controller returned by createVideoPlayer() for the current lesson's video
+let activeBuyPlayerCtl = null; // controller for the locked-course "how to buy" preview video
 
 // Bumped on every initCoursePage() call. Any async work (Firestore awaits)
 // started for an older navigation checks this before touching shared state
@@ -135,6 +137,8 @@ export async function initCoursePage(id, params) {
   return function cleanup() {
     if (marqueeRAF !== null) { cancelAnimationFrame(marqueeRAF); marqueeRAF = null; }
     if (activeVideoCleanup) { activeVideoCleanup(); activeVideoCleanup = null; }
+    if (activePlayerCtl) { activePlayerCtl.destroy(); activePlayerCtl = null; }
+    if (activeBuyPlayerCtl) { activeBuyPlayerCtl.destroy(); activeBuyPlayerCtl = null; }
   };
 }
 
@@ -245,11 +249,10 @@ function renderLockedView(course, myToken) {
   latestPurchaseStatus = null;
   const layout = document.querySelector(".course-layout");
   const { price, discountPrice: discount, hasDiscount } = getCoursePricing(course);
-  const buyVideoEmbed = renderBuyVideoEmbed(course.buyVideoUrl || "");
 
   layout.innerHTML = `
     <div class="media-panel">
-      <div class="video-frame">${buyVideoEmbed}</div>
+      <div class="video-frame" id="buy-video-frame"></div>
       <div class="media-body">
         <p class="lesson-desc">${escapeHtml(course.description || "")}</p>
       </div>
@@ -270,6 +273,9 @@ function renderLockedView(course, myToken) {
   document.getElementById("buy-course-btn").addEventListener("click", () => handleBuyClick(course));
   document.getElementById("have-code-btn").addEventListener("click", () => openAccessCodeModal(course));
   loadPurchaseStatus(myToken);
+
+  if (activeBuyPlayerCtl) { activeBuyPlayerCtl.destroy(); activeBuyPlayerCtl = null; }
+  renderBuyVideo(course.buyVideoUrl || "");
 }
 
 /* ---------- "Coming Soon" view — shown when a course is unlocked but its
@@ -338,8 +344,19 @@ function openAlreadyPurchasedModal() {
   });
 }
 
-function renderBuyVideoEmbed(url) {
-  return buildVideoEmbedHtml(url, "No video has been added yet showing how to buy this course");
+// Renders the locked-course "how to buy" preview through the same modern
+// custom player as lesson videos — just without any progress-resume wiring
+// (no signed-in-user lesson to track position against here).
+function renderBuyVideo(url) {
+  const frame = document.getElementById("buy-video-frame");
+  if (!frame) return;
+  const yid = youTubeId(url);
+  if (!yid && url && isDriveLink(url)) {
+    const preview = drivePreviewUrl(url);
+    if (preview) { frame.innerHTML = `<iframe src="${preview}" allow="autoplay" loading="lazy"></iframe>`; return; }
+  }
+  const source = yid ? { type: "youtube", yid } : url ? { type: "file", url } : { type: "empty", message: "No video has been added yet showing how to buy this course" };
+  activeBuyPlayerCtl = createVideoPlayer(frame, source);
 }
 
 // Show the status of this user's most recent purchase request for this course
@@ -590,103 +607,107 @@ function isDone(lessonId) {
   return !!userProfile?.progress?.[courseId]?.[lessonId];
 }
 
-/* ---------- "Now Playing" card — the current lesson is always shown separately at the top ---------- */
-function renderNowPlaying() {
-  if (!els.nowPlaying || !activeLesson) return;
-  const idx = lessons.findIndex((l) => l.id === activeLesson.id);
-  const hasExam = examsForLesson(activeLesson.id).length > 0;
-  els.nowPlaying.innerHTML = `
-    <div class="now-playing-card">
-      <div class="now-playing-badge"><span class="now-playing-dot"></span> Now Playing</div>
-      <div class="now-playing-body">
-        <div class="lesson-num">${isDone(activeLesson.id) ? '<i class="fa-solid fa-check"></i>' : idx + 1}</div>
-        <div class="lesson-info">
-          <h4>${escapeHtml(activeLesson.title)}</h4>
-          <span><i class="fa-solid fa-clock"></i> ${activeLesson.duration ? activeLesson.duration + " min" : "Video Lesson"}</span>
-          ${hasExam ? `<span><i class="fa-solid fa-file-pen lesson-exam-flag"></i> Has an exam</span>` : ""}
-        </div>
+/* ==========================================================================
+   HORIZONTAL LESSON STRIP — replaces vertical sidebar + marquee
+   Renders cards right-to-left (newest at right, scroll left for older)
+   ========================================================================== */
+
+// DOM reference: we inject a .lesson-h-strip AFTER .media-panel if not present yet
+function ensureHStrip() {
+  let strip = document.getElementById("lesson-h-strip");
+  if (strip) return strip;
+  strip = document.createElement("div");
+  strip.className = "lesson-h-strip";
+  strip.id = "lesson-h-strip";
+  strip.innerHTML = `
+    <div class="lesson-h-strip-header">
+      <div class="lesson-h-strip-title">
+        <i class="fa-solid fa-list-ul"></i> All Lessons
       </div>
+      <span class="lesson-h-strip-count" id="lh-count"></span>
+    </div>
+    <div class="lesson-h-track-wrap" id="lh-track-wrap">
+      <div class="lesson-h-track" id="lh-track"></div>
     </div>`;
+  // Insert after .media-panel inside .course-layout
+  const layout = document.querySelector(".course-layout");
+  if (layout) layout.appendChild(strip);
+  // Drag-to-scroll
+  const wrap = strip.querySelector(".lesson-h-track-wrap");
+  let isDragging = false, startX = 0, scrollStart = 0;
+  wrap.addEventListener("mousedown", (e) => { isDragging = true; startX = e.pageX - wrap.offsetLeft; scrollStart = wrap.scrollLeft; wrap.style.cursor = "grabbing"; });
+  window.addEventListener("mouseup", () => { isDragging = false; wrap.style.cursor = ""; });
+  wrap.addEventListener("mousemove", (e) => { if (!isDragging) return; e.preventDefault(); const x = e.pageX - wrap.offsetLeft; wrap.scrollLeft = scrollStart - (x - startX); });
+  return strip;
 }
 
-/* ---------- Lesson box — all lessons except "Now Playing" auto-scroll here ---------- */
-function lessonItemHtml(l, idx) {
+function renderNowPlaying() {
+  // no-op: now-playing is shown inline in the horizontal strip (active card)
+}
+
+function lessonHCardHtml(l, idx, isActive) {
+  const isDoneLesson = isDone(l.id);
   const hasExam = examsForLesson(l.id).length > 0;
+  const activeClass = isActive ? " active" : "";
+  const doneClass = isDoneLesson ? " done" : "";
   return `
-    <div class="lesson-item ${isDone(l.id) ? "done" : ""}" data-id="${l.id}">
-      <div class="lesson-num">${isDone(l.id) ? '<i class="fa-solid fa-check"></i>' : idx + 1}</div>
-      <div class="lesson-info">
-        <h4>${escapeHtml(l.title)}</h4>
-        <span><i class="fa-solid fa-clock"></i> ${l.duration ? l.duration + " min" : "Video Lesson"}</span>
-        ${hasExam ? `<span><i class="fa-solid fa-file-pen lesson-exam-flag"></i> Exam</span>` : ""}
+    <div class="lesson-h-card${activeClass}${doneClass}" data-id="${l.id}">
+      <div class="lh-top">
+        <div class="lh-num">${isDoneLesson ? '<i class="fa-solid fa-check"></i>' : idx + 1}</div>
+        <span class="lh-now"><span class="lh-now-dot"></span>Now Playing</span>
       </div>
-      <div class="lesson-play-hint"><i class="fa-solid fa-play"></i></div>
+      <div class="lh-title">${escapeHtml(l.title)}</div>
+      <div class="lh-meta">
+        <i class="fa-solid fa-clock"></i>
+        ${l.duration ? l.duration + " min" : "Video"}
+        ${hasExam ? '<i class="fa-solid fa-file-pen lesson-exam-flag" style="margin-left:6px"></i> Exam' : ""}
+      </div>
+      <div class="lh-play"><i class="fa-solid fa-play"></i></div>
     </div>`;
 }
 
 function renderLessonList() {
-  renderNowPlaying();
+  const strip = ensureHStrip();
+  const track = document.getElementById("lh-track");
+  const countEl = document.getElementById("lh-count");
+  if (!track) return;
 
-  // All lessons except the current one — keeping the original order number
-  const upNext = lessons
-    .map((l, i) => ({ ...l, _idx: i }))
-    .filter((l) => l.id !== activeLesson?.id);
-
-  if (!upNext.length) {
-    els.lessonMarquee?.classList.add("no-scroll");
-    els.lessonList.innerHTML = `<div class="lesson-marquee-empty">No more lessons to show right now</div>`;
+  if (!lessons || !lessons.length) {
+    track.innerHTML = `<div class="lesson-marquee-empty" style="padding:20px 8px;color:var(--text-muted);font-size:.85rem">No lessons yet</div>`;
     return;
   }
-  els.lessonMarquee?.classList.remove("no-scroll");
 
-  // The list is placed twice for a seamless-loop auto-scroll
-  const singleHtml = upNext.map((l) => lessonItemHtml(l, l._idx)).join("");
-  els.lessonList.innerHTML = singleHtml + singleHtml;
+  if (countEl) countEl.textContent = lessons.length + (lessons.length === 1 ? " Lesson" : " Lessons");
 
-  els.lessonList.querySelectorAll(".lesson-item").forEach((item) => {
-    item.addEventListener("click", () => selectLesson(item.dataset.id));
+  // Render all cards; active card gets active class
+  track.innerHTML = lessons.map((l, i) => lessonHCardHtml(l, i, l.id === activeLesson?.id)).join("");
+
+  track.querySelectorAll(".lesson-h-card").forEach((card) => {
+    card.addEventListener("click", () => selectLesson(card.dataset.id));
   });
 
-  resetLessonMarqueeScroll();
+  // Scroll the active card into view (centered)
+  requestAnimationFrame(() => {
+    const activeCard = track.querySelector(".lesson-h-card.active");
+    const wrap = document.getElementById("lh-track-wrap");
+    if (activeCard && wrap) {
+      // Strip uses row-reverse so active card might be anywhere
+      const cardLeft = activeCard.offsetLeft;
+      const cardWidth = activeCard.offsetWidth;
+      const wrapWidth = wrap.offsetWidth;
+      wrap.scrollLeft = cardLeft - wrapWidth / 2 + cardWidth / 2;
+    }
+  });
 }
 
-/* ---------- Auto-scroll (keeps moving upward) — pauses on manual scroll/touch, resumes shortly after ---------- */
-let marqueePaused = false;
-let marqueeResumeTimer = null;
-const MARQUEE_SPEED = 0.35; // pixels/frame
-
-function resetLessonMarqueeScroll() {
-  if (els.lessonMarquee) els.lessonMarquee.scrollTop = 0;
-}
-
-function pauseMarquee() {
-  marqueePaused = true;
-  clearTimeout(marqueeResumeTimer);
-}
-
-function scheduleMarqueeResume() {
-  clearTimeout(marqueeResumeTimer);
-  marqueeResumeTimer = setTimeout(() => { marqueePaused = false; }, 2200);
-}
+function resetLessonMarqueeScroll() { /* no-op for horizontal strip */ }
+function pauseMarquee() { /* no-op */ }
+function scheduleMarqueeResume() { /* no-op */ }
 
 function initLessonMarquee() {
-  const wrap = els.lessonMarquee;
-  if (!wrap) return;
-
-  function tick() {
-    if (!marqueePaused && !wrap.classList.contains("no-scroll") && wrap.scrollHeight > wrap.clientHeight + 4) {
-      wrap.scrollTop += MARQUEE_SPEED;
-      const half = wrap.scrollHeight / 2;
-      if (wrap.scrollTop >= half) wrap.scrollTop -= half;
-    }
-    marqueeRAF = requestAnimationFrame(tick);
-  }
-  marqueeRAF = requestAnimationFrame(tick);
-
-  ["pointerdown", "touchstart", "wheel"].forEach((evt) => wrap.addEventListener(evt, pauseMarquee, { passive: true }));
-  ["pointerup", "touchend", "pointerleave", "mouseleave"].forEach((evt) => wrap.addEventListener(evt, scheduleMarqueeResume, { passive: true }));
-  wrap.addEventListener("mouseenter", pauseMarquee);
+  // No vertical marquee — horizontal strip is built lazily in renderLessonList
 }
+
 
 function selectLesson(id) {
   activeLesson = lessons.find((l) => l.id === id);
@@ -704,29 +725,57 @@ function selectLesson(id) {
 
 function renderVideo() {
   const myVToken = ++videoToken;
-  // Flush/stop whatever the previous lesson's player was doing before this
-  // lesson's markup replaces it — otherwise its save-interval/listeners would
-  // keep firing against a video element that's no longer in the DOM.
+  // Tear down whatever the previous lesson's player was doing before this
+  // lesson's markup replaces it — otherwise its listeners/polling would keep
+  // firing against a player that's no longer in the DOM, and one last save
+  // is flushed so a lesson closed mid-watch still remembers where it left off.
   if (activeVideoCleanup) { activeVideoCleanup(); activeVideoCleanup = null; }
+  if (activePlayerCtl) { activePlayerCtl.destroy(); activePlayerCtl = null; }
 
   const url = activeLesson.videoURL || "";
   const lessonId = activeLesson.id;
   const yid = youTubeId(url);
 
-  // YouTube lessons get the scriptable IFrame Player (not a bare <iframe>) so
-  // playback position can be read/restored — see initYouTubeResume(). Drive
-  // embeds and direct video files fall through to the existing buildVideoEmbedHtml();
-  // direct files additionally get native <video> resume via initNativeVideoResume().
-  if (yid) {
-    els.videoFrame.innerHTML = `<div class="loading-screen" style="width:100%"><span class="spinner"></span></div>`;
-    initYouTubeResume(els.videoFrame, yid, lessonId, myVToken);
-    return;
+  // Google Drive previews stay a plain embedded iframe (Drive's own preview
+  // player, not something we can attach the custom skin to) — everything
+  // else (YouTube + direct video files) goes through the shared, modern
+  // custom player skin in js/video-player.js, unified behind one adapter.
+  if (!yid && url && isDriveLink(url)) {
+    const preview = drivePreviewUrl(url);
+    if (preview) {
+      els.videoFrame.innerHTML = `<iframe src="${preview}" allow="autoplay" loading="lazy"></iframe>`;
+      return;
+    }
   }
 
-  els.videoFrame.innerHTML = buildVideoEmbedHtml(url, "No video has been added to this lesson yet");
-  bindVideoErrorFallback(url);
-  const videoEl = els.videoFrame.querySelector("video");
-  if (videoEl) activeVideoCleanup = initNativeVideoResume(videoEl, lessonId, myVToken);
+  const source = yid ? { type: "youtube", yid } : url ? { type: "file", url } : { type: "empty", message: "No video has been added to this lesson yet" };
+  const saved = getSavedVideoProgress(lessonId);
+  let lastSavedAt = 0;
+
+  activePlayerCtl = createVideoPlayer(els.videoFrame, source, {
+    onReady(duration) {
+      if (myVToken !== videoToken) return;
+      if (saved?.seconds > 5 && (!duration || saved.seconds < duration - 10)) {
+        activePlayerCtl.seek(saved.seconds);
+        toast(`ভিডিওটি আগের জায়গা থেকে চালু হলো (${formatTime(Math.floor(saved.seconds))})`, "info");
+      }
+    },
+    onTimeUpdate(t, d) {
+      if (myVToken !== videoToken) return;
+      if (t - lastSavedAt >= 5) { lastSavedAt = t; saveVideoProgress(lessonId, t, d); }
+      if (d && t / d >= 0.9) autoMarkLessonComplete(lessonId);
+    },
+    onPause(t, d) {
+      if (myVToken === videoToken) saveVideoProgress(lessonId, t, d);
+    },
+  });
+
+  activeVideoCleanup = () => {
+    if (myVToken !== videoToken || !activePlayerCtl) return;
+    const t = activePlayerCtl.getCurrentTime();
+    const d = activePlayerCtl.getDuration();
+    if (t > 0) saveVideoProgress(lessonId, t, d);
+  };
 }
 
 /* ---------- Video resume: read/write saved position ----------
@@ -771,159 +820,6 @@ async function autoMarkLessonComplete(lessonId) {
   } catch {
     // Non-critical — the manual "Mark as Complete" button still works as a fallback
   }
-}
-
-/* ---------- Native <video> resume ---------- */
-function initNativeVideoResume(videoEl, lessonId, myVToken) {
-  const saved = getSavedVideoProgress(lessonId);
-  let lastSavedAt = 0;
-
-  const onLoadedMetadata = () => {
-    if (myVToken !== videoToken) return;
-    if (saved?.seconds > 5 && (!videoEl.duration || saved.seconds < videoEl.duration - 10)) {
-      videoEl.currentTime = saved.seconds;
-      toast(`ভিডিওটি আগের জায়গা থেকে চালু হলো (${formatTime(saved.seconds)})`, "info");
-    }
-  };
-  const onTimeUpdate = () => {
-    if (myVToken !== videoToken) return;
-    if (videoEl.currentTime - lastSavedAt >= 5) {
-      lastSavedAt = videoEl.currentTime;
-      saveVideoProgress(lessonId, videoEl.currentTime, videoEl.duration);
-    }
-    if (videoEl.duration && videoEl.currentTime / videoEl.duration >= 0.9) autoMarkLessonComplete(lessonId);
-  };
-  const onPause = () => saveVideoProgress(lessonId, videoEl.currentTime, videoEl.duration);
-
-  videoEl.addEventListener("loadedmetadata", onLoadedMetadata);
-  videoEl.addEventListener("timeupdate", onTimeUpdate);
-  videoEl.addEventListener("pause", onPause);
-
-  return function cleanupNative() {
-    videoEl.removeEventListener("loadedmetadata", onLoadedMetadata);
-    videoEl.removeEventListener("timeupdate", onTimeUpdate);
-    videoEl.removeEventListener("pause", onPause);
-    if (videoEl.currentTime > 0) saveVideoProgress(lessonId, videoEl.currentTime, videoEl.duration);
-  };
-}
-
-/* ---------- YouTube resume (via the scriptable IFrame Player API) ----------
-   A bare <iframe src="...youtube.com/embed/...">, which is what
-   buildVideoEmbedHtml() normally renders, has no way to read or set playback
-   position. Swapping in YT.Player unlocks getCurrentTime()/seekTo() so the
-   same resume behaviour works for YouTube lessons too. The API script is
-   loaded once (cached in ytApiPromise) and reused for every lesson/visit. ---------- */
-function loadYouTubeApi() {
-  if (window.YT && window.YT.Player) return Promise.resolve(window.YT);
-  if (ytApiPromise) return ytApiPromise;
-  ytApiPromise = new Promise((resolve) => {
-    const prevReady = window.onYouTubeIframeAPIReady;
-    window.onYouTubeIframeAPIReady = () => {
-      if (typeof prevReady === "function") prevReady();
-      resolve(window.YT);
-    };
-    if (!document.getElementById("yt-iframe-api-script")) {
-      const tag = document.createElement("script");
-      tag.id = "yt-iframe-api-script";
-      tag.src = "https://www.youtube.com/iframe_api";
-      document.head.appendChild(tag);
-    }
-  });
-  return ytApiPromise;
-}
-
-async function initYouTubeResume(containerEl, yid, lessonId, myVToken) {
-  let YT;
-  try {
-    YT = await loadYouTubeApi();
-  } catch {
-    // Couldn't load the API (e.g. offline / blocked) — fall back to a plain embed, just without resume
-    if (myVToken !== videoToken) return;
-    containerEl.innerHTML = `<iframe src="https://www.youtube.com/embed/${yid}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
-    return;
-  }
-  if (myVToken !== videoToken) return; // navigated to a different lesson/page while the API was loading
-
-  const divId = `yt-player-${lessonId}-${myVToken}`;
-  containerEl.innerHTML = `<div id="${divId}"></div>`;
-
-  let saveInterval = null;
-  let player = null;
-  const flush = () => {
-    if (!player) return;
-    try {
-      const t = player.getCurrentTime?.() || 0;
-      const d = player.getDuration?.() || 0;
-      if (t > 0) saveVideoProgress(lessonId, t, d);
-    } catch { /* player may already be torn down */ }
-  };
-
-  player = new YT.Player(divId, {
-    videoId: yid,
-    playerVars: { rel: 0 },
-    events: {
-      onReady: (e) => {
-        if (myVToken !== videoToken) return;
-        const saved = getSavedVideoProgress(lessonId);
-        const dur = e.target.getDuration?.() || 0;
-        if (saved?.seconds > 5 && (!dur || saved.seconds < dur - 10)) {
-          e.target.seekTo(saved.seconds, true);
-          toast(`ভিডিওটি আগের জায়গা থেকে চালু হলো (${formatTime(saved.seconds)})`, "info");
-        }
-      },
-      onStateChange: (e) => {
-        if (myVToken !== videoToken) return;
-        if (e.data === YT.PlayerState.PLAYING) {
-          if (saveInterval) clearInterval(saveInterval);
-          saveInterval = setInterval(() => {
-            const t = player.getCurrentTime?.() || 0;
-            const d = player.getDuration?.() || 0;
-            saveVideoProgress(lessonId, t, d);
-            if (d && t / d >= 0.9) autoMarkLessonComplete(lessonId);
-          }, 5000);
-        } else {
-          if (saveInterval) { clearInterval(saveInterval); saveInterval = null; }
-          flush();
-        }
-      },
-    },
-  });
-
-  activeVideoCleanup = () => {
-    if (saveInterval) { clearInterval(saveInterval); saveInterval = null; }
-    flush();
-    try { player?.destroy?.(); } catch { /* ignore */ }
-  };
-}
-
-/* ---------- Shared video-embed builder — used for lesson videos and the buy-preview video ----------
-   Handles YouTube links, Google Drive links (previewable, like PDFs), and direct
-   video files (mp4/webm/ogg or any other hosted URL). ---------- */
-function buildVideoEmbedHtml(url, emptyMessage) {
-  if (!url) return `<div class="slide-empty" style="width:100%">${emptyMessage}</div>`;
-  const yid = youTubeId(url);
-  if (yid) {
-    return `<iframe src="https://www.youtube.com/embed/${yid}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
-  }
-  if (isDriveLink(url)) {
-    const preview = drivePreviewUrl(url);
-    if (preview) return `<iframe src="${preview}" allow="autoplay" loading="lazy"></iframe>`;
-  }
-  return `<video src="${url}" controls playsinline></video>`;
-}
-
-/* ---------- If a direct <video> fails to load (bad/unsupported link), show a clear
-   message with a link to open it directly instead of leaving a silent black box ---------- */
-function bindVideoErrorFallback(url) {
-  const videoEl = els.videoFrame.querySelector("video");
-  if (!videoEl) return;
-  videoEl.addEventListener(
-    "error",
-    () => {
-      els.videoFrame.innerHTML = `<div class="slide-empty" style="width:100%">This video link couldn't be played here. <a href="${url}" target="_blank" rel="noopener">Open the video directly</a></div>`;
-    },
-    { once: true }
-  );
 }
 
 function renderSlides() {
