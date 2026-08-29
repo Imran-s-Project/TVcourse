@@ -204,7 +204,7 @@ async function init(params, myToken) {
   updateExamTabBadge();
 
   if (!lessons.length) {
-    els.lessonList.innerHTML = `<div class="empty-state"><p>No lessons have been added to this course yet</p></div>`;
+    renderComingSoonView(course);
     return;
   }
 
@@ -270,6 +270,41 @@ function renderLockedView(course, myToken) {
   document.getElementById("buy-course-btn").addEventListener("click", () => handleBuyClick(course));
   document.getElementById("have-code-btn").addEventListener("click", () => openAccessCodeModal(course));
   loadPurchaseStatus(myToken);
+}
+
+/* ---------- "Coming Soon" view — shown when a course is unlocked but its
+   admin hasn't uploaded any lessons/videos yet. One of a few looping CSS
+   animation variants is picked at random on every page load (every call to
+   initCoursePage → init → here), so a refresh can show a different scene;
+   whichever one shows, it keeps animating continuously (infinite keyframes),
+   never a single static frame. Deliberately restrained/monochrome — a single
+   accent color used only for the active motion element, everything else is
+   border/text-muted — instead of decorative multi-color glow blobs. Pure
+   CSS — no images, nothing to preload. ---------- */
+const COMING_SOON_VARIANTS = ["cs-scan", "cs-sweep", "cs-skeleton", "cs-typing"];
+
+function renderComingSoonView(course) {
+  const variant = COMING_SOON_VARIANTS[Math.floor(Math.random() * COMING_SOON_VARIANTS.length)];
+  const layout = document.querySelector(".course-layout");
+
+  layout.innerHTML = `
+    <div class="coming-soon-view ${variant}">
+      <div class="cs-frame" aria-hidden="true">
+        <div class="cs-sweep"></div>
+        <div class="cs-ring"></div>
+        <div class="cs-core"><i class="fa-solid fa-clapperboard"></i></div>
+      </div>
+      <div class="cs-skeleton" aria-hidden="true">
+        <div class="cs-skel-row"></div>
+        <div class="cs-skel-row"></div>
+        <div class="cs-skel-row short"></div>
+      </div>
+      <h2 class="cs-title">Coming Soon</h2>
+      <p class="cs-sub">"${escapeHtml(course.title || "This course")}" — lessons are being prepared and will be uploaded here soon</p>
+      <div class="cs-status"><span class="cs-status-dot"></span><span class="cs-status-text">Preparing lessons</span></div>
+      <a href="#/home" class="btn btn-outline mt-16"><i class="fa-solid fa-house"></i> Back to Home</a>
+    </div>
+  `;
 }
 
 // Tracks the status of this user's most recent purchase request for the
