@@ -412,19 +412,23 @@
   padding: 3px 10px; border-radius: 999px;
 }
 
-/* Scrollable track */
+/* Scrollable track — auto-playing carousel, drag/swipe-able by mouse or touch */
 .lesson-h-track-wrap {
   overflow-x: auto; overflow-y: hidden;
   scrollbar-width: thin;
   scrollbar-color: rgba(124,92,252,0.35) transparent;
   -webkit-overflow-scrolling: touch;
+  touch-action: pan-x; /* let horizontal swipes drive the carousel, not the page */
+  scroll-behavior: smooth;
   padding: 14px 20px 16px;
   /* fade edges */
   -webkit-mask-image: linear-gradient(to right, transparent 0, #000 24px, #000 calc(100% - 24px), transparent 100%);
   mask-image: linear-gradient(to right, transparent 0, #000 24px, #000 calc(100% - 24px), transparent 100%);
   cursor: grab;
+  user-select: none;
 }
-.lesson-h-track-wrap:active { cursor: grabbing; }
+.lesson-h-track-wrap:active,
+.lesson-h-track-wrap.dragging { cursor: grabbing; scroll-behavior: auto; }
 .lesson-h-track-wrap::-webkit-scrollbar { height: 4px; }
 .lesson-h-track-wrap::-webkit-scrollbar-thumb {
   background: rgba(124,92,252,0.35); border-radius: 999px;
@@ -438,7 +442,7 @@
   padding-bottom: 2px;
 }
 
-/* Individual lesson card in strip */
+/* Individual lesson card in strip — slides in from the left on render */
 .lesson-h-card {
   flex-shrink: 0;
   width: 210px;
@@ -450,6 +454,14 @@
   transition: background 0.18s, border-color 0.18s, transform 0.18s, box-shadow 0.18s;
   position: relative;
   overflow: hidden;
+  animation: lhCardIn 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes lhCardIn {
+  from { opacity: 0; transform: translateX(-28px) scale(0.96); }
+  to   { opacity: 1; transform: translateX(0) scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lesson-h-card { animation: none; }
 }
 .lesson-h-card::before {
   content: '';
