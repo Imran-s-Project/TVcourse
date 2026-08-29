@@ -139,6 +139,10 @@ export async function initCoursePage(id, params) {
     if (activeVideoCleanup) { activeVideoCleanup(); activeVideoCleanup = null; }
     if (activePlayerCtl) { activePlayerCtl.destroy(); activePlayerCtl = null; }
     if (activeBuyPlayerCtl) { activeBuyPlayerCtl.destroy(); activeBuyPlayerCtl = null; }
+    // Stop the lesson-strip carousel and any pending resume timer so it
+    // doesn't keep ticking (and scrolling a now-gone element) on other pages
+    lhStopAutoplay();
+    if (lhResumeTimer) { clearTimeout(lhResumeTimer); lhResumeTimer = null; }
   };
 }
 
@@ -610,7 +614,59 @@ function isDone(lessonId) {
 /* ==========================================================================
    HORIZONTAL LESSON STRIP — replaces vertical sidebar + marquee
    Renders cards right-to-left (newest at right, scroll left for older)
+
+   Now a proper auto-playing carousel:
+     • Auto-advances one card at a time every few seconds (smooth scroll),
+       looping back to the start when it reaches the end.
+     • Fully drag/swipe-able by hand — mouse AND touch — not just native
+       scroll, with a small "did we actually drag" guard so a drag doesn't
+       accidentally fire a lesson-select click.
+     • Auto-play pauses the moment the user touches/drags/hovers the strip,
+       and quietly resumes a few seconds after they let go.
    ========================================================================== */
+
+const LH_AUTOPLAY_DELAY = 3200;  // ms a card "stays" before advancing
+const LH_RESUME_DELAY = 4500;    // ms of no interaction before autoplay resumes
+
+let lhAutoplayTimer = null;
+let lhResumeTimer = null;
+let lhDragging = false;
+let lhDragMoved = false; // true once a pointer move exceeds the click threshold
+
+function lhCardStep(wrap) {
+  const card = wrap.querySelector(".lesson-h-card");
+  if (!card) return 0;
+  const gap = parseFloat(getComputedStyle(wrap.querySelector(".lesson-h-track")).gap) || 10;
+  return card.getBoundingClientRect().width + gap;
+}
+
+function lhStopAutoplay() {
+  if (lhAutoplayTimer) { clearInterval(lhAutoplayTimer); lhAutoplayTimer = null; }
+}
+
+function lhStartAutoplay() {
+  lhStopAutoplay();
+  const wrap = document.getElementById("lh-track-wrap");
+  if (!wrap || wrap.querySelectorAll(".lesson-h-card").length < 2) return; // nothing to carousel
+  lhAutoplayTimer = setInterval(() => {
+    if (lhDragging) return;
+    const atEnd = wrap.scrollLeft + wrap.clientWidth >= wrap.scrollWidth - 4;
+    if (atEnd) {
+      wrap.scrollTo({ left: 0, behavior: "smooth" });
+    } else {
+      wrap.scrollBy({ left: lhCardStep(wrap), behavior: "smooth" });
+    }
+  }, LH_AUTOPLAY_DELAY);
+}
+
+// Any user interaction pauses autoplay immediately and schedules a quiet
+// resume a few seconds after the interaction ends — feels alive, but never
+// fights the user while they're actively browsing lessons by hand.
+function lhPauseThenResume() {
+  lhStopAutoplay();
+  if (lhResumeTimer) clearTimeout(lhResumeTimer);
+  lhResumeTimer = setTimeout(lhStartAutoplay, LH_RESUME_DELAY);
+}
 
 // DOM reference: we inject a .lesson-h-strip AFTER .media-panel if not present yet
 function ensureHStrip() {
@@ -632,12 +688,50 @@ function ensureHStrip() {
   // Insert after .media-panel inside .course-layout
   const layout = document.querySelector(".course-layout");
   if (layout) layout.appendChild(strip);
-  // Drag-to-scroll
+
   const wrap = strip.querySelector(".lesson-h-track-wrap");
-  let isDragging = false, startX = 0, scrollStart = 0;
-  wrap.addEventListener("mousedown", (e) => { isDragging = true; startX = e.pageX - wrap.offsetLeft; scrollStart = wrap.scrollLeft; wrap.style.cursor = "grabbing"; });
-  window.addEventListener("mouseup", () => { isDragging = false; wrap.style.cursor = ""; });
-  wrap.addEventListener("mousemove", (e) => { if (!isDragging) return; e.preventDefault(); const x = e.pageX - wrap.offsetLeft; wrap.scrollLeft = scrollStart - (x - startX); });
+  let startX = 0, scrollStart = 0;
+  const DRAG_THRESHOLD = 6; // px of movement before we call it a "drag" (vs. a tap)
+
+  function dragStart(x) {
+    lhDragging = true;
+    lhDragMoved = false;
+    startX = x;
+    scrollStart = wrap.scrollLeft;
+    lhStopAutoplay();
+    if (lhResumeTimer) clearTimeout(lhResumeTimer);
+    wrap.classList.add("dragging");
+  }
+  function dragMove(x) {
+    if (!lhDragging) return;
+    const dx = x - startX;
+    if (Math.abs(dx) > DRAG_THRESHOLD) lhDragMoved = true;
+    wrap.scrollLeft = scrollStart - dx;
+  }
+  function dragEnd() {
+    if (!lhDragging) return;
+    lhDragging = false;
+    wrap.classList.remove("dragging");
+    lhPauseThenResume();
+  }
+
+  // Mouse drag
+  wrap.addEventListener("mousedown", (e) => dragStart(e.pageX));
+  window.addEventListener("mousemove", (e) => { if (lhDragging) { e.preventDefault(); dragMove(e.pageX); } });
+  window.addEventListener("mouseup", dragEnd);
+
+  // Touch drag (phones/tablets) — passive:false on move so we can prevent
+  // the page from vertically scrolling while a horizontal swipe is in progress
+  wrap.addEventListener("touchstart", (e) => dragStart(e.touches[0].pageX), { passive: true });
+  wrap.addEventListener("touchmove", (e) => { dragMove(e.touches[0].pageX); if (lhDragMoved) e.preventDefault(); }, { passive: false });
+  wrap.addEventListener("touchend", dragEnd);
+  wrap.addEventListener("touchcancel", dragEnd);
+
+  // Hovering (desktop) also pauses the carousel so a user reading a card
+  // isn't yanked away mid-read; leaving resumes it after the quiet delay.
+  wrap.addEventListener("mouseenter", lhStopAutoplay);
+  wrap.addEventListener("mouseleave", () => { if (!lhDragging) lhPauseThenResume(); });
+
   return strip;
 }
 
@@ -651,7 +745,7 @@ function lessonHCardHtml(l, idx, isActive) {
   const activeClass = isActive ? " active" : "";
   const doneClass = isDoneLesson ? " done" : "";
   return `
-    <div class="lesson-h-card${activeClass}${doneClass}" data-id="${l.id}">
+    <div class="lesson-h-card${activeClass}${doneClass}" data-id="${l.id}" style="animation-delay:${Math.min(idx, 10) * 55}ms">
       <div class="lh-top">
         <div class="lh-num">${isDoneLesson ? '<i class="fa-solid fa-check"></i>' : idx + 1}</div>
         <span class="lh-now"><span class="lh-now-dot"></span>Now Playing</span>
@@ -673,6 +767,7 @@ function renderLessonList() {
   if (!track) return;
 
   if (!lessons || !lessons.length) {
+    lhStopAutoplay();
     track.innerHTML = `<div class="lesson-marquee-empty" style="padding:20px 8px;color:var(--text-muted);font-size:.85rem">No lessons yet</div>`;
     return;
   }
@@ -683,7 +778,10 @@ function renderLessonList() {
   track.innerHTML = lessons.map((l, i) => lessonHCardHtml(l, i, l.id === activeLesson?.id)).join("");
 
   track.querySelectorAll(".lesson-h-card").forEach((card) => {
-    card.addEventListener("click", () => selectLesson(card.dataset.id));
+    card.addEventListener("click", () => {
+      if (lhDragMoved) return; // a drag just ended on this card — not a real tap
+      selectLesson(card.dataset.id);
+    });
   });
 
   // Scroll the active card into view (centered)
@@ -698,11 +796,13 @@ function renderLessonList() {
       wrap.scrollLeft = cardLeft - wrapWidth / 2 + cardWidth / 2;
     }
   });
+
+  lhPauseThenResume(); // fresh render (new lesson picked, etc.) — settle, then resume the carousel
 }
 
 function resetLessonMarqueeScroll() { /* no-op for horizontal strip */ }
-function pauseMarquee() { /* no-op */ }
-function scheduleMarqueeResume() { /* no-op */ }
+function pauseMarquee() { lhStopAutoplay(); }
+function scheduleMarqueeResume() { lhPauseThenResume(); }
 
 function initLessonMarquee() {
   // No vertical marquee — horizontal strip is built lazily in renderLessonList
