@@ -848,6 +848,53 @@ export function loadBengaliCanvasFont() {
   return _bengaliCanvasFontPromise;
 }
 
+/* ---------- Shared Bengali-detection + canvas-rasterization helpers ----------
+   Used by every PDF export that mixes Bengali with native jsPDF text (exam
+   result PDF, admin leaderboard PDF, and any future export): jsPDF draws TTF
+   glyphs one-by-one with no OpenType shaping, so Bengali conjuncts/matras
+   come out broken even with a Bengali font registered via useBengaliFont()
+   above. The fix is to detect Bengali text and rasterize just that text on
+   an offscreen canvas (real browser shaping) as a small PNG, while pure
+   English/number text keeps using fast, crisp, selectable native jsPDF
+   text. Centralized here so every export gets the same correct behavior
+   instead of each file re-solving (or forgetting to solve) it. ---------- */
+const BENGALI_RE = /[\u0980-\u09FF]/;
+export const hasBengaliText = (text) => BENGALI_RE.test(text || "");
+
+// Rasterize at higher resolution than the final point-size for crisp print output.
+const RASTER_SCALE = 3;
+
+/**
+ * Renders a single line of text onto an offscreen canvas (using the loaded
+ * Bengali canvas font, or the given fallback) and returns a PNG data URL
+ * plus its size in PDF points, ready to hand to doc.addImage(). Handles
+ * Bengali (needs real shaping) and non-Bengali (still fine to rasterize,
+ * e.g. mixed lines) text alike.
+ */
+export function rasterizeTextLine(text, { fontPt, bold = false, colorRgb = [0, 0, 0], canvasFont }) {
+  const px = fontPt * RASTER_SCALE;
+  const measureCanvas = document.createElement("canvas");
+  const mctx = measureCanvas.getContext("2d");
+  mctx.font = `${bold ? "700" : "400"} ${px}px "${canvasFont}", sans-serif`;
+  const width = Math.max(4, Math.ceil(mctx.measureText(text).width) + 6);
+  const height = Math.ceil(px * 1.5);
+
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d");
+  ctx.font = `${bold ? "700" : "400"} ${px}px "${canvasFont}", sans-serif`;
+  ctx.fillStyle = `rgb(${colorRgb.join(",")})`;
+  ctx.textBaseline = "alphabetic";
+  ctx.fillText(text, 2, px * 1.02);
+
+  return {
+    dataUrl: canvas.toDataURL("image/png"),
+    widthPt: width / RASTER_SCALE,
+    heightPt: height / RASTER_SCALE,
+  };
+}
+
 /* ---------- Course completion certificate (shared) ----------
    Called from both js/course.js (banner shown on the course page once every
    lesson is marked complete) and js/page-mycourses.js (the "My Courses"
