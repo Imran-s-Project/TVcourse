@@ -70,19 +70,45 @@
     <main class="admin-main">
       <!-- Overview -->
       <section class="admin-section active" id="section-overview">
-        <div class="admin-section-head">
-          <h1>Overview</h1>
-          <p class="muted">A snapshot of the whole site's stats</p>
+        <div class="admin-section-head ov-head">
+          <div>
+            <h1>Overview</h1>
+            <p class="muted">A snapshot of the whole site's stats</p>
+          </div>
+          <button type="button" class="btn btn-outline btn-sm" id="overview-refresh-btn"><i class="fa-solid fa-arrow-rotate-right"></i> Refresh</button>
         </div>
-        <div class="stat-grid" id="stat-grid">
+        <div class="ov-stat-grid" id="stat-grid">
           <div class="loading-screen"><span class="spinner"></span></div>
         </div>
+
+        <div class="ov-split-grid mt-24">
+          <div class="card" id="ov-signups-card">
+            <div class="sub-card-head">
+              <h3>Recent Signups</h3>
+            </div>
+            <div id="ov-signups-list">
+              <div class="loading-screen"><span class="spinner"></span></div>
+            </div>
+          </div>
+          <div class="card" id="ov-popular-card">
+            <div class="sub-card-head">
+              <h3>Most Popular Course</h3>
+            </div>
+            <div id="ov-popular-body">
+              <div class="loading-screen"><span class="spinner"></span></div>
+            </div>
+          </div>
+        </div>
+
         <div class="card mt-24" id="recent-results-card">
-          <h3 class="mb-12">Recent Exam Results</h3>
-          <div class="table-wrap"><table class="data-table table-scroll-x" id="recent-results-table">
-            <thead><tr><th>User</th><th>Exam</th><th>Score</th><th>Date</th></tr></thead>
-            <tbody><tr><td colspan="4"><div class="loading-screen"><span class="spinner"></span></div></td></tr></tbody>
-          </table></div>
+          <div class="sub-card-head">
+            <h3>Exam Submissions</h3>
+            <span class="muted" id="submissions-total-label"></span>
+          </div>
+          <div class="sub-summary-strip hidden" id="sub-summary-strip"></div>
+          <div id="submissions-by-date">
+            <div class="loading-screen"><span class="spinner"></span></div>
+          </div>
         </div>
       </section>
 
