@@ -11,8 +11,16 @@
 // as a small PNG image instead of native PDF text. Pure-English/number
 // lines keep using fast, crisp, selectable native jsPDF text.
 // ==========================================================================
-import { toast, formatScore, formatDuration, loadBengaliCanvasFont, hasBengaliText as hasBengali, rasterizeTextLine as rasterizeLine } from "../js/utils.js";
+import { toast, formatScore, formatDuration, loadBengaliCanvasFont, hasBengaliText as hasBengali, rasterizeTextLine as rasterizeLine, safeSavePdf } from "../js/utils.js";
 import { state } from "./exam-engine.js";
+
+// Must match the RASTER_SCALE used internally by rasterizeTextLine() in
+// utils.js — drawBlock() below measures/wraps text at this same scale
+// before rasterizing, so the two have to agree. (This was referenced here
+// before but never defined/imported, which threw "RASTER_SCALE is not
+// defined" on the very first line drawn — silently caught by the outer
+// try/catch as "Couldn't generate the PDF", so the download never happened.)
+const RASTER_SCALE = 3;
 
 function loadLogoImage() {
   return new Promise((resolve) => {
@@ -161,41 +169,56 @@ export async function downloadResultPDF(score, total, percent, examTitle, breakd
     y += 20;
 
     state.questions.forEach((q, i) => {
-      if (y + 40 > pageHeight - 40) y = startNewPage();
+      // Defensive: a malformed question (e.g. from bulk import — missing
+      // options/text) used to throw here and abort the ENTIRE PDF via the
+      // outer try/catch, so one bad question meant the whole download
+      // silently failed with just an error toast. Fall back to safe
+      // placeholders instead so the rest of the report still generates.
+      if (!q || typeof q !== "object") return;
+      try {
+        if (y + 40 > pageHeight - 40) y = startNewPage();
 
-      const userAns = state.answers[q.id];
-      const correct = userAns === q.correctIndex;
-      const hasExplanation = !!(q.explanation && q.explanation.trim());
+        const options = Array.isArray(q.options) ? q.options : [];
+        const userAns = state.answers[q.id];
+        const correct = userAns === q.correctIndex;
+        const hasExplanation = !!(q.explanation && q.explanation.trim());
 
-      y = drawBlock(pdfDoc, ctx, `${i + 1}. ${q.text}`, {
-        x: marginX, y, fontPt: 10, bold: true, colorRgb: [0, 0, 0],
-        maxWidthPt: contentWidth, canvasFont, pageHeight, marginBottom: 40, onPageBreak: startNewPage,
-      });
+        y = drawBlock(pdfDoc, ctx, `${i + 1}. ${q.text || "(Question text unavailable)"}`, {
+          x: marginX, y, fontPt: 10, bold: true, colorRgb: [0, 0, 0],
+          maxWidthPt: contentWidth, canvasFont, pageHeight, marginBottom: 40, onPageBreak: startNewPage,
+        });
 
-      const yourAnsColor = correct ? [20, 130, 70] : [195, 45, 45];
-      y = drawBlock(pdfDoc, ctx, `Your answer: ${userAns !== undefined ? q.options[userAns] : "No answer given"}`, {
-        x: marginX + 10, y, fontPt: 10, colorRgb: yourAnsColor,
-        maxWidthPt: contentWidth - 10, canvasFont, pageHeight, marginBottom: 40, onPageBreak: startNewPage,
-      });
-
-      if (!correct) {
-        y = drawBlock(pdfDoc, ctx, `Correct answer: ${q.options[q.correctIndex]}`, {
-          x: marginX + 10, y, fontPt: 10, colorRgb: [20, 130, 70],
+        const yourAnsColor = correct ? [20, 130, 70] : [195, 45, 45];
+        const userAnsText = userAns !== undefined ? (options[userAns] ?? "(Option unavailable)") : "No answer given";
+        y = drawBlock(pdfDoc, ctx, `Your answer: ${userAnsText}`, {
+          x: marginX + 10, y, fontPt: 10, colorRgb: yourAnsColor,
           maxWidthPt: contentWidth - 10, canvasFont, pageHeight, marginBottom: 40, onPageBreak: startNewPage,
         });
+
+        if (!correct) {
+          const correctAnsText = options[q.correctIndex] ?? "(Answer unavailable)";
+          y = drawBlock(pdfDoc, ctx, `Correct answer: ${correctAnsText}`, {
+            x: marginX + 10, y, fontPt: 10, colorRgb: [20, 130, 70],
+            maxWidthPt: contentWidth - 10, canvasFont, pageHeight, marginBottom: 40, onPageBreak: startNewPage,
+          });
+        }
+        if (hasExplanation) {
+          y = drawBlock(pdfDoc, ctx, `Explanation: ${q.explanation}`, {
+            x: marginX + 10, y, fontPt: 10, colorRgb: [120, 90, 20],
+            maxWidthPt: contentWidth - 10, canvasFont, pageHeight, marginBottom: 40, onPageBreak: startNewPage,
+          });
+        }
+        pdfDoc.setTextColor(0, 0, 0);
+        y += 10;
+      } catch (qErr) {
+        // Log and skip this single question rather than aborting the
+        // whole report — a bad row shouldn't cost the student their PDF.
+        console.error(`Skipping question ${i + 1} in result PDF due to an error:`, qErr);
       }
-      if (hasExplanation) {
-        y = drawBlock(pdfDoc, ctx, `Explanation: ${q.explanation}`, {
-          x: marginX + 10, y, fontPt: 10, colorRgb: [120, 90, 20],
-          maxWidthPt: contentWidth - 10, canvasFont, pageHeight, marginBottom: 40, onPageBreak: startNewPage,
-        });
-      }
-      pdfDoc.setTextColor(0, 0, 0);
-      y += 10;
     });
 
     const safeTitle = (examTitle || "exam").replace(/[^a-z0-9\u0980-\u09FF]+/gi, "_").slice(0, 60);
-    pdfDoc.save(`${safeTitle}_result.pdf`);
+    safeSavePdf(pdfDoc, `${safeTitle}_result.pdf`);
   } catch (err) {
     console.error("Exam result PDF failed:", err);
     toast("Couldn't generate the PDF. Please try again.", "error");
