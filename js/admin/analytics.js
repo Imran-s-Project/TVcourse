@@ -13,8 +13,41 @@ import { escapeHtml } from "../utils.js";
    Analytics — revenue, top courses, monthly trends
    (all computed client-side from purchaseRequests/users — no billing plan,
    no Cloud Functions, 100% free)
+
+   Refresh strategy (mirrors the Overview tab's own refresh-button pattern —
+   see admin/overview.js's bindOverviewRefresh/loadOverview):
+     - Opening the tab reuses the last-loaded numbers instead of re-reading
+       both collections every single click, since that's needless Firestore
+       reads for data that doesn't change every second.
+     - Whenever a purchase is actually approved/rejected (js/admin/purchases.js
+       calls invalidateAnalyticsCache() right after), the cache is marked
+       stale, so the *next* time the tab is opened it transparently re-fetches
+       instead of showing stale revenue/enrollment numbers.
+     - A manual Refresh button (bindAnalyticsRefresh, wired the same way as
+       Overview's) lets the admin force a re-fetch any time regardless —
+       e.g. to pick up a brand-new signup, which nothing above invalidates
+       for automatically.
+     - A "Last updated" timestamp is shown so it's always visible whether
+       what's on screen is fresh or reused.
    ========================================================================== */
 let analyticsLoaded = false;
+let analyticsLoading = false;
+let lastLoadedAt = null;
+
+/* Called by js/admin/purchases.js after an approve/reject actually changes
+   purchaseRequests data, so the next tab-open (or refresh click) is forced
+   to re-read instead of silently reusing the now-outdated numbers. */
+export function invalidateAnalyticsCache() {
+  analyticsLoaded = false;
+}
+
+function updateLastUpdatedLabel() {
+  const el = document.getElementById("analytics-updated-label");
+  if (!el) return;
+  el.textContent = lastLoadedAt
+    ? `Last updated: ${lastLoadedAt.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`
+    : "";
+}
 
 export function monthKey(ts) {
   const d = ts?.toDate ? ts.toDate() : ts instanceof Date ? ts : null;
@@ -50,12 +83,14 @@ function barListHtml(rows, { valuePrefix = "", maxBars = 8 } = {}) {
     .join("")}</div>`;
 }
 
-export async function loadAnalyticsSection() {
+export async function loadAnalyticsSection(force = false) {
   const statGrid = document.getElementById("analytics-stat-grid");
   const topCoursesEl = document.getElementById("analytics-top-courses");
   const monthlyRevEl = document.getElementById("analytics-monthly-revenue");
   const monthlySignupsEl = document.getElementById("analytics-monthly-signups");
-  if (analyticsLoaded) return; // static-ish data — re-open the tab any time to force a refresh via loadOverview flows elsewhere
+  if (analyticsLoaded && !force) return; // still fresh — see refresh-strategy note above
+  if (analyticsLoading) return; // a load (tab-open or refresh click) is already in flight
+  analyticsLoading = true;
   analyticsLoaded = true;
 
   try {
@@ -119,9 +154,31 @@ export async function loadAnalyticsSection() {
       months.map((m) => ({ label: monthLabel(m), value: signupsByMonth[m] })),
       { maxBars: 6 }
     );
+
+    lastLoadedAt = new Date();
+    updateLastUpdatedLabel();
   } catch (err) {
     statGrid.innerHTML = `<div class="empty-state"><p>Could not load analytics</p></div>`;
     analyticsLoaded = false;
+  } finally {
+    analyticsLoading = false;
   }
+}
+
+/* ---------- Manual refresh button — same click/spin/disable pattern as
+   Overview's bindOverviewRefresh (see admin/overview.js). Bound once from
+   admin.js's init, same as that one. ---------- */
+export function bindAnalyticsRefresh() {
+  const btn = document.getElementById("analytics-refresh-btn");
+  btn?.addEventListener("click", () => {
+    if (analyticsLoading) return;
+    btn.disabled = true;
+    const icon = btn.querySelector("i");
+    icon?.classList.add("fa-spin");
+    loadAnalyticsSection(true).finally(() => {
+      btn.disabled = false;
+      icon?.classList.remove("fa-spin");
+    });
+  });
 }
 

@@ -8,6 +8,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 import { toast, escapeHtml, formatDateTime, openModal, confirmAction, useBengaliFont } from "../utils.js";
 import { loadLeaderboardLogo } from "./leaderboard.js";
+import { invalidateAnalyticsCache } from "./analytics.js";
 
 /* ==========================================================================
    Purchase Requests + payment settings + access code email
@@ -381,6 +382,7 @@ async function approvePurchase(id) {
 
     const emailSent = await sendAccessCodeEmail(p, code);
     toast(emailSent ? "Approved and email sent" : "Approved, but the email could not be sent — please send the code manually", emailSent ? "success" : "error");
+    invalidateAnalyticsCache(); // revenue/enrollment numbers just changed — force a fresh read next time Analytics is opened
     loadPurchasesTable();
   } catch (err) {
     toast("Could not approve, please try again", "error");
@@ -394,6 +396,7 @@ async function rejectPurchase(id) {
   try {
     await updateDoc(doc(db, "purchaseRequests", p.id), { status: "rejected", reviewedAt: serverTimestamp() });
     toast("Request rejected", "success");
+    invalidateAnalyticsCache(); // pending-request count just changed — force a fresh read next time Analytics is opened
     loadPurchasesTable();
   } catch {
     toast("Could not reject", "error");
