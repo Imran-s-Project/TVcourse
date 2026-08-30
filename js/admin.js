@@ -11,7 +11,7 @@ import { initNav, requireAdmin } from "./utils.js";
 import { initFlashcardsSection, initDiscussionModerationSection } from "./admin-hub.js";
 
 import { loadOverview, bindOverviewRefresh } from "./admin/overview.js";
-import { loadAnalyticsSection } from "./admin/analytics.js";
+import { loadAnalyticsSection, bindAnalyticsRefresh } from "./admin/analytics.js";
 import { loadNotificationsList } from "./admin/notifications.js";
 import { loadHomepageSettings } from "./admin/homepage.js";
 import { loadCoursesTable } from "./admin/courses.js";
@@ -37,6 +37,7 @@ async function init() {
     document.querySelector('.admin-nav-item[data-section="users"]')?.click();
   });
   bindOverviewRefresh();
+  bindAnalyticsRefresh();
   await refreshCourses();
   loadOverview();
   loadHomepageSettings();
