@@ -11,14 +11,8 @@
 // as a small PNG image instead of native PDF text. Pure-English/number
 // lines keep using fast, crisp, selectable native jsPDF text.
 // ==========================================================================
-import { toast, formatScore, formatDuration, loadBengaliCanvasFont } from "../js/utils.js";
+import { toast, formatScore, formatDuration, loadBengaliCanvasFont, hasBengaliText as hasBengali, rasterizeTextLine as rasterizeLine } from "../js/utils.js";
 import { state } from "./exam-engine.js";
-
-const BENGALI_RE = /[\u0980-\u09FF]/;
-const hasBengali = (text) => BENGALI_RE.test(text || "");
-
-// Rasterize at higher resolution than the final point-size for crisp print output.
-const RASTER_SCALE = 3;
 
 function loadLogoImage() {
   return new Promise((resolve) => {
@@ -49,30 +43,6 @@ function wrapByWidth(ctx, text, maxWidthPx) {
   });
   if (line) lines.push(line);
   return lines;
-}
-
-function rasterizeLine(text, { fontPt, bold, colorRgb, canvasFont }) {
-  const px = fontPt * RASTER_SCALE;
-  const measureCanvas = document.createElement("canvas");
-  const mctx = measureCanvas.getContext("2d");
-  mctx.font = `${bold ? "700" : "400"} ${px}px "${canvasFont}", sans-serif`;
-  const width = Math.max(4, Math.ceil(mctx.measureText(text).width) + 6);
-  const height = Math.ceil(px * 1.5);
-
-  const canvas = document.createElement("canvas");
-  canvas.width = width;
-  canvas.height = height;
-  const ctx = canvas.getContext("2d");
-  ctx.font = `${bold ? "700" : "400"} ${px}px "${canvasFont}", sans-serif`;
-  ctx.fillStyle = `rgb(${colorRgb.join(",")})`;
-  ctx.textBaseline = "alphabetic";
-  ctx.fillText(text, 2, px * 1.02);
-
-  return {
-    dataUrl: canvas.toDataURL("image/png"),
-    widthPt: width / RASTER_SCALE,
-    heightPt: height / RASTER_SCALE,
-  };
 }
 
 /* Draws one logical block of text (already prefixed, e.g. "1. Question…"),
