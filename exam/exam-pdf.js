@@ -63,7 +63,7 @@ function drawBlock(pdfDoc, ctx, text, opts) {
     }
     if (hasBengali(lineText)) {
       const raster = rasterizeLine(lineText, { fontPt, bold, colorRgb, canvasFont });
-      pdfDoc.addImage(raster.dataUrl, "PNG", x, y - fontPt * 0.82, raster.widthPt, raster.heightPt);
+      pdfDoc.addImage(raster.dataUrl, "PNG", x, y - raster.baselinePt, raster.widthPt, raster.heightPt);
     } else {
       pdfDoc.setFont("helvetica", bold ? "bold" : "normal");
       pdfDoc.setFontSize(fontPt);
