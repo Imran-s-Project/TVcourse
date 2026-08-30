@@ -114,9 +114,13 @@
 
       <!-- Analytics -->
       <section class="admin-section" id="section-analytics">
-        <div class="admin-section-head">
-          <h1>Analytics</h1>
-          <p class="muted">Revenue, top courses, and growth trends at a glance</p>
+        <div class="admin-section-head ov-head">
+          <div>
+            <h1>Analytics</h1>
+            <p class="muted">Revenue, top courses, and growth trends at a glance</p>
+            <p class="muted" id="analytics-updated-label"></p>
+          </div>
+          <button type="button" class="btn btn-outline btn-sm" id="analytics-refresh-btn"><i class="fa-solid fa-arrow-rotate-right"></i> Refresh</button>
         </div>
         <div class="stat-grid" id="analytics-stat-grid">
           <div class="loading-screen"><span class="spinner"></span></div>
