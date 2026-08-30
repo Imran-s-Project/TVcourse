@@ -751,8 +751,32 @@ export function isExamRandomPool(exam = {}) {
    every PDF export on the site (exam result, profile/certificate, admin
    reports) so all downloaded PDFs show clear, correctly-shaped Bengali
    text instead of the old symbol/garbled output. ---------- */
-const BENGALI_FONT_REGULAR_URL = "https://notofonts.github.io/bengali/fonts/NotoSansBengali/hinted/ttf/NotoSansBengali-Regular.ttf";
-const BENGALI_FONT_BOLD_URL = "https://notofonts.github.io/bengali/fonts/NotoSansBengali/hinted/ttf/NotoSansBengali-Bold.ttf";
+// Multiple independent CDN mirrors, tried in order — the old build only
+// tried a single GitHub Pages proofing-site URL (notofonts.github.io),
+// which isn't a real font CDN: it isn't guaranteed to keep serving this
+// exact path/filename, and a single dead or CORS-blocked mirror meant
+// EVERY Bengali PDF on the site (exam results, leaderboard, certificates,
+// invoices) silently lost proper Bengali rendering at once — which is the
+// most likely cause of the broken/garbled text reported. jsDelivr's GitHub
+// mirror of the official google/fonts repo is a stable, versioned, CORS-
+// enabled CDN used in production by thousands of sites, so it's tried
+// first; the original URL stays as a fallback in case jsDelivr is ever
+// blocked on a given network.
+const BENGALI_FONT_SOURCES = [
+  {
+    regular: "https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/notosansbengali/NotoSansBengali%5Bwdth,wght%5D.ttf",
+    bold: "https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/notosansbengali/NotoSansBengali%5Bwdth,wght%5D.ttf",
+  },
+  {
+    regular: "https://notofonts.github.io/bengali/fonts/NotoSansBengali/hinted/ttf/NotoSansBengali-Regular.ttf",
+    bold: "https://notofonts.github.io/bengali/fonts/NotoSansBengali/hinted/ttf/NotoSansBengali-Bold.ttf",
+  },
+];
+
+// Once fetched, the font is cached in localStorage as base64 so every
+// PDF export after the very first one on this device works even fully
+// offline / on a flaky mobile connection — no repeat network dependency.
+const BENGALI_FONT_CACHE_KEY = "tvc_bn_font_v1";
 let _bengaliFontFilesPromise = null;
 
 function _arrayBufferToBase64(buf) {
@@ -771,15 +795,42 @@ async function _fetchFontBase64(url) {
   return _arrayBufferToBase64(await res.arrayBuffer());
 }
 
+function _readCachedBengaliFont() {
+  try {
+    const raw = localStorage.getItem(BENGALI_FONT_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (parsed?.regular && parsed?.bold) return parsed;
+  } catch { /* corrupt cache — ignore and re-fetch */ }
+  return null;
+}
+
+function _writeCachedBengaliFont(data) {
+  try { localStorage.setItem(BENGALI_FONT_CACHE_KEY, JSON.stringify(data)); } catch { /* storage full/unavailable — fine, just skip caching */ }
+}
+
 function _loadBengaliFontFiles() {
   if (!_bengaliFontFilesPromise) {
     _bengaliFontFilesPromise = (async () => {
-      const regular = await _fetchFontBase64(BENGALI_FONT_REGULAR_URL);
-      // Bold is a nice-to-have — if it fails to fetch, reuse Regular so
-      // setFont(..., "bold") still renders correct Bengali glyphs (just
-      // not visually bolder) instead of throwing or falling back to Helvetica.
-      const bold = await _fetchFontBase64(BENGALI_FONT_BOLD_URL).catch(() => regular);
-      return { regular, bold };
+      const cached = _readCachedBengaliFont();
+      if (cached) return cached;
+
+      let lastErr = null;
+      for (const source of BENGALI_FONT_SOURCES) {
+        try {
+          const regular = await _fetchFontBase64(source.regular);
+          // Bold is a nice-to-have — if it fails to fetch, reuse Regular so
+          // setFont(..., "bold") still renders correct Bengali glyphs (just
+          // not visually bolder) instead of throwing or falling back to Helvetica.
+          const bold = source.bold === source.regular ? regular : await _fetchFontBase64(source.bold).catch(() => regular);
+          const result = { regular, bold };
+          _writeCachedBengaliFont(result);
+          return result;
+        } catch (err) {
+          lastErr = err;
+        }
+      }
+      throw lastErr || new Error("All Bengali font sources failed");
     })().catch((err) => {
       _bengaliFontFilesPromise = null; // allow retry on next PDF export
       throw err;
@@ -924,6 +975,99 @@ export function rasterizeTextLine(text, { fontPt, bold = false, colorRgb = [0, 0
   };
 }
 
+/**
+ * Greedy word-wrap using real canvas text measurement, so wrapping matches
+ * how Bengali (or any) text will actually be shaped/rendered — unlike
+ * jsPDF's own splitTextToSize, which only knows Latin glyph widths and
+ * wraps Bengali lines in the wrong place. Shared by every PDF export that
+ * needs to wrap a rasterized line to a max width.
+ */
+export function wrapTextByWidth(ctx, text, maxWidthPx) {
+  const words = String(text).split(/\s+/).filter(Boolean);
+  if (!words.length) return [""];
+  const lines = [];
+  let line = "";
+  words.forEach((word) => {
+    const candidate = line ? `${line} ${word}` : word;
+    if (line && ctx.measureText(candidate).width > maxWidthPx) {
+      lines.push(line);
+      line = word;
+    } else {
+      line = candidate;
+    }
+  });
+  if (line) lines.push(line);
+  return lines;
+}
+
+/**
+ * Draws one line of text at (x, y) — using native jsPDF text for pure
+ * English/number lines (fast, crisp, selectable) or a rasterized image for
+ * any line containing Bengali (real browser shaping, since jsPDF's own TTF
+ * embedding has none). Supports align "left" | "center" | "right" so it can
+ * stand in for doc.text(text, x, y, {align}) calls anywhere in the codebase.
+ * Returns nothing — draws directly onto pdfDoc, same as doc.text().
+ */
+export function drawSmartText(pdfDoc, ctx, text, x, y, { fontPt, bold = false, colorRgb = [0, 0, 0], canvasFont, align = "left" } = {}) {
+  const str = String(text ?? "");
+  if (canvasFont && hasBengaliText(str)) {
+    const raster = rasterizeTextLine(str, { fontPt, bold, colorRgb, canvasFont });
+    let drawX = x;
+    if (align === "center") drawX = x - raster.widthPt / 2;
+    else if (align === "right") drawX = x - raster.widthPt;
+    pdfDoc.addImage(raster.dataUrl, "PNG", drawX, y - raster.baselinePt, raster.widthPt, raster.heightPt);
+  } else {
+    pdfDoc.setFont(pdfDoc.__bnFont || "helvetica", bold ? "bold" : "normal");
+    pdfDoc.setFontSize(fontPt);
+    pdfDoc.setTextColor(...colorRgb);
+    pdfDoc.text(str, x, y, align !== "left" ? { align } : undefined);
+  }
+}
+
+/**
+ * Saves a jsPDF document with a fallback chain, so a download never just
+ * silently fails: (1) the normal doc.save(), which covers the vast
+ * majority of desktop + mobile browsers; (2) if that throws (some in-app
+ * browsers — Facebook/Messenger's built-in browser, some Android WebViews —
+ * block the anchor-click download jsPDF uses internally), manually build a
+ * blob URL and trigger the download ourselves; (3) if even that's blocked,
+ * open the PDF in a new tab so the person can still view/save it via their
+ * browser's own menu instead of getting nothing at all.
+ */
+export function safeSavePdf(pdfDoc, filename) {
+  try {
+    pdfDoc.save(filename);
+    return true;
+  } catch (err) {
+    console.error("doc.save() failed, trying manual blob download:", err);
+  }
+  try {
+    const blob = pdfDoc.output("blob");
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 30000);
+    return true;
+  } catch (err) {
+    console.error("Manual blob download failed, opening in a new tab instead:", err);
+  }
+  try {
+    const blob = pdfDoc.output("blob");
+    const url = URL.createObjectURL(blob);
+    window.open(url, "_blank");
+    toast("Your browser blocked the direct download — the PDF opened in a new tab instead. Use your browser's Share/Save menu there to save it.", "info");
+    return true;
+  } catch (err) {
+    console.error("PDF save totally failed:", err);
+    toast("Couldn't download the PDF on this browser. Please try again or use a different browser.", "error");
+    return false;
+  }
+}
+
 /* ---------- Course completion certificate (shared) ----------
    Called from both js/course.js (banner shown on the course page once every
    lesson is marked complete) and js/page-mycourses.js (the "My Courses"
@@ -961,6 +1105,14 @@ export async function generateCertificatePdf({ studentName, courseTitle, complet
   const pdfDoc = new jsPDF({ unit: "pt", format: "a4", orientation: "landscape" });
   const bnLoaded = await useBengaliFont(pdfDoc);
   const bnFont = bnLoaded ? "NotoSansBengali" : undefined;
+  // Native jsPDF text (even with the Bengali font above registered) has no
+  // OpenType shaping, so a Bengali student name or course title still came
+  // out with broken conjuncts/matras. Rasterize just those two fields
+  // (the ones actually likely to be typed in Bengali) the same way the
+  // exam-result and leaderboard PDFs already do.
+  const canvasFont = await loadBengaliCanvasFont().catch(() => "sans-serif");
+  const measureCanvas = document.createElement("canvas");
+  const ctx = measureCanvas.getContext("2d");
 
   const W = pdfDoc.internal.pageSize.getWidth();
   const H = pdfDoc.internal.pageSize.getHeight();
@@ -1019,11 +1171,10 @@ export async function generateCertificatePdf({ studentName, courseTitle, complet
   pdfDoc.text("This is to certify that", W / 2, y, { align: "center" });
 
   y += 42;
-  pdfDoc.setFont(bnFont, "bold");
-  pdfDoc.setFontSize(26);
   setTxt(NAVY);
-  pdfDoc.text(studentName || "Student", W / 2, y, { align: "center" });
-  const nameWidth = pdfDoc.getTextWidth(studentName || "Student");
+  drawSmartText(pdfDoc, ctx, studentName || "Student", W / 2, y, { fontPt: 26, bold: true, colorRgb: hex(NAVY), canvasFont, align: "center" });
+  ctx.font = `700 ${26 * 3}px "${canvasFont}", sans-serif`;
+  const nameWidth = hasBengaliText(studentName || "") ? ctx.measureText(studentName || "Student").width / 3 : pdfDoc.getTextWidth(studentName || "Student");
   setDraw(AMBER);
   pdfDoc.setLineWidth(1.4);
   pdfDoc.line(W / 2 - nameWidth / 2 - 10, y + 8, W / 2 + nameWidth / 2 + 10, y + 8);
@@ -1035,12 +1186,22 @@ export async function generateCertificatePdf({ studentName, courseTitle, complet
   pdfDoc.text("has successfully completed the course", W / 2, y, { align: "center" });
 
   y += 34;
-  pdfDoc.setFont(bnFont, "bold");
-  pdfDoc.setFontSize(19);
   setTxt(NAVY);
-  const courseLines = pdfDoc.splitTextToSize(courseTitle || "Course", W - 220);
-  pdfDoc.text(courseLines, W / 2, y, { align: "center" });
-  y += courseLines.length * 22;
+  const courseTitleStr = courseTitle || "Course";
+  if (hasBengaliText(courseTitleStr)) {
+    ctx.font = `700 ${19 * RASTER_SCALE}px "${canvasFont}", sans-serif`;
+    const courseLines = wrapTextByWidth(ctx, courseTitleStr, (W - 220) * RASTER_SCALE);
+    courseLines.forEach((line) => {
+      drawSmartText(pdfDoc, ctx, line, W / 2, y, { fontPt: 19, bold: true, colorRgb: hex(NAVY), canvasFont, align: "center" });
+      y += 22;
+    });
+  } else {
+    pdfDoc.setFont(bnFont, "bold");
+    pdfDoc.setFontSize(19);
+    const courseLines = pdfDoc.splitTextToSize(courseTitleStr, W - 220);
+    pdfDoc.text(courseLines, W / 2, y, { align: "center" });
+    y += courseLines.length * 22;
+  }
 
   // Footer row: date on the left, certificate ID on the right
   const footerY = H - 66;
@@ -1059,6 +1220,5 @@ export async function generateCertificatePdf({ studentName, courseTitle, complet
 
   const safeName = (studentName || "student").replace(/[^a-z0-9\u0980-\u09FF]+/gi, "_").slice(0, 40);
   const safeCourse = (courseTitle || "course").replace(/[^a-z0-9\u0980-\u09FF]+/gi, "_").slice(0, 50);
-  pdfDoc.save(`${safeCourse}_certificate_${safeName}.pdf`);
-  return true;
+  return safeSavePdf(pdfDoc, `${safeCourse}_certificate_${safeName}.pdf`);
 }

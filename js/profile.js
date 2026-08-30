@@ -31,7 +31,7 @@ import {
   where,
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 import { ref, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-storage.js";
-import { requireAuth, getUserProfile, toast, escapeHtml, toBnDigits, formatDate, confirmAction, openModal, closeModal, supportMailto, SUPPORT_EMAIL_GMAIL, SUPPORT_EMAIL_YAHOO, useBengaliFont } from "./utils.js";
+import { requireAuth, getUserProfile, toast, escapeHtml, toBnDigits, formatDate, confirmAction, openModal, closeModal, supportMailto, SUPPORT_EMAIL_GMAIL, SUPPORT_EMAIL_YAHOO, useBengaliFont, loadBengaliCanvasFont, hasBengaliText, drawSmartText, wrapTextByWidth, safeSavePdf } from "./utils.js";
 import { courseUrl } from "./router.js";
 
 let currentUser = null;
@@ -239,6 +239,14 @@ async function downloadMyPurchasePdf(id, triggerBtn) {
     // only if the font failed to load.
     const bnLoaded = await useBengaliFont(doc);
     const bnFont = bnLoaded ? "NotoSansBengali" : undefined;
+    // Native jsPDF text has no OpenType shaping, so a Bengali course title
+    // or student name still came out broken even with the font above
+    // registered. Rasterize those specific fields (the ones most likely to
+    // actually be typed in Bengali) instead, same technique as the exam
+    // result and leaderboard PDFs.
+    const canvasFont = await loadBengaliCanvasFont().catch(() => "sans-serif");
+    const measureCanvas = document.createElement("canvas");
+    const ctx = measureCanvas.getContext("2d");
 
     const hex = (h) => {
       h = h.replace("#", "");
@@ -296,11 +304,22 @@ async function downloadMyPurchasePdf(id, triggerBtn) {
     /* ── Course title ── */
     let y = cardY + 100;
     setTxt(NAVY);
-    doc.setFont(bnFont, "bold");
-    doc.setFontSize(13);
-    const courseLines = doc.splitTextToSize(p.courseTitle || "Course", cardW - 32);
-    doc.text(courseLines, cardX + 16, y);
-    y += courseLines.length * 17 + 8;
+    const courseTitleStr = p.courseTitle || "Course";
+    if (hasBengaliText(courseTitleStr)) {
+      ctx.font = `700 ${13 * 3}px "${canvasFont}", sans-serif`;
+      const courseLines = wrapTextByWidth(ctx, courseTitleStr, (cardW - 32) * 3);
+      courseLines.forEach((line) => {
+        drawSmartText(doc, ctx, line, cardX + 16, y, { fontPt: 13, bold: true, colorRgb: hex(NAVY), canvasFont, align: "left" });
+        y += 17;
+      });
+      y += 8;
+    } else {
+      doc.setFont(bnFont, "bold");
+      doc.setFontSize(13);
+      const courseLines = doc.splitTextToSize(courseTitleStr, cardW - 32);
+      doc.text(courseLines, cardX + 16, y);
+      y += courseLines.length * 17 + 8;
+    }
 
     /* Invoice no. pill */
     setFill("#fdf3e2");
@@ -337,10 +356,19 @@ async function downloadMyPurchasePdf(id, triggerBtn) {
       setTxt(LABEL_C);
       doc.text(label.toUpperCase(), x, cy);
       cy += 12;
+      setTxt(VAL_C);
+      const valueStr = String(value || "—");
+      if (hasBengaliText(valueStr)) {
+        ctx.font = `700 ${9.5 * 3}px "${canvasFont}", sans-serif`;
+        const vLines = wrapTextByWidth(ctx, valueStr, colW * 3);
+        vLines.forEach((line, i) => {
+          drawSmartText(doc, ctx, line, x, cy + i * 12, { fontPt: 9.5, bold: true, colorRgb: hex(VAL_C), canvasFont, align: "left" });
+        });
+        return cy + vLines.length * 12 + 10;
+      }
       doc.setFont(bnFont, "bold");
       doc.setFontSize(9.5);
-      setTxt(VAL_C);
-      const vLines = doc.splitTextToSize(String(value || "—"), colW);
+      const vLines = doc.splitTextToSize(valueStr, colW);
       doc.text(vLines, x, cy);
       return cy + vLines.length * 12 + 10;
     };
@@ -411,10 +439,17 @@ async function downloadMyPurchasePdf(id, triggerBtn) {
       doc.roundedRect(btnX, y, btnW, btnH, 8, 8, "F");
 
       setTxt("#ffffff");
-      doc.setFont(bnFont, "bold");
-      doc.setFontSize(9.5);
-      const btnTitle = doc.splitTextToSize(p.courseTitle || "Your course", btnW - 60)[0];
-      doc.text(btnTitle, btnX + 14, y + 17);
+      const fullBtnTitle = p.courseTitle || "Your course";
+      if (hasBengaliText(fullBtnTitle)) {
+        ctx.font = `700 ${9.5 * 3}px "${canvasFont}", sans-serif`;
+        const btnTitle = wrapTextByWidth(ctx, fullBtnTitle, (btnW - 60) * 3)[0];
+        drawSmartText(doc, ctx, btnTitle, btnX + 14, y + 17, { fontPt: 9.5, bold: true, colorRgb: [255, 255, 255], canvasFont, align: "left" });
+      } else {
+        doc.setFont(bnFont, "bold");
+        doc.setFontSize(9.5);
+        const btnTitle = doc.splitTextToSize(fullBtnTitle, btnW - 60)[0];
+        doc.text(btnTitle, btnX + 14, y + 17);
+      }
       doc.setFont(bnFont, "normal");
       doc.setFontSize(7.5);
       setTxt(AMBER);
@@ -537,7 +572,7 @@ async function downloadMyPurchasePdf(id, triggerBtn) {
     }
 
     const safeCourse = (p.courseTitle || "course").replace(/[^a-z0-9\u0980-\u09FF]+/gi, "_").slice(0, 40);
-    doc.save(`TechVerseCourse_${safeCourse}_invoice.pdf`);
+    safeSavePdf(doc, `TechVerseCourse_${safeCourse}_invoice.pdf`);
   } catch (err) {
     console.error(err);
     toast("Failed to generate the PDF. Please try again.", "error");
