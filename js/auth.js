@@ -28,7 +28,7 @@ import {
   increment,
   serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-import { toast, waitForAuth } from "./utils.js";
+import { toast, waitForAuth, consumePostLoginRedirect } from "./utils.js";
 import { navigate } from "./router.js";
 
 /* ==========================================================================
@@ -129,7 +129,7 @@ async function ensureUserDoc(user, extra = {}) {
 async function redirectIfAlreadyAuthed() {
   const user = await waitForAuth();
   if (user) {
-    navigate("#/home");
+    navigate(consumePostLoginRedirect() || "#/home");
     return true;
   }
   return false;
@@ -261,7 +261,8 @@ function bindOAuthButtons() {
         await ensureUserDoc(cred.user);
         await recordDeviceLogin(cred.user);
         toast("Logged in successfully", "success");
-        setTimeout(() => navigate("#/home"), 500);
+        const redirectTo = consumePostLoginRedirect();
+        setTimeout(() => navigate(redirectTo || "#/home"), 500);
       } catch (err) {
         // auth/popup-closed-by-user / auth/cancelled-popup-request are silent —
         // the user just closed the popup, no need for an error toast.
@@ -299,7 +300,8 @@ export async function initLoginPage() {
       await ensureUserDoc(cred.user);
       await recordDeviceLogin(cred.user);
       toast("Logged in successfully", "success");
-      setTimeout(() => navigate("#/home"), 500);
+      const redirectTo = consumePostLoginRedirect();
+      setTimeout(() => navigate(redirectTo || "#/home"), 500);
     } catch (err) {
       errorEl.textContent = mapAuthError(err.code);
       btn.disabled = false;
@@ -337,7 +339,8 @@ export async function initSignupPage() {
       await ensureUserDoc(cred.user, { displayName: name });
       await recordDeviceLogin(cred.user);
       toast('Account created! Welcome <i class="fa-solid fa-champagne-glasses"></i>', "success");
-      setTimeout(() => navigate("#/home"), 600);
+      const redirectTo = consumePostLoginRedirect();
+      setTimeout(() => navigate(redirectTo || "#/home"), 600);
     } catch (err) {
       errorEl.textContent = mapAuthError(err.code);
       btn.disabled = false;

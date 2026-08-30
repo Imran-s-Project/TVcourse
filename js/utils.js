@@ -196,6 +196,35 @@ export function waitForAuth() {
   });
 }
 
+/* ---------- Post-login redirect target ----------
+   When requireAuth() bounces a signed-out visitor to #/login or #/signup,
+   it remembers exactly which link they were trying to reach (e.g. someone
+   without an account tapping an #/exam?id=xxx share link) here, in
+   sessionStorage so it survives the index.html reload that happens when
+   the guard fires from a non-index page. auth.js reads it back once the
+   sign in/up succeeds and sends the user there instead of the home page,
+   then clears it so it's never reused by an unrelated later login. */
+const POST_LOGIN_REDIRECT_KEY = "tv_post_login_redirect";
+
+export function setPostLoginRedirect(hash) {
+  if (!hash || /^#\/?(login|signup)?$/.test(hash)) return;
+  try {
+    sessionStorage.setItem(POST_LOGIN_REDIRECT_KEY, hash);
+  } catch {
+    /* sessionStorage unavailable (private mode, etc.) — falls back to #/home */
+  }
+}
+
+export function consumePostLoginRedirect() {
+  try {
+    const target = sessionStorage.getItem(POST_LOGIN_REDIRECT_KEY);
+    sessionStorage.removeItem(POST_LOGIN_REDIRECT_KEY);
+    return target || null;
+  } catch {
+    return null;
+  }
+}
+
 /* ---------- Page guard: block access without login ---------- */
 export async function requireAuth() {
   const user = await waitForAuth();
@@ -206,6 +235,7 @@ export async function requireAuth() {
     // page shell (admin.html) we still need a real navigation
     // to index.html first, same reasoning as initNav's homeHref below.
     const onIndexPage = /(^|\/)(index\.html)?$/.test(window.location.pathname);
+    if (onIndexPage) setPostLoginRedirect(window.location.hash);
     window.location.href = onIndexPage ? "#/login" : "index.html#/login";
     return null;
   }
