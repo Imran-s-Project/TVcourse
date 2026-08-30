@@ -873,25 +873,54 @@ const RASTER_SCALE = 3;
  */
 export function rasterizeTextLine(text, { fontPt, bold = false, colorRgb = [0, 0, 0], canvasFont }) {
   const px = fontPt * RASTER_SCALE;
+  const fontStr = `${bold ? "700" : "400"} ${px}px "${canvasFont}", sans-serif`;
   const measureCanvas = document.createElement("canvas");
   const mctx = measureCanvas.getContext("2d");
-  mctx.font = `${bold ? "700" : "400"} ${px}px "${canvasFont}", sans-serif`;
-  const width = Math.max(4, Math.ceil(mctx.measureText(text).width) + 6);
-  const height = Math.ceil(px * 1.5);
+  mctx.font = fontStr;
+  mctx.textBaseline = "alphabetic";
+  const metrics = mctx.measureText(text);
+
+  // Bengali shaping reorders pre-base vowel signs (matras like ে, ৈ) to
+  // render to the LEFT of the consonant they follow in the string, and
+  // conjuncts/reph can likewise spill past the nominal advance box.
+  // measureText().width is only the *advance* width — it says nothing
+  // about ink that extends past the text's x origin — so a canvas sized
+  // and drawn from that alone clips exactly that leading glyph, which is
+  // why the text visibly fails to "start" cleanly on the left edge. The
+  // actualBoundingBox* metrics report real ink extent, so use those (with
+  // a safety fallback for the rare browser that lacks them) and pad
+  // generously on every side instead of the old fixed 2px nudge.
+  const hasBounds = Number.isFinite(metrics.actualBoundingBoxLeft) && Number.isFinite(metrics.actualBoundingBoxRight);
+  const pad = Math.max(6, Math.round(px * 0.12));
+  const leftInk = hasBounds ? Math.ceil(metrics.actualBoundingBoxLeft) : 0;
+  const rightInk = hasBounds ? Math.ceil(metrics.actualBoundingBoxRight) : Math.ceil(metrics.width);
+  const originX = leftInk + pad;
+  const width = Math.max(4, originX + rightInk + pad);
+
+  const hasVBounds = Number.isFinite(metrics.actualBoundingBoxAscent) && Number.isFinite(metrics.actualBoundingBoxDescent);
+  const ascent = hasVBounds ? Math.ceil(metrics.actualBoundingBoxAscent) : Math.ceil(px * 1.02);
+  const descent = hasVBounds ? Math.ceil(metrics.actualBoundingBoxDescent) : Math.ceil(px * 0.48);
+  const originY = ascent + pad;
+  const height = Math.max(4, originY + descent + pad);
 
   const canvas = document.createElement("canvas");
   canvas.width = width;
   canvas.height = height;
   const ctx = canvas.getContext("2d");
-  ctx.font = `${bold ? "700" : "400"} ${px}px "${canvasFont}", sans-serif`;
+  ctx.font = fontStr;
   ctx.fillStyle = `rgb(${colorRgb.join(",")})`;
   ctx.textBaseline = "alphabetic";
-  ctx.fillText(text, 2, px * 1.02);
+  ctx.fillText(text, originX, originY);
 
   return {
     dataUrl: canvas.toDataURL("image/png"),
     widthPt: width / RASTER_SCALE,
     heightPt: height / RASTER_SCALE,
+    // Distance from the image's top edge down to the text baseline, in PDF
+    // points — callers that need to line this raster up with a baseline-
+    // anchored y (e.g. doc.text(..., y)) should use this instead of a fixed
+    // fontPt-based fraction, since the real ascent now varies with content.
+    baselinePt: originY / RASTER_SCALE,
   };
 }
 

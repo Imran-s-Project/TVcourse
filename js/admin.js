@@ -2721,7 +2721,7 @@ async function exportLeaderboardPdf(mode, rows, usersMap, examId) {
         // Exam titles are often typed in Bengali — rasterize this line too,
         // or it would garble exactly like the table cells used to.
         const raster = rasterizeTextLine(metaText, { fontPt: 9, colorRgb: [110, 110, 110], canvasFont });
-        doc.addImage(raster.dataUrl, "PNG", metaX, 52 - 9 * 0.82, raster.widthPt, raster.heightPt);
+        doc.addImage(raster.dataUrl, "PNG", metaX, 52 - raster.baselinePt, raster.widthPt, raster.heightPt);
       } else {
         doc.setFont(bnFont, "normal");
         doc.text(metaText, metaX, 52);
