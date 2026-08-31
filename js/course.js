@@ -168,12 +168,6 @@ async function init(params, myToken) {
   els.title.textContent = course.title;
   els.desc.classList.add("rte-content");
   els.desc.innerHTML = renderRichText(course.description || "");
-  const enrollPill = document.getElementById("course-enroll-pill");
-  const enrollCountEl = document.getElementById("course-enroll-count");
-  if (enrollPill && enrollCountEl && course.enrollCount > 0) {
-    enrollCountEl.textContent = course.enrollCount;
-    enrollPill.style.display = "inline-flex";
-  }
 
   const { isPaid } = getCoursePricing(course);
 
@@ -252,6 +246,46 @@ function money(n) {
   return `৳${n}`;
 }
 
+/* ==========================================================================
+   কোর্স স্ট্যাট রো — "কতজন আছে, কত সময় লাগবে, কয়টা ক্লাস/এক্সাম আছে"
+   ডেসক্রিপশনের ঠিক উপরে বসে। unlocked হেডার এবং locked প্রিভিউ প্যানেল —
+   দুই জায়গাতেই একই ফাংশন ব্যবহার হয়, যাতে দুটো সবসময় একই রকম দেখায়।
+   ফ্ল্যাট চিপ ডিজাইন — কোনো glow/box-shadow নেই, শুধু আইকন + সংখ্যা + লেবেল।
+   ========================================================================== */
+const DURATION_UNIT_LABEL = { day: "দিন", week: "সপ্তাহ", month: "মাস" };
+
+function formatDurationLabel(course) {
+  const value = Number(course?.durationValue) || 0;
+  if (!value) return null;
+  const unit = DURATION_UNIT_LABEL[course?.durationUnit] || DURATION_UNIT_LABEL.month;
+  return `${toBnDigits(value)} ${unit}`;
+}
+
+// lessonCount না দিলে course.targetLessonCount (অ্যাডমিনের ঠিক করা টার্গেট) ব্যবহার হয়,
+// সেটাও না থাকলে course.lessonCount (এখন পর্যন্ত আপলোড করা আসল লেকচার সংখ্যা)।
+// একই নিয়ম পরীক্ষার জন্যও — টার্গেট না থাকলে examCount (আসল সংখ্যা) দেখানো হয়,
+// দুটোর একটাও না থাকলে চিপটাই দেখানো হয় না — অনুমান করে ভুল সংখ্যা দেখানো হয় না।
+function courseStatsRowHtml(course, { lessonCount, examCount } = {}) {
+  const chips = [];
+  const enroll = Number(course?.enrollCount) || 0;
+  if (enroll > 0) {
+    chips.push(`<div class="course-stat-chip"><i class="fa-solid fa-users"></i><div><strong>${toBnDigits(enroll)}</strong><span>জন এই কোর্সে আছে</span></div></div>`);
+  }
+  const duration = formatDurationLabel(course);
+  if (duration) {
+    chips.push(`<div class="course-stat-chip"><i class="fa-solid fa-hourglass-half"></i><div><strong>${duration}</strong><span>মেয়াদ</span></div></div>`);
+  }
+  const lc = Number(course?.targetLessonCount) || lessonCount || Number(course?.lessonCount) || 0;
+  if (lc) {
+    chips.push(`<div class="course-stat-chip"><i class="fa-solid fa-clapperboard"></i><div><strong>${toBnDigits(lc)}</strong><span>টি লেকচার</span></div></div>`);
+  }
+  const ec = Number(course?.targetExamCount) || examCount || 0;
+  if (ec) {
+    chips.push(`<div class="course-stat-chip"><i class="fa-solid fa-file-pen"></i><div><strong>${toBnDigits(ec)}</strong><span>টি পরীক্ষা</span></div></div>`);
+  }
+  return `<div class="course-stats-row">${chips.join("")}</div>`;
+}
+
 // Clamps the locked-course description to a few lines and reveals a
 // "+ আরো পড়ুন" toggle only when the text actually overflows that clamp.
 function initDescReadMore() {
@@ -282,7 +316,9 @@ function renderLockedView(course, myToken) {
     <div class="media-panel">
       <div class="video-frame" id="buy-video-frame"></div>
       <div class="media-body">
+        ${courseStatsRowHtml(course)}
         <div class="desc-block">
+          <div class="desc-block-label"><i class="fa-solid fa-align-left"></i> কোর্স সম্পর্কে</div>
           <div class="lesson-desc rte-content desc-clamped" id="locked-desc-content">${renderRichText(course.description || "")}</div>
           <button type="button" class="desc-readmore-btn" id="locked-desc-toggle" hidden>+ আরো পড়ুন</button>
         </div>
