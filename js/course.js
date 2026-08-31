@@ -100,6 +100,7 @@ function buildEls() {
 function resetLayoutDom() {
   const layoutRoot = document.querySelector(".course-layout");
   if (!layoutRoot) return;
+  layoutRoot.classList.remove("has-buy-bar");
   if (pristineLayoutHtml === null) {
     pristineLayoutHtml = layoutRoot.innerHTML; // first-ever call: DOM is still clean, just remember it
   } else {
@@ -251,31 +252,61 @@ function money(n) {
   return `৳${n}`;
 }
 
+// Clamps the locked-course description to a few lines and reveals a
+// "+ আরো পড়ুন" toggle only when the text actually overflows that clamp.
+function initDescReadMore() {
+  const content = document.getElementById("locked-desc-content");
+  const toggle = document.getElementById("locked-desc-toggle");
+  if (!content || !toggle) return;
+  requestAnimationFrame(() => {
+    if (content.scrollHeight > content.clientHeight + 4) {
+      toggle.hidden = false;
+    } else {
+      content.classList.remove("desc-clamped");
+    }
+  });
+  toggle.addEventListener("click", () => {
+    const expanded = content.classList.toggle("desc-expanded");
+    content.classList.toggle("desc-clamped", !expanded);
+    toggle.textContent = expanded ? "− কম দেখুন" : "+ আরো পড়ুন";
+  });
+}
+
 function renderLockedView(course, myToken) {
   latestPurchaseStatus = null;
   const layout = document.querySelector(".course-layout");
+  layout.classList.add("has-buy-bar");
   const { price, discountPrice: discount, hasDiscount } = getCoursePricing(course);
 
   layout.innerHTML = `
     <div class="media-panel">
       <div class="video-frame" id="buy-video-frame"></div>
       <div class="media-body">
-        <div class="lesson-desc rte-content">${renderRichText(course.description || "")}</div>
+        <div class="desc-block">
+          <div class="lesson-desc rte-content desc-clamped" id="locked-desc-content">${renderRichText(course.description || "")}</div>
+          <button type="button" class="desc-readmore-btn" id="locked-desc-toggle" hidden>+ আরো পড়ুন</button>
+        </div>
       </div>
     </div>
     <aside class="lesson-sidebar buy-panel">
-      <div class="buy-lock-icon"><i class="fa-solid fa-lock"></i></div>
-      <h3>This Course is Locked</h3>
-      <p class="muted" style="font-size:0.9rem; margin:6px 0 16px;">Purchase the course and unlock it with an access code</p>
-      <div class="buy-price-row">
-        ${hasDiscount ? `<span class="buy-price-old">${money(price)}</span><span class="buy-price-new">${money(discount)}</span>` : `<span class="buy-price-new">${money(price)}</span>`}
+      <div class="buy-panel-top">
+        <div class="buy-lock-icon"><i class="fa-solid fa-lock"></i></div>
+        <h3>This Course is Locked</h3>
+        <p class="muted buy-panel-sub">Purchase the course and unlock it with an access code</p>
       </div>
-      <button class="btn btn-primary btn-block mt-16" id="buy-course-btn">I Want to Buy This Course</button>
-      <div id="purchase-status-box"></div>
-      <button class="btn btn-outline btn-block mt-16" id="have-code-btn"><i class="fa-solid fa-key"></i> I Already Have an Access Code</button>
+      <div class="buy-panel-bottom">
+        <div class="buy-feature-row"><i class="fa-solid fa-key"></i> Unlock instantly with an access code after purchase</div>
+        <div class="buy-price-row">
+          ${hasDiscount ? `<span class="buy-price-old">${money(price)}</span><span class="buy-price-new">${money(discount)}</span>` : `<span class="buy-price-new">${money(price)}</span>`}
+        </div>
+        <button class="btn btn-primary btn-block buy-cta-btn" id="buy-course-btn">কোর্সটি কিনুন <i class="fa-solid fa-arrow-right"></i></button>
+        <div id="purchase-status-box"></div>
+        <button class="btn btn-outline btn-block" id="have-code-btn"><i class="fa-solid fa-key"></i> I Already Have an Access Code</button>
+      </div>
     </aside>
   `;
 
+  initDescReadMore();
   document.getElementById("buy-course-btn").addEventListener("click", () => handleBuyClick(course));
   document.getElementById("have-code-btn").addEventListener("click", () => openAccessCodeModal(course));
   loadPurchaseStatus(myToken);
