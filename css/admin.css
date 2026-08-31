@@ -379,6 +379,28 @@
 }
 .schedule-box-title { font-weight: 700; font-size: 0.88rem; color: var(--accent-amber-soft); margin-bottom: 10px; }
 
+/* ---------- আধুনিক মোডাল সেকশন — কোর্স তৈরি/এডিট ফর্মকে গুচ্ছ করে দেখায়
+   (ফ্ল্যাট: শুধু বর্ডার + হালকা ব্যাকগ্রাউন্ড, কোনো box-shadow/glow নেই) ---------- */
+.modal-section {
+  background: var(--bg-elevated-2);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  padding: 16px 16px 2px;
+  margin-bottom: 16px;
+}
+.modal-section:last-of-type { margin-bottom: 0; }
+.modal-section .field:last-child { margin-bottom: 16px; }
+.modal-section-head {
+  display: flex; align-items: center; gap: 10px;
+  font-weight: 700; font-size: 0.92rem; color: var(--text-primary);
+  margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid var(--border);
+}
+.modal-section-head i {
+  flex-shrink: 0; width: 28px; height: 28px; border-radius: 8px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--bg-elevated); color: var(--accent-amber-soft); font-size: 0.85rem;
+}
+
 /* ---------- মিসক ---------- */
 .pill-toggle { display: inline-flex; align-items: center; gap: 8px; }
 .switch { position: relative; width: 42px; height: 24px; border-radius: 999px; background: var(--bg-elevated-2); border: 1px solid var(--border-strong); flex-shrink: 0; }

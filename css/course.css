@@ -30,9 +30,9 @@
 .course-enroll-pill i { color: var(--accent-amber-soft); }
 .certificate-pill {
   background: linear-gradient(135deg, #E8A33D, #d4881a); color: #14182B; font-weight: 800;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  transition: transform 0.15s ease;
 }
-.certificate-pill:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(232, 163, 61, 0.35); }
+.certificate-pill:hover { transform: translateY(-1px); }
 .certificate-pill i { color: #14182B; }
 
 @media (max-width: 560px) {
@@ -146,13 +146,11 @@
 }
 .now-playing-dot {
   width: 7px; height: 7px; border-radius: 50%; background: var(--accent-amber);
-  box-shadow: 0 0 0 0 rgba(124,92,252,0.55);
   animation: now-playing-pulse 1.7s ease-out infinite;
 }
 @keyframes now-playing-pulse {
-  0% { box-shadow: 0 0 0 0 rgba(124,92,252,0.55); }
-  70% { box-shadow: 0 0 0 7px rgba(124,92,252,0); }
-  100% { box-shadow: 0 0 0 0 rgba(124,92,252,0); }
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
 }
 .now-playing-body { display: flex; gap: 12px; align-items: flex-start; }
 .now-playing-card .lesson-num { background: var(--accent-amber); color: #FFFFFF; }
@@ -195,6 +193,41 @@
 .lesson-item:hover .lesson-play-hint { opacity: 1; transform: scale(1); }
 
 .complete-bar { display: flex; align-items: center; justify-content: space-between; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border); }
+
+/* ---------- কোর্স স্ট্যাট রো — কতজন আছে / মেয়াদ / ক্লাস / পরীক্ষা সংখ্যা,
+   ডেসক্রিপশনের ঠিক উপরে। ফ্ল্যাট চিপ ডিজাইন — কোনো glow/box-shadow নেই। ---------- */
+/* ---------- কোর্স স্ট্যাট রো — কতজন আছে / মেয়াদ / লেকচার / পরীক্ষা সংখ্যা,
+   ডেসক্রিপশনের ঠিক উপরে, মাঝ বরাবর (centered)। ফ্ল্যাট চিপ ডিজাইন —
+   কোনো glow/box-shadow/নীলচে (blue/purple) রঙ নেই, শুধু নিউট্রাল টোন। ---------- */
+.course-stats-row {
+  display: flex; flex-wrap: wrap; justify-content: center; align-items: stretch;
+  gap: 10px; margin-bottom: 18px;
+}
+.course-stat-chip {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--bg-elevated-2); border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm); padding: 9px 16px;
+}
+.course-stat-chip i {
+  flex-shrink: 0; width: 34px; height: 34px; border-radius: 9px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--bg-elevated); color: var(--text-primary); font-size: 0.92rem;
+}
+.course-stat-chip strong { display: block; font-size: 0.94rem; font-weight: 800; color: var(--text-primary); line-height: 1.25; text-align: center; }
+.course-stat-chip span { display: block; font-size: 0.72rem; color: var(--text-muted); margin-top: 1px; text-align: center; }
+@media (max-width: 560px) {
+  .course-stats-row { gap: 8px; }
+  .course-stat-chip { padding: 8px 12px; gap: 8px; }
+  .course-stat-chip i { width: 30px; height: 30px; font-size: 0.82rem; }
+  .course-stat-chip strong { font-size: 0.86rem; }
+}
+
+.desc-block-label {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+  color: var(--text-muted); margin-bottom: 10px;
+}
+.desc-block-label i { color: var(--text-muted); font-size: 0.85em; }
 
 /* ---------- কোর্স ডেসক্রিপশন — "+ আরো পড়ুন" ক্ল্যাম্প ---------- */
 .desc-block { position: relative; }
@@ -377,21 +410,19 @@
 .course-header,
 .course-header-box { display: none !important; }
 
-/* ── Stronger media panel: no flat border, deep shadow ── */
+/* ── Media panel: clean flat border, no glow/shadow ── */
 .media-panel {
   background: var(--bg-elevated);
-  border: 1px solid rgba(124,92,252,0.18);
+  border: 1px solid var(--border-strong);
   border-radius: 14px;
   overflow: hidden;
-  box-shadow: 0 8px 40px rgba(0,0,0,0.38), 0 0 0 1px rgba(124,92,252,0.08);
 }
 
-/* ── Video frame: slightly taller ratio + subtle glow ring ── */
+/* ── Video frame: flat, no glow ring ── */
 .video-frame {
   position: relative; width: 100%;
   aspect-ratio: 16/9;
   background: #000;
-  box-shadow: inset 0 0 0 1px rgba(124,92,252,0.12);
 }
 
 /* ── Course layout: full-width when no sidebar shown below player ── */
@@ -416,10 +447,9 @@
 .lesson-h-strip {
   width: 100%;
   background: var(--bg-elevated);
-  border: 1px solid rgba(124,92,252,0.14);
+  border: 1px solid var(--border-strong);
   border-radius: 14px;
   overflow: hidden;
-  box-shadow: 0 4px 24px rgba(0,0,0,0.22);
 }
 
 .lesson-h-strip-header {
@@ -502,14 +532,12 @@
   background: rgba(124,92,252,0.1);
   border-color: rgba(124,92,252,0.3);
   transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(124,92,252,0.15);
 }
 .lesson-h-card:hover::before { opacity: 1; }
 
 .lesson-h-card.active {
   background: rgba(124,92,252,0.16);
   border-color: rgba(124,92,252,0.45);
-  box-shadow: 0 0 0 1px rgba(124,92,252,0.25), 0 6px 20px rgba(124,92,252,0.2);
 }
 .lesson-h-card.active::before { opacity: 1; }
 
@@ -543,9 +571,8 @@
   animation: lh-pulse 1.6s ease-out infinite;
 }
 @keyframes lh-pulse {
-  0%   { box-shadow: 0 0 0 0 rgba(124,92,252,0.65); }
-  70%  { box-shadow: 0 0 0 6px rgba(124,92,252,0); }
-  100% { box-shadow: 0 0 0 0 rgba(124,92,252,0); }
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
 }
 
 .lh-title {
