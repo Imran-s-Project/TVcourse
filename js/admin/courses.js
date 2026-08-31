@@ -8,6 +8,7 @@ import {
 import {
   toast, escapeHtml, formatDate, openModal, closeModal, confirmAction, priceBadgeHtml,
 } from "../utils.js";
+import { initRichEditor } from "../rich-text.js";
 import { courses, refreshCourses } from "../admin.js";
 import { loadOverview } from "./overview.js";
 import { homepageSettings, saveHomepageSettings, renderFeaturedVideoList } from "./homepage.js";
@@ -49,7 +50,7 @@ function openCourseModal(courseId) {
     <div class="modal-head"><h3>${c ? "Edit Course" : "Create New Course"}</h3><button class="modal-close-btn" data-modal-close><i class="fa-solid fa-xmark"></i></button></div>
     <form id="course-modal-form">
       <div class="field"><label>Course Name</label><input type="text" id="cm-title" required value="${c ? escapeHtml(c.title) : ""}"></div>
-      <div class="field"><label>Description</label><textarea id="cm-desc" rows="3">${c ? escapeHtml(c.description || "") : ""}</textarea></div>
+      <div class="field"><label>Description</label><textarea id="cm-desc" rows="4">${c ? escapeHtml(c.description || "") : ""}</textarea></div>
       <div class="admin-grid">
         <div class="field"><label>Category</label><input type="text" id="cm-category" placeholder="e.g. Web Development" value="${c ? escapeHtml(c.category || "") : ""}"></div>
         <div class="field"><label>Instructor Name</label><input type="text" id="cm-instructor" value="${c ? escapeHtml(c.instructor || "") : ""}"></div>
@@ -69,6 +70,7 @@ function openCourseModal(courseId) {
       <button type="submit" class="btn btn-primary btn-block" id="course-modal-save-btn">${c ? "Save Changes" : "Create Course"}</button>
     </form>
   `);
+  initRichEditor(overlay.querySelector("#cm-desc"));
   overlay.querySelector("#course-modal-form").addEventListener("submit", async (e) => {
     e.preventDefault();
     const btn = overlay.querySelector("#course-modal-save-btn");
