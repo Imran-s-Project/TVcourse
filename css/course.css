@@ -196,18 +196,43 @@
 
 .complete-bar { display: flex; align-items: center; justify-content: space-between; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border); }
 
-/* ---------- কোর্স কেনার প্যানেল (লকড কোর্স) ---------- */
-.buy-panel { text-align: center; }
+/* ---------- কোর্স ডেসক্রিপশন — "+ আরো পড়ুন" ক্ল্যাম্প ---------- */
+.desc-block { position: relative; }
+.desc-clamped { max-height: 220px; overflow: hidden; }
+.desc-expanded { max-height: none; }
+.desc-readmore-btn {
+  display: inline-block; margin-top: 10px; background: none; border: none; padding: 0;
+  color: var(--accent-amber-soft); font-weight: 700; font-size: 0.9rem; cursor: pointer; font-family: var(--font-utility);
+}
+.desc-readmore-btn:hover { text-decoration: underline; }
+
+/* ---------- কোর্স কেনার প্যানেল (লকড কোর্স) — রিডিজাইন, ফ্ল্যাট, কোনো গ্লো নেই ---------- */
+.buy-panel { text-align: center; position: static; top: auto; }
+.buy-panel-top { display: flex; flex-direction: column; align-items: center; }
+.buy-panel-sub { font-size: 0.88rem; margin: 6px 0 0; }
+.buy-panel-bottom { display: flex; flex-direction: column; gap: 12px; margin-top: 16px; }
 .buy-lock-icon {
   width: 56px; height: 56px; border-radius: 50%; margin: 0 auto 12px;
   display: flex; align-items: center; justify-content: center;
   background: rgba(124,92,252,0.14); color: var(--accent-amber-soft); font-size: 1.4rem;
 }
-.buy-price-row { display: flex; align-items: baseline; justify-content: center; gap: 10px; margin-top: 4px; }
+.buy-feature-row {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  background: var(--bg-elevated-2); border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm); padding: 10px 12px; font-size: 0.84rem; color: var(--text-muted);
+}
+.buy-feature-row i { color: var(--accent-green); }
+.buy-price-row { display: flex; align-items: baseline; justify-content: center; gap: 10px; }
 .buy-price-old { color: var(--text-muted); text-decoration: line-through; font-size: 0.95rem; }
-.buy-price-new { color: var(--accent-amber-soft); font-family: var(--font-display); font-weight: 700; font-size: 1.6rem; }
+.buy-price-new { color: var(--accent-green); font-family: var(--font-display); font-weight: 800; font-size: 1.7rem; }
+.buy-cta-btn {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  background: var(--accent-green); border: 1.5px solid var(--accent-green); box-shadow: none;
+  font-size: 1.02rem; font-weight: 800;
+}
+.buy-cta-btn:hover { background: var(--accent-green-soft); border-color: var(--accent-green-soft); box-shadow: none; }
 .purchase-status-pill {
-  margin-top: 14px; padding: 10px 12px; border-radius: var(--radius-sm); font-size: 0.82rem; text-align: left;
+  margin-top: 0; padding: 10px 12px; border-radius: var(--radius-sm); font-size: 0.82rem; text-align: left;
   display: flex; align-items: flex-start; gap: 8px; line-height: 1.5;
 }
 .purchase-status-pill.pending { background: rgba(124,92,252,0.12); color: var(--accent-amber-soft); }
@@ -380,6 +405,9 @@
 
 /* ── Lesson sidebar hidden — replaced by horizontal strip ── */
 .lesson-sidebar { display: none !important; }
+/* The buy/unlock panel reuses .lesson-sidebar for its base box styling but
+   must stay visible — it's not the lesson list the rule above is hiding. */
+.lesson-sidebar.buy-panel { display: flex !important; flex-direction: column; gap: 16px; }
 
 /* ═══════════════════════════════════════════════════════════
    HORIZONTAL LESSON STRIP  (right → left, newest first)
@@ -553,4 +581,21 @@
   .lesson-h-track-wrap { padding: 10px 14px 12px; }
   .lesson-h-card { width: 160px; padding: 10px 12px; }
   .lh-title { font-size: 0.82rem; }
+}
+
+/* ==========================================================================
+   মোবাইলে "কোর্স কেনার" প্যানেল স্ক্রিনের নিচে ফিক্সড বটম-শীট হিসেবে দেখাবে
+   (ফ্ল্যাট ডিজাইন — শুধু উপরের বর্ডার, কোনো box-shadow/glow ব্যবহার হয়নি)
+   ========================================================================== */
+@media (max-width: 680px) {
+  .course-layout.has-buy-bar { padding-bottom: 250px; }
+  .has-buy-bar .buy-panel {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
+    width: 100%; margin: 0; max-width: 100%;
+    border-radius: 20px 20px 0 0;
+    border: 1.5px solid var(--border-strong); border-bottom: none;
+    padding: 16px 18px calc(14px + env(safe-area-inset-bottom));
+  }
+  .has-buy-bar .buy-panel-top { display: none; }
+  .has-buy-bar .buy-panel-bottom { margin-top: 0; }
 }
