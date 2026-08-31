@@ -885,7 +885,7 @@ function selectLesson(id) {
   renderLessonList();
   renderVideo();
   renderSlides();
-  els.lessonDesc.textContent = activeLesson.description || "";
+  els.lessonDesc.innerHTML = renderRichText(activeLesson.description || "");
   updateCompleteBtn();
   renderLessonExamBanner();
   updateExamTabBadge();
