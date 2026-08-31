@@ -6,6 +6,7 @@ import {
   collection, getDocs, query, orderBy, updateDoc, doc, addDoc, deleteDoc,
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 import { toast, escapeHtml, openModal, closeModal, confirmAction, videoThumbnail } from "../utils.js";
+import { initRichEditor } from "../rich-text.js";
 import { courses, refreshCourses } from "../admin.js";
 import { loadCoursesTable } from "./courses.js";
 import { loadOverview } from "./overview.js";
@@ -70,7 +71,7 @@ function openLessonModal(courseId, lessonId) {
     <div class="modal-head"><h3>${l ? "Edit Lesson" : "Add New Lesson"}</h3><button class="modal-close-btn" data-modal-close><i class="fa-solid fa-xmark"></i></button></div>
     <form id="lesson-modal-form">
       <div class="field"><label>Lesson Title</label><input type="text" id="lm-title" required value="${l ? escapeHtml(l.title) : ""}"></div>
-      <div class="field"><label>Description</label><textarea id="lm-desc" rows="2">${l ? escapeHtml(l.description || "") : ""}</textarea></div>
+      <div class="field"><label>Description</label><textarea id="lm-desc" rows="4">${l ? escapeHtml(l.description || "") : ""}</textarea></div>
       <div class="field"><label>Video URL (YouTube or mp4)</label><input type="url" id="lm-video" placeholder="https://youtube.com/watch?v=..." required value="${l ? escapeHtml(l.videoURL || "") : ""}"></div>
       <div class="field"><label>Slide Image URLs (comma-separated)</label><textarea id="lm-slides" rows="2">${l ? escapeHtml((l.slides || []).join(", ")) : ""}</textarea></div>
       <div class="field"><label>Slide PDF — Google Drive Link (optional)</label><input type="url" id="lm-pdf" placeholder="https://drive.google.com/file/d/.../view?usp=sharing" value="${l ? escapeHtml(l.pdfURL || "") : ""}"><span class="form-hint">The Drive file's sharing must be set to "Anyone with the link can view"</span></div>
@@ -78,6 +79,8 @@ function openLessonModal(courseId, lessonId) {
       <button type="submit" class="btn btn-primary btn-block" id="lesson-modal-save-btn">${l ? "Save Changes" : "Add Lesson"}</button>
     </form>
   `);
+  initRichEditor(overlay.querySelector("#lm-desc"));
+
   overlay.querySelector("#lesson-modal-form").addEventListener("submit", async (e) => {
     e.preventDefault();
     const btn = overlay.querySelector("#lesson-modal-save-btn");
