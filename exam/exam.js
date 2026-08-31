@@ -18,7 +18,7 @@ import { navigate } from "../js/router.js";
 import { state, resetSessionState, buildQuestionPool, scoreExam } from "./exam-engine.js";
 import { fetchQuestions, saveResult } from "./exam-data.js";
 import { runVerification, renderRulesGate } from "./exam-guard.js";
-import { renderExamList, renderQuestion, renderAllQuestions, renderResult } from "./exam-render.js";
+import { renderExamCourseList, renderExamList, renderQuestion, renderAllQuestions, renderResult } from "./exam-render.js";
 import { startExamTimer, stopExamTimer, formatClock } from "./exam-timer.js";
 import { downloadResultPDF } from "./exam-pdf.js";
 
@@ -44,6 +44,10 @@ function bindStaticControlsOnce() {
     e.preventDefault();
     submitExam();
   });
+  // Back button above the grid — only visible while looking at one course's
+  // exams (see setExamSectionHeader); always sends the person up one level,
+  // to the course picker.
+  document.getElementById("exam-back-btn")?.addEventListener("click", () => navigate("#/exam"));
 }
 
 export async function initExamPage(params) {
@@ -85,7 +89,15 @@ export async function initExamPage(params) {
   if (examId) {
     await runExamEntry(examId, myToken);
   } else {
-    await renderExamList(document.getElementById("exam-grid"));
+    // No ?id= — this is the browse-exams area. #/exam alone shows the course
+    // picker; #/exam?course=<courseId|general> shows just that course's exams.
+    const grid = document.getElementById("exam-grid");
+    const courseKey = params.get("course");
+    if (courseKey) {
+      await renderExamList(grid, courseKey);
+    } else {
+      await renderExamCourseList(grid);
+    }
   }
 
   return cleanup;

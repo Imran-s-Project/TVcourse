@@ -73,6 +73,45 @@
   border: 1.5px solid var(--exs-line-strong); color: var(--text-primary); font-weight: 700; font-size: 0.72rem; white-space: nowrap;
 }
 
+/* ---------- Back button above the section title (only shown inside a course's exam list) ---------- */
+.exs-back-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--exs-surface-2); border: 1.5px solid var(--exs-line);
+  color: var(--text-primary); font-size: 0.8rem; font-weight: 700;
+  padding: 6px 12px; border-radius: 8px; margin-bottom: 10px; cursor: pointer;
+  transition: border-color .12s, color .12s;
+}
+.exs-back-btn:hover { border-color: var(--exs-accent); color: var(--exs-accent); }
+
+/* ---------- Course picker — one row-card per course, single column ----------
+   Same flat/strong language as .exs-card (solid 2px border, no blur/glow),
+   just laid out as a compact list instead of a grid since it's a selection
+   step, not content to browse. */
+.exam-grid.exam-grid--courses { grid-template-columns: 1fr; gap: 12px; }
+
+.exs-course-card {
+  display: flex; align-items: center; gap: 16px; padding: 14px;
+  background: var(--exs-surface); border: 2px solid var(--exs-line); border-radius: 12px;
+  transition: border-color .12s;
+}
+.exs-course-card:hover { border-color: var(--exs-accent); }
+
+.exs-course-cover {
+  width: 60px; height: 60px; flex-shrink: 0; border-radius: 10px;
+  background-color: var(--exs-surface-2); background-size: cover; background-position: center;
+  border: 1.5px solid var(--exs-line);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--exs-accent); font-size: 1.25rem;
+}
+
+.exs-course-body { flex: 1; min-width: 0; }
+.exs-course-body h3 { font-size: 1.02rem; font-weight: 800; margin-bottom: 6px; }
+
+.exs-course-open-tag { color: var(--exs-ok); font-weight: 700; }
+
+.exs-course-arrow { color: var(--text-muted); font-size: 0.9rem; flex-shrink: 0; }
+.exs-course-card:hover .exs-course-arrow { color: var(--exs-accent); }
+
 .exs-loading, .exs-empty {
   display: flex; flex-direction: column; align-items: center; gap: 10px;
   padding: 60px 20px; color: var(--text-muted); text-align: center;
@@ -237,4 +276,6 @@
   .exs-result-hero { padding: 22px 16px; }
   .exs-rules-actions { flex-direction: column; }
   .exs-action-box { width: 78px; height: 70px; }
+  .exs-course-cover { width: 48px; height: 48px; font-size: 1.05rem; }
+  .exs-course-card { padding: 12px; gap: 12px; }
 }

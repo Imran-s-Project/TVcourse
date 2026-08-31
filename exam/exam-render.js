@@ -15,8 +15,48 @@ function lessonTagHtml(ex) {
     : "";
 }
 
-/* ---------- Exam list ---------- */
-export async function renderExamList(grid) {
+/* ---------- Section header (title/subtitle/back-button) above the grid ----------
+   #exam-section-title / #exam-section-sub / #exam-back-btn live permanently in
+   index.html's #page-exam shell (same static-markup pattern as #q-prev etc.),
+   so this just writes into them — no re-render of the shell itself. ---------- */
+export function setExamSectionHeader({ title, sub, showBack }) {
+  const titleEl = document.getElementById("exam-section-title");
+  const subEl = document.getElementById("exam-section-sub");
+  const backBtn = document.getElementById("exam-back-btn");
+  if (titleEl) titleEl.textContent = title;
+  if (subEl) subEl.textContent = sub || "";
+  if (backBtn) backBtn.classList.toggle("hidden", !showBack);
+}
+
+/* ---------- Groups exams by course ----------
+   Key is the exam's courseId, or the sentinel "general" for exams with no
+   courseId at all (admin's "Open to Everyone" option) — "general" is also
+   the #/exam?course= value used for that bucket in the URL. ---------- */
+function groupExamsByCourse(exams) {
+  const groups = new Map();
+  for (const ex of exams) {
+    const key = ex.courseId || "general";
+    if (!groups.has(key)) {
+      groups.set(key, { key, courseId: ex.courseId || null, courseName: ex.courseName || "General", exams: [] });
+    }
+    groups.get(key).exams.push(ex);
+  }
+  return groups;
+}
+
+/* ---------- Course picker — the exam section's landing view ----------
+   One card per course that has at least one exam the user can actually see
+   (free courses, or paid courses already purchased — locked courses are
+   skipped entirely, same rule the flat list always applied per-exam).
+   Tapping a card goes to #/exam?course=<key>, which renderExamList below
+   turns into that course's own exam grid. ---------- */
+export async function renderExamCourseList(grid) {
+  setExamSectionHeader({
+    title: "নিজেকে যাচাই করুন",
+    sub: "আপনার কোর্স বেছে নিন, তারপর সেই কোর্সের সব এক্সাম দেখুন",
+    showBack: false,
+  });
+  grid.classList.add("exam-grid--courses");
   grid.innerHTML = `<div class="exs-loading"><span class="exs-spinner"></span> Loading...</div>`;
   const myToken = state.navToken;
   try {
@@ -25,6 +65,108 @@ export async function renderExamList(grid) {
 
     if (!exams.length) {
       grid.innerHTML = `<div class="exs-empty"><i class="fa-solid fa-file-pen"></i><p>No exams have been added yet</p></div>`;
+      return;
+    }
+
+    const groups = groupExamsByCourse(exams);
+
+    const results = await Promise.all(
+      Array.from(groups.values()).map(async (g) => {
+        const info = g.courseId ? await getCourseLockInfo(g.courseId, state.userProfile) : { locked: false };
+        if (info.locked) return null;
+
+        const total = g.exams.length;
+        let openCount = 0;
+        let upcomingCount = 0;
+        g.exams.forEach((ex) => {
+          const { state: availState } = getExamAvailability(ex);
+          if (availState === "open") openCount++;
+          else if (availState === "upcoming") upcomingCount++;
+        });
+
+        const title = g.courseId ? (info.title || g.courseName) : "সাধারণ এক্সাম (সবার জন্য)";
+        const cover = g.courseId ? info.coverImage || "" : "";
+        const latestCreated = Math.max(0, ...g.exams.map((ex) => ex.createdAt?.seconds || 0));
+
+        const html = `
+        <a href="#/exam?course=${encodeURIComponent(g.key)}" class="exs-course-card">
+          <div class="exs-course-cover" ${cover ? `style="background-image:url('${cover}')"` : ""}>
+            ${!cover ? `<i class="fa-solid ${g.courseId ? "fa-graduation-cap" : "fa-layer-group"}"></i>` : ""}
+          </div>
+          <div class="exs-course-body">
+            <h3>${escapeHtml(title)}</h3>
+            <div class="exs-meta-row">
+              <span><i class="fa-solid fa-file-pen"></i> ${total} Exam${total > 1 ? "s" : ""}</span>
+              ${openCount > 0
+                ? `<span class="exs-course-open-tag"><i class="fa-solid fa-circle-check"></i> ${openCount} open now</span>`
+                : upcomingCount > 0
+                  ? `<span class="exs-muted exs-small"><i class="fa-solid fa-hourglass-half"></i> ${upcomingCount} upcoming</span>`
+                  : ""}
+            </div>
+          </div>
+          <i class="fa-solid fa-chevron-right exs-course-arrow"></i>
+        </a>`;
+        return { html, sortKey: latestCreated };
+      })
+    );
+
+    if (state.navToken !== myToken) return;
+
+    const cards = results.filter(Boolean);
+    if (!cards.length) {
+      grid.innerHTML = `<div class="exs-empty"><i class="fa-solid fa-file-pen"></i><p>No exams available yet — exams for the courses you've purchased will appear here</p></div>`;
+      return;
+    }
+
+    cards.sort((a, b) => b.sortKey - a.sortKey);
+    grid.innerHTML = cards.map((c) => c.html).join("");
+  } catch {
+    if (state.navToken !== myToken) return;
+    grid.innerHTML = `<div class="exs-empty"><p>Couldn't load exams</p></div>`;
+  }
+}
+
+/* ---------- Exam list — either all exams (courseKey omitted) or one
+   course's exams (courseKey = a courseId, or "general" for the no-course
+   bucket). Re-checks the course lock itself (not just trusting the picker)
+   so a direct/typed #/exam?course=xxx URL to a paid, unpurchased course
+   can't be used to see its exam titles. ---------- */
+export async function renderExamList(grid, courseKey = null) {
+  grid.classList.remove("exam-grid--courses");
+  grid.innerHTML = `<div class="exs-loading"><span class="exs-spinner"></span> Loading...</div>`;
+  const myToken = state.navToken;
+  try {
+    if (courseKey && courseKey !== "general") {
+      const info = await getCourseLockInfo(courseKey, state.userProfile);
+      if (state.navToken !== myToken) return;
+      if (info.locked) {
+        setExamSectionHeader({ title: info.title || "Locked Course", sub: "", showBack: true });
+        grid.innerHTML = `<div class="exs-empty"><i class="fa-solid fa-lock"></i><p>This course's exams are locked — purchase the course to unlock them</p></div>`;
+        return;
+      }
+    }
+
+    const allExams = await fetchAllExams();
+    if (state.navToken !== myToken) return;
+    const exams = courseKey ? allExams.filter((ex) => (ex.courseId || "general") === courseKey) : allExams;
+
+    if (courseKey) {
+      let title = "Course Exams";
+      if (courseKey === "general") {
+        title = "সাধারণ এক্সাম (সবার জন্য)";
+      } else {
+        const info = await getCourseLockInfo(courseKey, state.userProfile); // cached above, no extra read
+        title = info.title || exams[0]?.courseName || "Course Exams";
+      }
+      setExamSectionHeader({
+        title,
+        sub: exams.length ? `এই কোর্সে মোট ${exams.length} টি এক্সাম রয়েছে` : "এই কোর্সে এখনো কোনো এক্সাম যোগ করা হয়নি",
+        showBack: true,
+      });
+    }
+
+    if (!exams.length) {
+      grid.innerHTML = `<div class="exs-empty"><i class="fa-solid fa-file-pen"></i><p>No exams found for this course yet</p></div>`;
       return;
     }
 
@@ -112,7 +254,7 @@ export async function renderExamList(grid) {
 
     grid.innerHTML = cards.length
       ? cards.join("")
-      : `<div class="exs-empty"><i class="fa-solid fa-file-pen"></i><p>No exams yet — exams for the courses you've purchased will appear here</p></div>`;
+      : `<div class="exs-empty"><i class="fa-solid fa-file-pen"></i><p>No exams available right now${courseKey ? " for this course" : " — exams for the courses you've purchased will appear here"}</p></div>`;
     startCountdowns(grid);
   } catch {
     if (state.navToken !== myToken) return;
@@ -198,7 +340,7 @@ export function renderResult(resultView, { score, total, percent, examTitle, bre
       </div>
       ${negativeMarking > 0 ? `<p class="exs-muted exs-small exs-mt-8"><i class="fa-solid fa-circle-info"></i> Negative marking was active for this exam — ${formatScore(negativeMarking)} marks were deducted per wrong answer</p>` : ""}
       <div class="exs-result-actions">
-        <a href="#/exam" class="exs-action-box"><i class="fa-solid fa-list"></i><span>All Exams</span></a>
+        <a href="#/exam?course=${encodeURIComponent(state.exam?.courseId || "general")}" class="exs-action-box"><i class="fa-solid fa-list"></i><span>Course Exams</span></a>
         <a href="#/exam?id=${state.examId}" class="exs-action-box exs-action-box--primary"><i class="fa-solid fa-rotate-right"></i><span>Retake</span></a>
         <button type="button" class="exs-action-box exs-action-box--teal" id="exs-download-pdf"><i class="fa-solid fa-file-pdf"></i><span>PDF</span></button>
       </div>

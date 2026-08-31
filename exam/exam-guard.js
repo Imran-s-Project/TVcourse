@@ -111,14 +111,15 @@ export async function runVerification(container, examId, myToken) {
   setStep(container, "access", "ok");
 
   // Step 3 — publish/close window
+  const courseBackHref = `#/exam?course=${encodeURIComponent(exam.courseId || "general")}`;
   const { state: availState, publishAt, closesAt } = getExamAvailability(exam);
   if (availState === "upcoming") {
     setStep(container, "window", "fail");
     failScreen(container, {
       title: "This Exam Hasn't Started Yet",
       message: `This exam will open on ${formatDateTime(publishAt)}.`,
-      backLabel: "View All Exams",
-      backHref: "#/exam",
+      backLabel: "Back to This Course's Exams",
+      backHref: courseBackHref,
     });
     return { ok: false };
   }
@@ -127,8 +128,8 @@ export async function runVerification(container, examId, myToken) {
     failScreen(container, {
       title: "Exam Time Has Ended",
       message: `This exam was open until ${formatDateTime(closesAt)}.`,
-      backLabel: "View All Exams",
-      backHref: "#/exam",
+      backLabel: "Back to This Course's Exams",
+      backHref: courseBackHref,
     });
     return { ok: false };
   }
@@ -145,8 +146,8 @@ export async function runVerification(container, examId, myToken) {
       failScreen(container, {
         title: "Attempts Exhausted",
         message: `This exam allows a maximum of ${maxAttempts} attempts — you've already used them all.`,
-        backLabel: "View All Exams",
-        backHref: "#/exam",
+        backLabel: "Back to This Course's Exams",
+        backHref: courseBackHref,
       });
       return { ok: false };
     }
@@ -201,7 +202,7 @@ export function renderRulesGate(container, exam, { attemptsSoFar, maxAttempts, t
         </ul>
 
         <div class="exs-rules-actions">
-          <a href="#/exam" class="btn btn-outline btn-block">Go Back</a>
+          <a href="#/exam?course=${encodeURIComponent(exam.courseId || "general")}" class="btn btn-outline btn-block">Go Back</a>
           <button type="button" class="btn btn-primary btn-block" id="exs-start-confirm">Start Exam <i class="fa-solid fa-arrow-right"></i></button>
         </div>
       </div>`;

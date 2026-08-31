@@ -65,7 +65,12 @@ export function bumpAttemptsCache(examId, attemptNumber) {
   attemptsCache[examId] = attemptNumber;
 }
 
-/* ---------- Whether an exam tied to a paid course is locked for this user ---------- */
+/* ---------- Whether an exam tied to a paid course is locked for this user ----------
+   Also carries the course's title/coverImage along with the lock verdict —
+   the exam-section's course picker (exam-render.js renderExamCourseList) needs
+   these for its cards, and piggybacking on this same cached lookup avoids a
+   second Firestore read per course. Existing callers that only destructure
+   `{ locked }` are unaffected by the extra fields. ---------- */
 const courseLockCache = {};
 export async function getCourseLockInfo(courseId, userProfile) {
   if (!courseId) return { locked: false };
@@ -73,10 +78,15 @@ export async function getCourseLockInfo(courseId, userProfile) {
   try {
     const courseSnap = await getDoc(doc(db, "courses", courseId));
     if (!courseSnap.exists()) return (courseLockCache[courseId] = { locked: false });
-    if (!getCoursePricing(courseSnap.data()).isPaid) return (courseLockCache[courseId] = { locked: false });
+    const courseData = courseSnap.data();
+    const isPaid = getCoursePricing(courseData).isPaid;
     // Single source of truth: users/{uid}.enrolledCourses — same field the admin
     // panel's "Revoke" button edits and the course page reads.
-    const info = { locked: !userProfile?.enrolledCourses?.includes(courseId) };
+    const info = {
+      locked: isPaid && !userProfile?.enrolledCourses?.includes(courseId),
+      title: courseData.title || "",
+      coverImage: courseData.coverImage || "",
+    };
     courseLockCache[courseId] = info;
     return info;
   } catch {
