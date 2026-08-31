@@ -22,6 +22,7 @@ import {
 import { initNav, requireAuth, toast, escapeHtml, toBnDigits, getUserProfile, drivePreviewUrl, isDriveLink, openModal, closeModal, youTubeId, getExamAvailability, formatDateTime, getCoursePricing, getExamQuestionCount, generateCertificatePdf, formatTime } from "./utils.js";
 import { courseUrl, navigate } from "./router.js";
 import { createVideoPlayer } from "./video-player.js";
+import { renderRichText } from "./rich-text.js";
 
 // ── Per-session state (reset on every initCoursePage call) ────────────────
 let courseId = null;
@@ -164,7 +165,8 @@ async function init(params, myToken) {
   document.title = `${course.title} — Tech Verse Course`;
   els.crumb.innerHTML = `<a href="#/home"><i class="fa-solid fa-house"></i> Home</a><i class="fa-solid fa-chevron-right crumb-sep"></i><span class="crumb-current">${escapeHtml(course.title)}</span>`;
   els.title.textContent = course.title;
-  els.desc.textContent = course.description || "";
+  els.desc.classList.add("rte-content");
+  els.desc.innerHTML = renderRichText(course.description || "");
   const enrollPill = document.getElementById("course-enroll-pill");
   const enrollCountEl = document.getElementById("course-enroll-count");
   if (enrollPill && enrollCountEl && course.enrollCount > 0) {
