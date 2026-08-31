@@ -8,8 +8,6 @@
 // ==========================================================================
 import { escapeHtml } from "./utils.js";
 
-const EMOJI_SET = ["🚀", "📝", "🎯", "🔥", "✅", "📊", "🏆", "🌟", "🔹", "⭐", "👉", "📌", "🎓", "💡", "📚", "🕒"];
-
 /* ---------- ইনলাইন ফরম্যাটিং: **bold**, *italic* ---------- */
 function renderInline(text) {
   return text
@@ -169,10 +167,6 @@ export function initRichEditor(textarea) {
     <button type="button" class="rte-btn" data-rte="quote" title="Quote"><i class="fa-solid fa-quote-left"></i></button>
     <button type="button" class="rte-btn" data-rte="hr" title="Divider line"><i class="fa-solid fa-minus"></i></button>
     <span class="rte-sep"></span>
-    <div class="rte-emoji-wrap">
-      <button type="button" class="rte-btn" data-rte="emoji" title="Emoji">🙂</button>
-      <div class="rte-emoji-pop" hidden>${EMOJI_SET.map((e) => `<button type="button" class="rte-emoji-item">${e}</button>`).join("")}</div>
-    </div>
     <span class="rte-flex-spacer"></span>
     <div class="rte-tabs">
       <button type="button" class="rte-tab active" data-rte-tab="write">Write</button>
@@ -194,7 +188,6 @@ export function initRichEditor(textarea) {
   hint.textContent = "** bold **  •  # Heading  •  - bullet  •  --- divider line";
   wrap.appendChild(hint);
 
-  const emojiPop = toolbar.querySelector(".rte-emoji-pop");
   const updatePreview = () => {
     preview.innerHTML = renderRichText(textarea.value) || `<p class="rte-empty">Nothing to preview yet</p>`;
   };
@@ -214,12 +207,6 @@ export function initRichEditor(textarea) {
   };
 
   toolbar.addEventListener("click", (e) => {
-    const emojiItem = e.target.closest(".rte-emoji-item");
-    if (emojiItem) {
-      insertAtCursor(textarea, emojiItem.textContent, updatePreview);
-      emojiPop.hidden = true;
-      return;
-    }
     const tabBtn = e.target.closest("[data-rte-tab]");
     if (tabBtn) {
       setTab(tabBtn.dataset.rteTab);
@@ -252,13 +239,6 @@ export function initRichEditor(textarea) {
       case "hr":
         insertAtCursor(textarea, "\n\n---\n\n", updatePreview);
         break;
-      case "emoji":
-        emojiPop.hidden = !emojiPop.hidden;
-        break;
     }
-  });
-
-  document.addEventListener("click", (e) => {
-    if (!toolbar.contains(e.target)) emojiPop.hidden = true;
   });
 }

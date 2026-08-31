@@ -260,7 +260,7 @@ function renderLockedView(course, myToken) {
     <div class="media-panel">
       <div class="video-frame" id="buy-video-frame"></div>
       <div class="media-body">
-        <p class="lesson-desc">${escapeHtml(course.description || "")}</p>
+        <div class="lesson-desc rte-content">${renderRichText(course.description || "")}</div>
       </div>
     </div>
     <aside class="lesson-sidebar buy-panel">
