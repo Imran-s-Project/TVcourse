@@ -31,19 +31,6 @@
 .rte-sep { width: 1px; align-self: stretch; margin: 4px 2px; background: var(--border-strong); }
 .rte-flex-spacer { flex: 1; }
 
-.rte-emoji-wrap { position: relative; }
-.rte-emoji-pop {
-  position: absolute; top: 34px; left: 0; z-index: 20;
-  display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px;
-  background: var(--bg-elevated); border: 1.5px solid var(--border-strong);
-  border-radius: 8px; padding: 6px;
-}
-.rte-emoji-item {
-  background: transparent; border: none; font-size: 1.05rem; line-height: 1;
-  padding: 6px; border-radius: 6px; cursor: pointer;
-}
-.rte-emoji-item:hover { background: var(--bg-elevated-2); }
-
 .rte-tabs { display: flex; gap: 2px; }
 .rte-tab {
   background: transparent; border: 1px solid var(--border-strong); border-radius: 6px;
