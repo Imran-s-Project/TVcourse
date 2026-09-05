@@ -80,7 +80,7 @@ export async function loadPurchasesTable() {
       <td data-label="User"><div class="cell-title"><div><div class="t">${escapeHtml(p.userName || "")}</div><div class="s">${escapeHtml(p.userEmail || "")}${p.phone ? " · " + escapeHtml(p.phone) : ""}</div></div></div></td>
       <td data-label="Course">${escapeHtml(p.courseTitle || "")}</td>
       <td data-label="Payment">${escapeHtml(p.paymentMethod || "")}${p.senderNumber ? `<div class="s" style="font-size:0.78rem;color:var(--text-muted)">${escapeHtml(p.senderNumber)}${p.transactionId ? " · TxnID: " + escapeHtml(p.transactionId) : ""}</div>` : ""}</td>
-      <td data-label="Amount">৳${p.amount || 0}</td>
+      <td data-label="Amount">৳${p.amount || 0}${p.couponCode ? `<div class="s" style="font-size:0.78rem;color:var(--accent-teal)"><i class="fa-solid fa-tag"></i> ${escapeHtml(p.couponCode)} · -৳${p.discountAmount || 0}</div>` : ""}</td>
       <td data-label="Status">${statusBadge(p.status)}</td>
       <td data-label=""><div class="row-actions">
         ${p.status === "pending" ? `
@@ -108,6 +108,7 @@ function viewPurchaseDetail(id) {
       <div><b>Phone:</b> ${escapeHtml(p.phone || "")}</div>
       <div><b>Course:</b> ${escapeHtml(p.courseTitle || "")}</div>
       <div><b>Method:</b> ${escapeHtml(p.paymentMethod || "")} — ${escapeHtml(p.senderNumber || "")}</div>
+      ${p.couponCode ? `<div><b>Coupon:</b> ${escapeHtml(p.couponCode)} (-৳${p.discountAmount || 0}, original ৳${p.originalAmount || p.amount || 0})</div>` : ""}
       <div><b>Amount:</b> ৳${p.amount || 0}</div>
       ${p.transactionId ? `<div><b>Transaction ID:</b> ${escapeHtml(p.transactionId)}</div>` : ""}
       <div><b>Status:</b> ${escapeHtml(p.status)}</div>
@@ -270,12 +271,13 @@ async function downloadPurchasePdf(id, triggerBtn) {
     y = Math.max(r2L, r2R);
 
     /* Row 3: Transaction ID | Amount */
+    const amountLabel = p.couponCode ? `Amount Paid (Coupon ${p.couponCode} · -\u09F3${p.discountAmount || 0})` : "Amount Paid";
     if (p.transactionId) {
       const r3L = infoCell("Transaction ID", p.transactionId, col1X, y);
-      const r3R = infoCell("Amount Paid", `\u09F3${p.amount || 0}`, col2X, y);
+      const r3R = infoCell(amountLabel, `\u09F3${p.amount || 0}`, col2X, y);
       y = Math.max(r3L, r3R);
     } else {
-      y = infoCell("Amount Paid", `\u09F3${p.amount || 0}`, col1X, y);
+      y = infoCell(amountLabel, `\u09F3${p.amount || 0}`, col1X, y);
     }
 
     /* Row 4: Requested On | Reviewed On */
