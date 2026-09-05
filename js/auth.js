@@ -123,6 +123,23 @@ async function ensureUserDoc(user, extra = {}) {
   }
 }
 
+/* ---------- Reactivate a deactivated account on successful login ----------
+   The Settings/Security tab (js/profile.js) lets a user "temporarily
+   deactivate" their own account, which just flags users/{uid}.accountStatus
+   as "deactivated" and signs them out — nothing is removed. There is no
+   separate reactivation screen: logging back in with any method is treated
+   as reactivation, so this flips the flag back and lets the user know. */
+async function reactivateIfNeeded(uid) {
+  const ref = doc(db, "users", uid);
+  const snap = await getDoc(ref);
+  if (snap.exists() && snap.data().accountStatus === "deactivated") {
+    await updateDoc(ref, { accountStatus: "active", reactivatedAt: serverTimestamp() });
+    toast("Welcome back! Your account has been reactivated.", "success");
+    return true;
+  }
+  return false;
+}
+
 /* If someone is already logged in and lands on #/login or #/signup (typed the
    hash directly, used the browser back button, etc.), bounce them home
    instead of showing the form again. Returns true if it redirected. */
@@ -259,8 +276,9 @@ function bindOAuthButtons() {
       try {
         const cred = await signInWithPopup(auth, make());
         await ensureUserDoc(cred.user);
+        const wasReactivated = await reactivateIfNeeded(cred.user.uid);
         await recordDeviceLogin(cred.user);
-        toast("Logged in successfully", "success");
+        if (!wasReactivated) toast("Logged in successfully", "success");
         const redirectTo = consumePostLoginRedirect();
         setTimeout(() => navigate(redirectTo || "#/home"), 500);
       } catch (err) {
@@ -298,8 +316,9 @@ export async function initLoginPage() {
     try {
       const cred = await signInWithEmailAndPassword(auth, email, password);
       await ensureUserDoc(cred.user);
+      const wasReactivated = await reactivateIfNeeded(cred.user.uid);
       await recordDeviceLogin(cred.user);
-      toast("Logged in successfully", "success");
+      if (!wasReactivated) toast("Logged in successfully", "success");
       const redirectTo = consumePostLoginRedirect();
       setTimeout(() => navigate(redirectTo || "#/home"), 500);
     } catch (err) {

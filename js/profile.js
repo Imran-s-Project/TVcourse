@@ -19,6 +19,7 @@ import {
   unlink,
   updatePassword,
   deleteUser,
+  signOut,
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import {
   doc,
@@ -29,6 +30,7 @@ import {
   getDocs,
   query,
   where,
+  serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 import { ref, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-storage.js";
 import { requireAuth, getUserProfile, toast, escapeHtml, toBnDigits, formatDate, confirmAction, openModal, closeModal, supportMailto, SUPPORT_EMAIL_GMAIL, SUPPORT_EMAIL_YAHOO, useBengaliFont, loadBengaliCanvasFont, hasBengaliText, drawSmartText, wrapTextByWidth, safeSavePdf } from "./utils.js";
@@ -56,28 +58,64 @@ async function init() {
   bindPasswordForm();
   bindLinkedAccounts();
   bindDeleteAccount();
+  bindDeactivateAccount();
   if (profile?.isAdmin) {
     document.getElementById("admin-shortcut-btn")?.classList.remove("hidden");
   }
+  bindAvatarPicker();
 }
 
 function renderHeader() {
   document.getElementById("profile-name").textContent = profile?.displayName || currentUser.email.split("@")[0];
   document.getElementById("profile-email").textContent = currentUser.email;
+  const initial = (profile?.displayName || currentUser.email).charAt(0).toUpperCase();
   const avatarBox = document.getElementById("profile-avatar");
   avatarBox.innerHTML = profile?.photoURL
     ? `<img src="${profile.photoURL}" alt="Profile picture">`
-    : `<span>${(profile?.displayName || currentUser.email).charAt(0).toUpperCase()}</span>`;
+    : `<span>${initial}</span>`;
   document.getElementById("settings-name").value = profile?.displayName || "";
+  document.getElementById("settings-phone").value = profile?.phone || "Not set";
+  const bioInput = document.getElementById("settings-bio");
+  if (bioInput) {
+    bioInput.value = profile?.bio || "";
+    updateBioCount();
+  }
+  renderAvatarPickerPreview(profile?.photoURL, initial);
 
   const metaBox = document.getElementById("profile-meta");
   const joined = profile?.createdAt ? formatDate(profile.createdAt) : "";
   const provider = currentUser.providerData?.[0]?.providerId === "google.com" ? "Google Account" : "Email Account";
   metaBox.innerHTML = `
-    ${joined ? `<span><i class="fa-regular fa-calendar"></i> Joined ${joined}</span>` : ""}
-    <span><i class="fa-solid fa-user-shield"></i> ${provider}</span>
-    ${profile?.isAdmin ? `<span class="badge badge-amber">Admin</span>` : ""}
+    ${joined ? `<span class="meta-chip"><i class="fa-regular fa-calendar"></i> Joined ${joined}</span>` : ""}
+    <span class="meta-chip"><i class="fa-solid fa-user-shield"></i> ${provider}</span>
+    ${profile?.isAdmin ? `<span class="badge badge-amber"><i class="fa-solid fa-star"></i> Admin</span>` : ""}
   `;
+}
+
+/* ---------- Avatar picker (Settings tab) — live preview + a camera-badge
+   shortcut on the header avatar that jumps straight to Settings and opens
+   the file dialog, instead of the photo control being buried in a form. ---------- */
+function renderAvatarPickerPreview(photoURL, initial) {
+  const box = document.getElementById("avatar-picker-preview");
+  if (!box) return;
+  box.innerHTML = photoURL ? `<img src="${photoURL}" alt="Profile picture">` : `<span>${initial}</span>`;
+}
+
+function bindAvatarPicker() {
+  document.getElementById("avatar-edit-trigger")?.addEventListener("click", () => {
+    activateTab("settings");
+    document.getElementById("settings-avatar")?.click();
+  });
+  const fileInput = document.getElementById("settings-avatar");
+  fileInput?.addEventListener("change", () => {
+    const file = fileInput.files[0];
+    const nameTag = document.getElementById("avatar-picker-filename");
+    if (!file) return;
+    if (nameTag) nameTag.textContent = file.name;
+    const reader = new FileReader();
+    reader.onload = () => renderAvatarPickerPreview(reader.result, "");
+    reader.readAsDataURL(file);
+  });
 }
 
 /* ---------- Quick stats strip ---------- */
@@ -584,11 +622,23 @@ async function downloadMyPurchasePdf(id, triggerBtn) {
   }
 }
 
-/* ---------- Settings: name and profile picture ---------- */
+/* ---------- Settings: name, bio, and profile picture ----------
+   Phone is intentionally excluded here — it's collected once via
+   utils.js's mandatory phone gate and locked for payment verification
+   (see the checkout modal in course.js), so Settings only displays it
+   read-only rather than offering an editable field. */
+function updateBioCount() {
+  const input = document.getElementById("settings-bio");
+  const counter = document.getElementById("settings-bio-count");
+  if (input && counter) counter.textContent = `${input.value.length}/200`;
+}
+
 function bindSettingsForm() {
+  document.getElementById("settings-bio")?.addEventListener("input", updateBioCount);
   document.getElementById("settings-form")?.addEventListener("submit", async (e) => {
     e.preventDefault();
     const name = document.getElementById("settings-name").value.trim();
+    const bio = document.getElementById("settings-bio")?.value.trim() || "";
     const fileInput = document.getElementById("settings-avatar");
     const btn = document.getElementById("settings-save-btn");
     btn.disabled = true;
@@ -600,17 +650,18 @@ function bindSettingsForm() {
         await uploadBytes(fileRef, fileInput.files[0]);
         photoURL = await getDownloadURL(fileRef);
       }
-      await updateDoc(doc(db, "users", currentUser.uid), { displayName: name, photoURL });
+      await updateDoc(doc(db, "users", currentUser.uid), { displayName: name, photoURL, bio });
       await updateProfile(currentUser, { displayName: name, photoURL });
       profile.displayName = name;
       profile.photoURL = photoURL;
+      profile.bio = bio;
       renderHeader();
       toast("Profile updated", "success");
     } catch (err) {
       toast("Could not update", "error");
     } finally {
       btn.disabled = false;
-      btn.textContent = "Save";
+      btn.textContent = "Save Changes";
     }
   });
 }
@@ -707,25 +758,28 @@ const LINKABLE_PROVIDERS = [
 function renderLinkedAccounts() {
   const wrap = document.getElementById("linked-accounts-list");
   if (!wrap) return;
+  let connectedCount = 0;
   wrap.innerHTML = LINKABLE_PROVIDERS.map((p) => {
     const linkedInfo = currentUser.providerData.find((pd) => pd.providerId === p.id);
     const isLinked = !!linkedInfo;
+    if (isLinked) connectedCount++;
     return `
-    <div class="linked-account-row" data-provider="${p.id}">
-      <div class="linked-account-info">
-        <span class="linked-provider-icon"><i class="${p.icon}"></i></span>
-        <div>
-          <h4>${p.label}${p.note ? ` <span class="note-tag">(${p.note})</span>` : ""}</h4>
-          <span class="muted linked-status ${isLinked ? "is-connected" : ""}">
-            ${isLinked ? `<i class="fa-solid fa-circle-check"></i> Connected${linkedInfo.email ? " · " + escapeHtml(linkedInfo.email) : ""}` : "Not connected"}
-          </span>
-        </div>
+    <div class="connect-card" data-provider="${p.id}" data-status="${isLinked ? "connected" : "disconnected"}">
+      <span class="connect-icon"><i class="${p.icon}"></i></span>
+      <div class="connect-body">
+        <h4>${p.label}${p.note ? ` <span class="note-tag">(${p.note})</span>` : ""}</h4>
+        <span class="connect-status ${isLinked ? "is-connected" : ""}">
+          <i class="fa-solid fa-circle"></i>
+          ${isLinked ? `Connected${linkedInfo.email ? " · " + escapeHtml(linkedInfo.email) : ""}` : "Not connected"}
+        </span>
       </div>
       <button type="button" class="btn ${isLinked ? "btn-outline" : "btn-primary"} btn-sm" data-provider="${p.id}" data-action="${isLinked ? "disconnect" : "connect"}">
         ${isLinked ? "Disconnect" : "Connect"}
       </button>
     </div>`;
   }).join("");
+  const summary = document.getElementById("connect-summary");
+  if (summary) summary.textContent = `${connectedCount}/${LINKABLE_PROVIDERS.length} Connected`;
 }
 
 function mapLinkError(code, label) {
@@ -781,6 +835,38 @@ function bindLinkedAccounts() {
       toast(mapLinkError(err.code, providerDef.label), "error");
     } finally {
       renderLinkedAccounts();
+    }
+  });
+}
+
+/* ---------- Temporarily deactivate account ----------
+   Soft, reversible alternative to deletion: flags the account
+   (accountStatus: "deactivated" on users/{uid}) and signs the user out
+   everywhere. Nothing is removed — auth.js's ensureUserDoc-adjacent check
+   flips it back to "active" automatically the next time this same user
+   successfully logs back in, so there's no separate "reactivate" screen. */
+function bindDeactivateAccount() {
+  document.getElementById("deactivate-account-btn")?.addEventListener("click", async () => {
+    const ok = await confirmAction(
+      "Your account will be temporarily hidden and you'll be signed out on every device. Nothing is deleted — logging back in reactivates it instantly. Continue?",
+      { title: "Deactivate Account?", confirmLabel: "Yes, Deactivate", danger: false }
+    );
+    if (!ok) return;
+    const btn = document.getElementById("deactivate-account-btn");
+    btn.disabled = true;
+    btn.innerHTML = `<span class="spinner"></span>`;
+    try {
+      await updateDoc(doc(db, "users", currentUser.uid), {
+        accountStatus: "deactivated",
+        deactivatedAt: serverTimestamp(),
+      });
+      await signOut(auth);
+      toast("Your account has been deactivated. Log back in anytime to reactivate it.", "success");
+      setTimeout(() => (window.location.href = "index.html"), 1000);
+    } catch (err) {
+      toast("Could not deactivate your account, please try again", "error");
+      btn.disabled = false;
+      btn.innerHTML = `<i class="fa-solid fa-pause"></i> Deactivate`;
     }
   });
 }
