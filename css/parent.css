@@ -77,16 +77,24 @@
 .pd-child-info h2 { font-size: 1.2rem; margin-bottom: 3px; }
 .pd-child-meta { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 0.82rem; color: var(--text-muted); }
 .pd-child-meta span { display: inline-flex; align-items: center; gap: 6px; }
+.pd-active-dot { color: var(--accent-green-soft); font-weight: 600; }
+.pd-active-dot i { font-size: 0.5rem; }
 
 /* ---------- Stats strip (reuses .stat-card / .card tokens from profile.css) ---------- */
 .pd-stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 26px; }
 @media (max-width: 900px) { .pd-stats { grid-template-columns: repeat(3, 1fr); } }
 @media (max-width: 560px) { .pd-stats { grid-template-columns: repeat(2, 1fr); } }
 
+/* ---------- Learning Activity strip (streak banner + counters) ---------- */
+.pd-activity-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 14px; }
+@media (max-width: 700px) { .pd-activity-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 420px) { .pd-activity-grid { grid-template-columns: 1fr; } }
+
 /* ---------- Section headings ---------- */
 .pd-section-title {
   display: flex; align-items: center; gap: 9px;
-  font-size: 1.02rem; font-weight: 700; margin: 30px 0 14px;
+  font-size: 1.02rem; font-weight: 700; margin: 34px 0 14px;
+  padding-bottom: 10px; border-bottom: 1.5px solid var(--border);
 }
 .pd-section-title i { color: var(--accent-amber-soft); }
 

@@ -80,3 +80,12 @@
 }
 .account-type-btn:hover { border-color: var(--accent-amber); }
 .account-type-btn.active { border-color: var(--accent-amber); background: rgba(124,92,252,0.12); color: var(--text-primary); }
+
+/* Auto-recommend hint under the login toggle — flat text only, no glow/badge shadow */
+.account-type-hint {
+  display: flex; align-items: center; gap: 6px;
+  margin-top: 8px; font-size: 0.78rem; font-weight: 600; color: var(--accent-teal);
+}
+.account-type-hint::before {
+  content: "\f0eb"; font-family: "Font Awesome 6 Free"; font-weight: 900; font-size: 0.76rem;
+}
