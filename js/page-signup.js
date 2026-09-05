@@ -19,6 +19,14 @@ export function render() {
 
       <form id="signup-form" novalidate>
         <div class="field">
+          <label>Account Type</label>
+          <div class="account-type-toggle" id="signup-role-toggle">
+            <button type="button" class="account-type-btn active" data-role="student"><i class="fa-solid fa-user-graduate"></i> Student</button>
+            <button type="button" class="account-type-btn" data-role="parent"><i class="fa-solid fa-people-roof"></i> Parent / Guardian</button>
+          </div>
+          <input type="hidden" id="signup-role" value="student">
+        </div>
+        <div class="field">
           <label for="signup-name">Full Name</label>
           <input type="text" id="signup-name" placeholder="Your name" required autocomplete="name">
         </div>
@@ -29,6 +37,10 @@ export function render() {
         <div class="field">
           <label for="signup-password">Password</label>
           <input type="password" id="signup-password" placeholder="At least 6 characters" required autocomplete="new-password">
+        </div>
+        <div class="field hidden" id="signup-parent-code-wrap">
+          <label for="signup-parent-code">Child's Family Link Code <span class="muted">(optional — you can add this later too)</span></label>
+          <input type="text" id="signup-parent-code" placeholder="e.g. AB2CD9EFGH" autocomplete="off" style="text-transform:uppercase;letter-spacing:2px">
         </div>
         <div class="form-error" id="signup-error"></div>
         <button type="submit" class="btn btn-primary btn-block" id="signup-btn">Create Account</button>

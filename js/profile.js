@@ -33,6 +33,7 @@ import {
 import { ref, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-storage.js";
 import { requireAuth, getUserProfile, toast, escapeHtml, toBnDigits, formatDate, confirmAction, openModal, closeModal, supportMailto, SUPPORT_EMAIL_GMAIL, SUPPORT_EMAIL_YAHOO, useBengaliFont, loadBengaliCanvasFont, hasBengaliText, drawSmartText, wrapTextByWidth, safeSavePdf } from "./utils.js";
 import { courseUrl } from "./router.js";
+import { getOrCreateLinkCode, regenerateLinkCode, revokeParent } from "./parent-data.js";
 
 let currentUser = null;
 let profile = null;
@@ -56,6 +57,7 @@ async function init() {
   bindPasswordForm();
   bindLinkedAccounts();
   bindDeleteAccount();
+  initFamilyTab();
   if (profile?.isAdmin) {
     document.getElementById("admin-shortcut-btn")?.classList.remove("hidden");
   }
@@ -804,6 +806,96 @@ function bindDeleteAccount() {
       if (err.message === "password-cancelled") return;
       toast("Could not delete account, please try again", "error");
     }
+  });
+}
+
+/* ---------- Family tab (only for student/non-parent accounts) ----------
+   Shows this student's Family Link Code (generating one on first visit) and
+   the list of guardians currently linked to them, each with an Unlink
+   button. Hidden entirely for accounts with role === "parent", since a
+   parent account uses the separate #/parent dashboard instead. ---------- */
+function initFamilyTab() {
+  if (profile?.role === "parent") return; // parents don't have a code to share
+  document.getElementById("family-tab-btn")?.classList.remove("hidden");
+  loadFamilyCode();
+  renderLinkedGuardians();
+
+  document.getElementById("family-code-copy-btn")?.addEventListener("click", () => {
+    const code = document.getElementById("family-code-display").textContent;
+    if (!code || code.includes("•")) return;
+    navigator.clipboard?.writeText(code).then(() => toast("Code copied", "success"));
+  });
+
+  document.getElementById("family-code-regen-btn")?.addEventListener("click", async () => {
+    const ok = await confirmAction(
+      "This issues a new code — anyone who hasn't linked yet will need the new one. Guardians already linked stay linked. Continue?",
+      { title: "Regenerate Link Code?", confirmLabel: "Yes, Regenerate" }
+    );
+    if (!ok) return;
+    const regenBtn = document.getElementById("family-code-regen-btn");
+    regenBtn.disabled = true;
+    try {
+      const newCode = await regenerateLinkCode(currentUser.uid, profile.linkCode);
+      profile.linkCode = newCode;
+      document.getElementById("family-code-display").textContent = newCode;
+      toast("New code generated", "success");
+    } catch (err) {
+      toast("Couldn't regenerate the code, please try again", "error");
+    } finally {
+      regenBtn.disabled = false;
+    }
+  });
+}
+
+async function loadFamilyCode() {
+  const display = document.getElementById("family-code-display");
+  if (!display) return;
+  try {
+    const code = await getOrCreateLinkCode(currentUser.uid);
+    profile.linkCode = code;
+    display.textContent = code;
+  } catch {
+    display.textContent = "—";
+  }
+}
+
+function renderLinkedGuardians() {
+  const box = document.getElementById("family-linked-list");
+  if (!box) return;
+  const guardians = profile?.linkedParents || [];
+  if (!guardians.length) {
+    box.innerHTML = `<p class="muted" style="font-size:0.85rem">No guardian has linked to your account yet.</p>`;
+    return;
+  }
+  box.innerHTML = guardians
+    .map(
+      (uid) => `
+    <div class="family-guardian-row" data-uid="${uid}">
+      <div class="info"><i class="fa-solid fa-user-shield"></i> Guardian &bull;&bull;${escapeHtml(uid.slice(-4))}</div>
+      <button type="button" class="btn btn-outline btn-sm family-unlink-btn" data-uid="${uid}"><i class="fa-solid fa-link-slash"></i> Unlink</button>
+    </div>`
+    )
+    .join("");
+
+  box.querySelectorAll(".family-unlink-btn").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const uid = btn.dataset.uid;
+      const ok = await confirmAction(
+        "This guardian will no longer be able to see your course progress or exam results. Continue?",
+        { title: "Unlink Guardian?", confirmLabel: "Yes, Unlink" }
+      );
+      if (!ok) return;
+      btn.disabled = true;
+      try {
+        await revokeParent(currentUser.uid, uid);
+        profile.linkedParents = (profile.linkedParents || []).filter((id) => id !== uid);
+        renderLinkedGuardians();
+        toast("Guardian unlinked", "success");
+      } catch {
+        toast("Couldn't unlink, please try again", "error");
+        btn.disabled = false;
+      }
+    });
   });
 }
 

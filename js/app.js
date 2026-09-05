@@ -22,7 +22,8 @@ import { initExamPage } from "../exam/exam.js";
 import { initProfilePage, activateTab } from "./profile.js";
 import * as pageHub from "./hub.js";
 import * as pageMyCourses from "./page-mycourses.js";
-import { initNav } from "./utils.js";
+import * as pageParent from "./page-parent.js";
+import { initNav, waitForAuth, getUserProfile } from "./utils.js";
 import * as pageAbout from "./page-about.js";
 import * as pageCredits from "./page-credits.js";
 import * as pageHelp from "./page-help.js";
@@ -46,6 +47,8 @@ const pageHubEl = document.getElementById("page-hub");
 const hubMount = document.getElementById("hub-page-content");
 const pageMyCoursesEl = document.getElementById("page-mycourses");
 const myCoursesMount = document.getElementById("mycourses-page-content");
+const pageParentEl = document.getElementById("page-parent");
+const parentMount = document.getElementById("parent-page-content");
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -57,6 +60,7 @@ function showHome() {
   pageProfileEl.classList.add("hidden");
   pageHubEl.classList.add("hidden");
   pageMyCoursesEl.classList.add("hidden");
+  pageParentEl.classList.add("hidden");
   document.title = "Tech Verse Course — A New Destination for Learning";
 }
 
@@ -68,6 +72,7 @@ function showCourse() {
   pageProfileEl.classList.add("hidden");
   pageHubEl.classList.add("hidden");
   pageMyCoursesEl.classList.add("hidden");
+  pageParentEl.classList.add("hidden");
 }
 
 function showExam() {
@@ -78,6 +83,7 @@ function showExam() {
   pageProfileEl.classList.add("hidden");
   pageHubEl.classList.add("hidden");
   pageMyCoursesEl.classList.add("hidden");
+  pageParentEl.classList.add("hidden");
   document.title = "Exam — Tech Verse Course";
 }
 
@@ -89,6 +95,7 @@ function showStatic() {
   pageProfileEl.classList.add("hidden");
   pageHubEl.classList.add("hidden");
   pageMyCoursesEl.classList.add("hidden");
+  pageParentEl.classList.add("hidden");
 }
 
 function showProfile() {
@@ -99,6 +106,7 @@ function showProfile() {
   pageProfileEl.classList.remove("hidden");
   pageHubEl.classList.add("hidden");
   pageMyCoursesEl.classList.add("hidden");
+  pageParentEl.classList.add("hidden");
 }
 
 function showHub() {
@@ -109,6 +117,7 @@ function showHub() {
   pageProfileEl.classList.add("hidden");
   pageHubEl.classList.remove("hidden");
   pageMyCoursesEl.classList.add("hidden");
+  pageParentEl.classList.add("hidden");
 }
 
 function showMyCourses() {
@@ -119,6 +128,19 @@ function showMyCourses() {
   pageProfileEl.classList.add("hidden");
   pageHubEl.classList.add("hidden");
   pageMyCoursesEl.classList.remove("hidden");
+  pageParentEl.classList.add("hidden");
+}
+
+function showParent() {
+  pageHome.classList.add("hidden");
+  pageCourse.classList.add("hidden");
+  pageExam.classList.add("hidden");
+  pageStatic.classList.add("hidden");
+  pageProfileEl.classList.add("hidden");
+  pageHubEl.classList.add("hidden");
+  pageMyCoursesEl.classList.add("hidden");
+  pageParentEl.classList.remove("hidden");
+  document.title = pageParent.title || "Parent Dashboard — Tech Verse Course";
 }
 
 // ── Route handlers ────────────────────────────────────────────────────────
@@ -126,6 +148,16 @@ function showMyCourses() {
 let dashboardBooted = false;
 
 async function homeRoute(_params) {
+  // Parent accounts don't browse/buy courses — send them straight to their
+  // own dashboard instead. Guests and student accounts fall through as usual.
+  const user = await waitForAuth();
+  if (user) {
+    const profile = await getUserProfile(user.uid).catch(() => null);
+    if (profile?.role === "parent") {
+      window.location.hash = "#/parent";
+      return;
+    }
+  }
   showHome();
   // Dashboard only needs to boot once; subsequent visits reuse the same DOM.
   if (!dashboardBooted) {
@@ -249,6 +281,22 @@ async function myCoursesRoute(_params) {
   await pageMyCourses.initMyCoursesPage();
 }
 
+let parentBooted = false;
+
+async function parentRoute(_params) {
+  showParent();
+  document.title = pageParent.title;
+  initNav("parent");
+  // Same one-time-mount reasoning as myCoursesRoute above — a parent's
+  // linked-children data can change (child links/unlinks, new exam results),
+  // so it's re-fetched on every visit, but the DOM is only mounted once.
+  if (!parentBooted) {
+    parentBooted = true;
+    parentMount.innerHTML = pageParent.render();
+  }
+  await pageParent.initParentPage();
+}
+
 // ── Boot ──────────────────────────────────────────────────────────────────
 
 const router = new Router(
@@ -259,6 +307,7 @@ const router = new Router(
     profile:   profileRoute,
     hub:       hubRoute,
     mycourses: myCoursesRoute,
+    parent:    parentRoute,
     about:   staticRoute(pageAbout),
     credits: staticRoute(pageCredits),
     help:    staticRoute(pageHelp),

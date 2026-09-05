@@ -28,8 +28,9 @@ import {
   increment,
   serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-import { toast, waitForAuth, consumePostLoginRedirect } from "./utils.js";
+import { toast, waitForAuth, consumePostLoginRedirect, getUserProfile } from "./utils.js";
 import { navigate } from "./router.js";
+import { linkChildByCode } from "./parent-data.js";
 
 /* ==========================================================================
    Device detection — records which phones/browsers were used to log in/sign up
@@ -123,13 +124,21 @@ async function ensureUserDoc(user, extra = {}) {
   }
 }
 
+/* A parent account has no use for the course-browsing home page — it always
+   lands on its own dashboard instead. Every "where do we send them after
+   auth succeeds" spot below goes through this one helper. */
+function defaultLandingHref(profile) {
+  return profile?.role === "parent" ? "#/parent" : "#/home";
+}
+
 /* If someone is already logged in and lands on #/login or #/signup (typed the
    hash directly, used the browser back button, etc.), bounce them home
    instead of showing the form again. Returns true if it redirected. */
 async function redirectIfAlreadyAuthed() {
   const user = await waitForAuth();
   if (user) {
-    navigate(consumePostLoginRedirect() || "#/home");
+    const profile = await getUserProfile(user.uid).catch(() => null);
+    navigate(consumePostLoginRedirect() || defaultLandingHref(profile));
     return true;
   }
   return false;
@@ -261,8 +270,9 @@ function bindOAuthButtons() {
         await ensureUserDoc(cred.user);
         await recordDeviceLogin(cred.user);
         toast("Logged in successfully", "success");
+        const profile = await getUserProfile(cred.user.uid).catch(() => null);
         const redirectTo = consumePostLoginRedirect();
-        setTimeout(() => navigate(redirectTo || "#/home"), 500);
+        setTimeout(() => navigate(redirectTo || defaultLandingHref(profile)), 500);
       } catch (err) {
         // auth/popup-closed-by-user / auth/cancelled-popup-request are silent —
         // the user just closed the popup, no need for an error toast.
@@ -300,8 +310,9 @@ export async function initLoginPage() {
       await ensureUserDoc(cred.user);
       await recordDeviceLogin(cred.user);
       toast("Logged in successfully", "success");
+      const profile = await getUserProfile(cred.user.uid).catch(() => null);
       const redirectTo = consumePostLoginRedirect();
-      setTimeout(() => navigate(redirectTo || "#/home"), 500);
+      setTimeout(() => navigate(redirectTo || defaultLandingHref(profile)), 500);
     } catch (err) {
       errorEl.textContent = mapAuthError(err.code);
       btn.disabled = false;
@@ -317,6 +328,8 @@ export async function initLoginPage() {
 export async function initSignupPage() {
   if (await redirectIfAlreadyAuthed()) return;
 
+  bindSignupRoleToggle();
+
   const signupForm = document.getElementById("signup-form");
   signupForm?.addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -326,6 +339,8 @@ export async function initSignupPage() {
     const name = document.getElementById("signup-name").value.trim();
     const email = document.getElementById("signup-email").value.trim();
     const password = document.getElementById("signup-password").value;
+    const role = document.getElementById("signup-role")?.value === "parent" ? "parent" : "student";
+    const parentCode = document.getElementById("signup-parent-code")?.value.trim();
 
     if (password.length < 6) {
       errorEl.textContent = "Password must be at least 6 characters";
@@ -336,11 +351,21 @@ export async function initSignupPage() {
     try {
       const cred = await createUserWithEmailAndPassword(auth, email, password);
       await updateProfile(cred.user, { displayName: name });
-      await ensureUserDoc(cred.user, { displayName: name });
+      await ensureUserDoc(cred.user, { displayName: name, role });
       await recordDeviceLogin(cred.user);
+
+      // A parent who already has their child's code can link right away —
+      // if the code turns out to be wrong, the account still gets created;
+      // they can just try again from the Parent Dashboard's "Add Child".
+      if (role === "parent" && parentCode) {
+        await linkChildByCode(cred.user.uid, parentCode).catch((err) => {
+          toast(err.message || "Account created, but that link code didn't work — you can try again from your dashboard.", "error");
+        });
+      }
+
       toast('Account created! Welcome <i class="fa-solid fa-champagne-glasses"></i>', "success");
       const redirectTo = consumePostLoginRedirect();
-      setTimeout(() => navigate(redirectTo || "#/home"), 600);
+      setTimeout(() => navigate(redirectTo || defaultLandingHref({ role })), 600);
     } catch (err) {
       errorEl.textContent = mapAuthError(err.code);
       btn.disabled = false;
@@ -349,4 +374,22 @@ export async function initSignupPage() {
   });
 
   bindOAuthButtons();
+}
+
+/* Student/Parent account-type toggle on the signup form — purely a UI
+   concern (which fields show, what gets written to signup-role), no
+   Firestore involved here. */
+function bindSignupRoleToggle() {
+  const toggle = document.getElementById("signup-role-toggle");
+  const roleInput = document.getElementById("signup-role");
+  const codeWrap = document.getElementById("signup-parent-code-wrap");
+  toggle?.querySelectorAll(".account-type-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      toggle.querySelectorAll(".account-type-btn").forEach((b) => b.classList.remove("active"));
+      btn.classList.add("active");
+      const role = btn.dataset.role;
+      roleInput.value = role;
+      codeWrap?.classList.toggle("hidden", role !== "parent");
+    });
+  });
 }

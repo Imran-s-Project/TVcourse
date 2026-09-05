@@ -25,6 +25,7 @@ export function render() {
     <div class="tab-row">
       <button class="tab-btn active" data-tab="tab-purchases"><i class="fa-solid fa-receipt"></i> Purchase History</button>
       <button class="tab-btn" data-tab="tab-results"><i class="fa-solid fa-file-pen"></i> Exam Results</button>
+      <button class="tab-btn hidden" data-tab="tab-family" id="family-tab-btn"><i class="fa-solid fa-people-roof"></i> Family</button>
       <button class="tab-btn" data-tab="tab-settings"><i class="fa-solid fa-user-pen"></i> Settings</button>
       <button class="tab-btn" data-tab="tab-security"><i class="fa-solid fa-shield-halved"></i> Security</button>
     </div>
@@ -35,6 +36,24 @@ export function render() {
 
     <div id="tab-results" class="tab-panel hidden">
       <div id="results-list"></div>
+    </div>
+
+    <div id="tab-family" class="tab-panel hidden">
+      <div class="card family-code-card">
+        <h3 class="panel-title"><i class="fa-solid fa-key"></i> Family Link Code</h3>
+        <p class="muted panel-desc">Share this code with a parent or guardian so they can view your course progress and exam results — read only — from their own Parent Dashboard. এই কোডটি শুধু আপনার অভিভাবকের সাথে শেয়ার করুন।</p>
+        <div class="family-code-box">
+          <span id="family-code-display">••••••••••</span>
+          <button type="button" class="btn btn-outline btn-sm" id="family-code-copy-btn"><i class="fa-regular fa-copy"></i> Copy</button>
+          <button type="button" class="btn btn-outline btn-sm" id="family-code-regen-btn"><i class="fa-solid fa-rotate"></i> Regenerate</button>
+        </div>
+        <p class="muted family-code-hint">Regenerating issues a new code — anyone who hasn't linked yet will need the new one, but guardians already linked stay linked.</p>
+      </div>
+
+      <div class="card family-linked-card">
+        <h3 class="panel-title"><i class="fa-solid fa-user-shield"></i> Linked Guardians</h3>
+        <div id="family-linked-list"></div>
+      </div>
     </div>
 
     <div id="tab-settings" class="tab-panel hidden">

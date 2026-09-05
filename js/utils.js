@@ -267,6 +267,7 @@ export async function requireAdmin() {
    still safely re-renders on every call. */
 let navBound = false;
 let navIsAdmin = false;
+let navIsParent = false;
 let navUserInfo = null;
 let navIsLoggedIn = false;
 
@@ -298,11 +299,21 @@ export function initNav(activePage = "") {
   // Learning Hub is likewise a hash route inside index.html (see js/hub.js +
   // the #page-hub shell) — badges, discussion and flashcards live there.
   const hubHref = onIndexPage ? "#/hub" : "index.html#/hub";
+  // Parent Dashboard is likewise a hash route inside index.html (see
+  // js/page-parent.js + js/app.js) — only ever shown to accounts with
+  // users/{uid}.role === "parent".
+  const parentHref = onIndexPage ? "#/parent" : "index.html#/parent";
   const baseLinks = [
     { href: homeHref, label: '<i class="fa-solid fa-house"></i> Home', key: "home" },
     { href: myCoursesHref, label: '<i class="fa-solid fa-book-open"></i> My Courses', key: "mycourses" },
     { href: examHref, label: '<i class="fa-solid fa-file-pen"></i> Exam', key: "exam" },
     { href: hubHref, label: `<i class="fa-solid fa-layer-group"></i> Hub ${newPillHtml("hub_nav")}`, key: "hub" },
+    { href: profileHref, label: '<i class="fa-solid fa-user"></i> Profile', key: "profile" },
+  ];
+  // A parent account doesn't browse/buy courses, take exams, or use the Hub —
+  // its entire nav is just its own dashboard plus account settings.
+  const parentLinks = [
+    { href: parentHref, label: '<i class="fa-solid fa-people-roof"></i> Dashboard', key: "parent" },
     { href: profileHref, label: '<i class="fa-solid fa-user"></i> Profile', key: "profile" },
   ];
   const navLinksDesktop = document.getElementById("nav-links");
@@ -327,7 +338,7 @@ export function initNav(activePage = "") {
 
   let isLoggedIn = navIsLoggedIn;
 
-  function linksFor(isAdmin) {
+  function linksFor(isAdmin, isParent) {
     // On the admin console itself, the normal site nav (Home/Exam/Profile) is just
     // clutter — swap it for a single clear "Back to Website" action plus a static
     // "Admin Panel" badge instead of a self-referential Admin link.
@@ -336,6 +347,7 @@ export function initNav(activePage = "") {
       if (isAdmin) links.push({ href: "admin.html", label: '<i class="fa-solid fa-gear"></i> Admin Panel', key: "admin" });
       return links;
     }
+    if (isParent) return parentLinks;
     return isAdmin ? [...baseLinks, { href: "admin.html", label: '<i class="fa-solid fa-gear"></i> Admin', key: "admin" }] : baseLinks;
   }
 
@@ -362,7 +374,7 @@ export function initNav(activePage = "") {
   }
 
   function render(isAdmin, userInfo) {
-    const links = linksFor(isAdmin);
+    const links = linksFor(isAdmin, navIsParent);
     const linkHtml = links
       .map((l) => `<a href="${l.href}" class="${l.key === activePage ? "active" : ""} ${l.key === "admin" ? "nav-link-admin" : ""}">${l.label}</a>`)
       .join("");
@@ -457,11 +469,13 @@ export function initNav(activePage = "") {
       // the Hub itself, without utils.js <-> badges.js forming a cycle.
       import("./badges.js").then(({ updateDailyStreak }) => updateDailyStreak(user.uid)).catch(() => {});
       const isAdmin = !!profile?.isAdmin;
+      const isParent = profile?.role === "parent";
       const name = profile?.displayName || user.email?.split("@")[0] || "User";
       const email = user.email || "";
       const photo = profile?.photoURL || "";
       const avatarHtml = photo ? `<img src="${photo}" alt="${escapeHtml(name)}">` : initials(name);
       navIsAdmin = isAdmin;
+      navIsParent = isParent;
       navUserInfo = { name, email, avatarHtml };
       render(isAdmin, navUserInfo);
 
@@ -511,6 +525,7 @@ export function initNav(activePage = "") {
       isLoggedIn = false;
       navIsLoggedIn = false;
       navIsAdmin = false;
+      navIsParent = false;
       navUserInfo = null;
       import("./notifications.js").then(({ unmountNotificationBell }) => unmountNotificationBell()).catch(() => {});
       render(false);
