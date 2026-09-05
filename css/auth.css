@@ -68,3 +68,15 @@
 /* Icon sizing */
 .btn-social i { font-size: 1rem; }
 .btn-google svg { flex-shrink: 0; }
+
+/* ---------- Signup: Student / Parent account-type toggle ---------- */
+.account-type-toggle { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.account-type-btn {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 11px 10px; border-radius: var(--radius-md);
+  border: 1.5px solid var(--border-strong); background: var(--bg-elevated);
+  color: var(--text-muted); font-weight: 700; font-size: 0.88rem;
+  transition: border-color .15s ease, color .15s ease, background .15s ease;
+}
+.account-type-btn:hover { border-color: var(--accent-amber); }
+.account-type-btn.active { border-color: var(--accent-amber); background: rgba(124,92,252,0.12); color: var(--text-primary); }

@@ -1,0 +1,145 @@
+/* ==========================================================================
+   Parent Dashboard — "#/parent". Read-only view for a linked parent/guardian
+   account: which children are linked, their course progress, and their exam
+   results. Deliberately flat/strong, same language as css/mycourses.css —
+   solid borders, solid fills, no blurred glow, no pulsing halo shadows, no
+   gradient-as-decoration. Motion is limited to a subtle entrance reveal.
+   ========================================================================== */
+
+/* ---------- Header ---------- */
+.pd-header { margin: 32px 0 22px; }
+.pd-header h1 { display: flex; align-items: center; gap: 10px; font-size: 1.7rem; }
+.pd-header h1 i { color: var(--accent-amber-soft); }
+.pd-header p { margin-top: 4px; }
+
+/* ---------- Empty state (no linked children yet) ---------- */
+.pd-empty {
+  background: var(--bg-elevated);
+  border: 1.5px dashed var(--border-strong);
+  border-radius: var(--radius-lg);
+  padding: 64px 24px;
+  text-align: center;
+  margin-bottom: 40px;
+}
+.pd-empty .icon {
+  width: 64px; height: 64px; margin: 0 auto 18px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 999px; background: rgba(124,92,252,0.14);
+  color: var(--accent-amber-soft); font-size: 1.6rem;
+}
+.pd-empty h3 { font-size: 1.15rem; margin-bottom: 8px; }
+.pd-empty p { color: var(--text-muted); max-width: 420px; margin: 0 auto 22px; }
+
+/* ---------- Child switcher (only shown with 2+ linked children) ---------- */
+.pd-switcher {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  margin-bottom: 22px;
+}
+.pd-chip {
+  display: inline-flex; align-items: center; gap: 9px;
+  padding: 7px 16px 7px 7px;
+  background: var(--bg-elevated);
+  border: 1.5px solid var(--border-strong);
+  border-radius: 999px;
+  font-weight: 700; font-size: 0.88rem; color: var(--text-muted);
+  transition: border-color .15s ease, color .15s ease;
+}
+.pd-chip:hover { border-color: var(--accent-amber); color: var(--text-primary); }
+.pd-chip.active { border-color: var(--accent-amber); background: rgba(124,92,252,0.12); color: var(--text-primary); }
+.pd-chip-avatar {
+  width: 26px; height: 26px; border-radius: 999px; overflow: hidden; flex-shrink: 0;
+  background: var(--accent-amber); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.76rem; font-weight: 800;
+}
+.pd-chip-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.pd-add-chip {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 7px 16px; border-radius: 999px;
+  border: 1.5px dashed var(--border-strong); color: var(--text-muted);
+  font-weight: 700; font-size: 0.86rem;
+}
+.pd-add-chip:hover { border-color: var(--accent-amber); color: var(--accent-amber-soft); }
+
+/* ---------- Selected child: header card ---------- */
+.pd-child-head {
+  display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
+  padding: 22px 24px; margin-bottom: 20px;
+}
+.pd-child-avatar {
+  width: 62px; height: 62px; border-radius: 999px; overflow: hidden; flex-shrink: 0;
+  background: var(--accent-amber); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.4rem; font-weight: 800;
+}
+.pd-child-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.pd-child-info { flex: 1; min-width: 180px; }
+.pd-child-info h2 { font-size: 1.2rem; margin-bottom: 3px; }
+.pd-child-meta { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 0.82rem; color: var(--text-muted); }
+.pd-child-meta span { display: inline-flex; align-items: center; gap: 6px; }
+
+/* ---------- Stats strip (reuses .stat-card / .card tokens from profile.css) ---------- */
+.pd-stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 26px; }
+@media (max-width: 900px) { .pd-stats { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 560px) { .pd-stats { grid-template-columns: repeat(2, 1fr); } }
+
+/* ---------- Section headings ---------- */
+.pd-section-title {
+  display: flex; align-items: center; gap: 9px;
+  font-size: 1.02rem; font-weight: 700; margin: 30px 0 14px;
+}
+.pd-section-title i { color: var(--accent-amber-soft); }
+
+/* ---------- Course progress grid ---------- */
+.pd-course-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 16px; }
+.pd-course-card {
+  background: var(--bg-elevated);
+  border: 1.5px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+.pd-course-cover {
+  aspect-ratio: 16/9; position: relative;
+  background-size: cover; background-position: center; background-color: var(--bg-elevated-2);
+  border-bottom: 1.5px solid var(--border-strong);
+}
+.pd-course-status {
+  position: absolute; top: 10px; left: 10px;
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 0.7rem; font-weight: 800; letter-spacing: 0.02em;
+  padding: 5px 11px; border-radius: 999px; color: #fff;
+}
+.pd-course-status.in-progress { background: var(--accent-amber); }
+.pd-course-status.completed { background: var(--accent-teal); }
+.pd-course-status.not-started { background: var(--text-on-surface-muted); }
+.pd-course-body { padding: 14px 16px 16px; }
+.pd-course-body h4 { font-size: 0.96rem; line-height: 1.35; margin-bottom: 10px; }
+.pd-course-progress-row { display: flex; align-items: center; gap: 10px; }
+.pd-course-progress-track { flex: 1; height: 7px; background: var(--bg-elevated-2); border-radius: 999px; overflow: hidden; }
+.pd-course-progress-track .progress-fill { background: var(--accent-teal); height: 100%; border-radius: 999px; }
+.pd-course-pct { font-size: 0.8rem; font-weight: 800; color: var(--text-muted); min-width: 32px; text-align: right; }
+
+/* ---------- Exam results list (reuses .result-row / .card tokens) ---------- */
+.pd-result-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 15px 18px; margin-bottom: 10px; flex-wrap: wrap; }
+.pd-result-row h4 { font-size: 0.96rem; margin-bottom: 4px; }
+.pd-result-meta { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 0.8rem; color: var(--text-muted); }
+.pd-result-score-wrap { display: flex; align-items: center; gap: 12px; }
+.pd-result-score { font-family: var(--font-display); font-weight: 700; font-size: 1.1rem; }
+.pd-percent-pill {
+  display: inline-flex; align-items: center; font-size: 0.78rem; font-weight: 800;
+  padding: 4px 11px; border-radius: 999px; color: #fff;
+}
+.pd-percent-high { background: var(--accent-green); }
+.pd-percent-mid { background: var(--accent-amber); }
+.pd-percent-low { background: var(--accent-coral); }
+
+/* ---------- Unlink button on the child header card ---------- */
+.pd-unlink-btn { flex-shrink: 0; }
+
+/* ---------- "Add another child" trigger + modal body ---------- */
+.pd-link-form .field input { text-transform: uppercase; letter-spacing: 3px; font-weight: 700; text-align: center; }
+.pd-link-hint { font-size: 0.82rem; color: var(--text-muted); margin-top: -4px; margin-bottom: 16px; }
+
+@media (max-width: 560px) {
+  .pd-child-head { padding: 18px; }
+}

@@ -72,3 +72,20 @@
 .linked-account-info .note-tag { font-weight: 400; font-size: 0.72rem; color: var(--text-muted); }
 .linked-status { font-size: 0.75rem; }
 .linked-status.is-connected { color: var(--accent-teal, #2fb894); }
+
+/* ---------- Family ট্যাব: প্যারেন্ট-লিংক কোড ---------- */
+.family-code-card { margin-bottom: 22px; }
+.family-code-box {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 14px 16px; border: 1.5px solid var(--border-strong); border-radius: var(--radius-md);
+  background: var(--bg-elevated-2);
+}
+.family-code-box #family-code-display {
+  font-family: var(--font-display); font-weight: 700; font-size: 1.15rem;
+  letter-spacing: 3px; flex: 1; min-width: 140px;
+}
+.family-code-hint { font-size: 0.78rem; margin-top: 10px; margin-bottom: 0; }
+.family-linked-card #family-linked-list { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
+.family-guardian-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; }
+.family-guardian-row .info { display: flex; align-items: center; gap: 10px; font-size: 0.85rem; }
+.family-guardian-row .info i { color: var(--accent-amber-soft); }
