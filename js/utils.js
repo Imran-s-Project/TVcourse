@@ -255,6 +255,26 @@ export async function requireAdmin() {
   return { user, profile };
 }
 
+/* ---------- Guardian guard ----------
+   A Guardian (role === "parent") account exists purely to view its linked
+   children's dashboard — it can never browse/buy courses, take exams, post
+   in the Hub, or view "My Courses". Every route that does one of those
+   things calls this first; if it returns true the route handler must
+   return immediately (this function has already redirected to #/parent).
+   Signed-out visitors are left alone here — requireAuth()/requireStudentAccess-style
+   checks further down each route still handle that case as before. */
+export async function blockGuardianAccess() {
+  const user = await waitForAuth();
+  if (!user) return false;
+  const profile = await getUserProfile(user.uid).catch(() => null);
+  if (profile?.role === "parent") {
+    toast("Guardian accounts can only view their linked children's dashboard", "info");
+    window.location.hash = "#/parent";
+    return true;
+  }
+  return false;
+}
+
 /* ---------- Render navbar + bind auth state ----------
    initNav() runs on every page's own boot (once) AND, inside the index.html
    SPA, once more for every course visited (course.js calls initNav("home")

@@ -28,6 +28,7 @@ import {
   serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 import { getUserProfile } from "./utils.js";
+import { loadHubStats, BADGE_DEFS } from "./badges.js";
 
 /* ---------- Random, unguessable link code ----------
    10 characters from a 32-symbol alphabet (no 0/O/1/I — easy to misread and
@@ -157,6 +158,19 @@ async function loadChildResults(childUid) {
     .sort((a, b) => (b.submittedAt?.seconds || 0) - (a.submittedAt?.seconds || 0));
 }
 
+/* ---------- Learning activity + achievements for one linked child ----------
+   Reuses js/badges.js's loadHubStats() — the exact same stats engine the
+   child's own Learning Hub uses — so a Guardian never sees a streak, badge,
+   or activity count that could disagree with what the student sees on
+   their own Achievements tab. Only the badges actually EARNED are returned
+   (each resolved to its full title/icon/desc/color from BADGE_DEFS) — a
+   Guardian sees accomplishments, not a spoiler list of what's still locked. */
+async function loadChildActivity(childUid, profile) {
+  const stats = await loadHubStats(childUid, profile);
+  const earnedBadges = BADGE_DEFS.filter((b) => stats.earnedBadgeIds.includes(b.id));
+  return { stats, earnedBadges };
+}
+
 /* ---------- Full dashboard payload for one linked child ----------
    Returns null if the profile can no longer be read (access was revoked
    from the child's side since the parent last linked) — the caller uses
@@ -164,11 +178,12 @@ async function loadChildResults(childUid) {
 export async function fetchChildDashboard(childUid) {
   const profile = await getUserProfile(childUid).catch(() => null);
   if (!profile) return null;
-  const [courses, results] = await Promise.all([
+  const [courses, results, activity] = await Promise.all([
     loadChildCourses(profile),
     loadChildResults(childUid),
+    loadChildActivity(childUid, profile).catch(() => ({ stats: null, earnedBadges: [] })),
   ]);
-  return { profile, courses, results };
+  return { profile, courses, results, activity };
 }
 
 /* ---------- All linked children for a parent, each with its dashboard payload ----------

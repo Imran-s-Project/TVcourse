@@ -13,11 +13,19 @@ export function render() {
     <div class="auth-card card">
       <div class="auth-head">
         <img src="assets/logo.png" alt="TVcourse" style="height:52px;width:auto;">
-        <h1>Welcome Back</h1>
-        <p>Pick up right where you left off</p>
+        <h1 id="login-heading">Welcome Back</h1>
+        <p id="login-subheading">Pick up right where you left off</p>
       </div>
 
       <form id="login-form" novalidate>
+        <div class="field">
+          <label>Login As</label>
+          <div class="account-type-toggle" id="login-role-toggle">
+            <button type="button" class="account-type-btn active" data-role="student"><i class="fa-solid fa-user-graduate"></i> Student</button>
+            <button type="button" class="account-type-btn" data-role="parent"><i class="fa-solid fa-people-roof"></i> Guardian</button>
+          </div>
+          <p class="account-type-hint hidden" id="login-role-hint"></p>
+        </div>
         <div class="field">
           <label for="login-email">Email</label>
           <input type="email" id="login-email" placeholder="you@example.com" required autocomplete="email">

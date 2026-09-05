@@ -22,7 +22,7 @@ export function render() {
           <label>Account Type</label>
           <div class="account-type-toggle" id="signup-role-toggle">
             <button type="button" class="account-type-btn active" data-role="student"><i class="fa-solid fa-user-graduate"></i> Student</button>
-            <button type="button" class="account-type-btn" data-role="parent"><i class="fa-solid fa-people-roof"></i> Parent / Guardian</button>
+            <button type="button" class="account-type-btn" data-role="parent"><i class="fa-solid fa-people-roof"></i> Guardian</button>
           </div>
           <input type="hidden" id="signup-role" value="student">
         </div>

@@ -58,9 +58,22 @@ async function init() {
   bindLinkedAccounts();
   bindDeleteAccount();
   initFamilyTab();
+  hideStudentOnlyTabsForGuardian();
   if (profile?.isAdmin) {
     document.getElementById("admin-shortcut-btn")?.classList.remove("hidden");
   }
+}
+
+/* ---------- Guardian accounts have no purchases/exam results of their own ----------
+   Those two tabs stay populated with the student's own (empty) data purely
+   because loadPurchases()/loadResults() above always run — hide the tabs
+   here instead of touching those loaders, and land a Guardian on Settings
+   by default since Purchase History is normally the first/active tab. ---------- */
+function hideStudentOnlyTabsForGuardian() {
+  if (profile?.role !== "parent") return;
+  document.querySelector('.tab-btn[data-tab="tab-purchases"]')?.classList.add("hidden");
+  document.querySelector('.tab-btn[data-tab="tab-results"]')?.classList.add("hidden");
+  activateTab("settings");
 }
 
 function renderHeader() {

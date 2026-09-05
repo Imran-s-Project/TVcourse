@@ -23,7 +23,7 @@ import { initProfilePage, activateTab } from "./profile.js";
 import * as pageHub from "./hub.js";
 import * as pageMyCourses from "./page-mycourses.js";
 import * as pageParent from "./page-parent.js";
-import { initNav, waitForAuth, getUserProfile } from "./utils.js";
+import { initNav, waitForAuth, getUserProfile, blockGuardianAccess } from "./utils.js";
 import * as pageAbout from "./page-about.js";
 import * as pageCredits from "./page-credits.js";
 import * as pageHelp from "./page-help.js";
@@ -169,6 +169,10 @@ async function homeRoute(_params) {
 let courseCleanup = null;  // function returned by initCoursePage to teardown listeners
 
 async function courseRoute(params) {
+  // Guardian accounts can only view their linked children's dashboard —
+  // never a course itself, even by typing/opening a direct course link.
+  if (await blockGuardianAccess()) return;
+
   const id = params.get("id");
   if (!id) {
     window.location.hash = "#/home";
@@ -188,6 +192,10 @@ async function courseRoute(params) {
 let examCleanup = null; // function returned by initExamPage to teardown listeners (exam timer)
 
 async function examRoute(params) {
+  // Same reasoning as courseRoute above — a Guardian account never sits an
+  // exam itself, even via a direct #/exam?id=xxx link.
+  if (await blockGuardianAccess()) return;
+
   showExam();
 
   // Tear down any previous exam session (running countdown timer, etc.)
@@ -252,6 +260,10 @@ async function profileRoute(params) {
 let hubBooted = false;
 
 async function hubRoute(_params) {
+  // Guardian accounts don't get badges, flashcards, or Hub discussion —
+  // that's student-only, same reasoning as courseRoute/examRoute above.
+  if (await blockGuardianAccess()) return;
+
   showHub();
   document.title = pageHub.title;
   initNav("hub");
@@ -267,6 +279,10 @@ async function hubRoute(_params) {
 let myCoursesBooted = false;
 
 async function myCoursesRoute(_params) {
+  // "My Courses" is the student's own enrollment list — a Guardian account
+  // has none of its own; send it to its actual dashboard instead.
+  if (await blockGuardianAccess()) return;
+
   showMyCourses();
   document.title = pageMyCourses.title;
   initNav("mycourses");

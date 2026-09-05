@@ -1,9 +1,10 @@
 // ==========================================================================
 // page-parent.js — "Parent Dashboard" SPA route (#/parent).
 // Read-only view for a linked parent/guardian account: switch between
-// linked children, see their course progress and exam results. Mirrors
-// js/page-mycourses.js's single-file render()+init pattern (markup +
-// behavior together, one mount point, data re-fetched on every visit).
+// linked children, see their course progress, exam results, and learning
+// activity/achievements. Mirrors js/page-mycourses.js's single-file
+// render()+init pattern (markup + behavior together, one mount point,
+// data re-fetched on every visit).
 //
 // Smart-engineering notes:
 //  - One delegated click listener on the (never-replaced) #pd-content
@@ -13,17 +14,19 @@
 //  - fetchAllChildren() (js/parent-data.js) quietly drops any child whose
 //    access was revoked from their side, so a stale link never renders a
 //    broken card.
-//  - Course progress % uses the exact same calculation as "My Courses" so
-//    the numbers a parent sees always match what the child sees.
+//  - Course progress % uses the exact same calculation as "My Courses", and
+//    the streak/badges in "Learning Activity" reuse js/badges.js's own
+//    stats engine — so every number a parent sees always matches exactly
+//    what the child sees on their own dashboard/Hub.
 // ==========================================================================
-import { requireAuth, getUserProfile, toast, escapeHtml, formatDate, formatScore, openModal, closeModal, confirmAction } from "./utils.js";
+import { requireAuth, getUserProfile, toast, escapeHtml, formatDate, timeAgo, formatScore, openModal, closeModal, confirmAction } from "./utils.js";
 import { fetchAllChildren, linkChildByCode, unlinkChild } from "./parent-data.js";
 
 export const title = "Parent Dashboard — Tech Verse Course";
 
 // ── State ──────────────────────────────────────────────────────────────────
 let currentUser = null;
-let children = [];      // [{ profile, courses, results }, ...]
+let children = [];      // [{ profile, courses, results, activity }, ...]
 let selectedUid = null;
 let bootedOnce = false;
 
@@ -33,7 +36,7 @@ export function render() {
   <main class="container">
     <div class="pd-header">
       <h1><i class="fa-solid fa-people-roof"></i> Parent Dashboard</h1>
-      <p class="muted">Track your child's course progress and exam results — read-only, all in one place.</p>
+      <p class="muted">Track your child's course progress, exam results, and learning activity — read-only, all in one place.</p>
     </div>
     <div id="pd-content"></div>
   </main>`;
@@ -114,6 +117,7 @@ function renderSwitcher() {
 function renderChildDetail(child) {
   const p = child.profile;
   const joined = p.createdAt ? formatDate(p.createdAt) : "";
+  const active = p.lastActive ? timeAgo(p.lastActive) : "";
   return `
     <div class="pd-child-head card">
       ${chipAvatar(p, "lg")}
@@ -122,6 +126,7 @@ function renderChildDetail(child) {
         <div class="pd-child-meta">
           ${p.email ? `<span><i class="fa-regular fa-envelope"></i> ${escapeHtml(p.email)}</span>` : ""}
           ${joined ? `<span><i class="fa-regular fa-calendar"></i> Joined ${joined}</span>` : ""}
+          ${active ? `<span class="pd-active-dot"><i class="fa-solid fa-circle"></i> Active ${active}</span>` : ""}
         </div>
       </div>
       <button type="button" class="btn btn-outline btn-sm pd-unlink-btn" data-pd-action="unlink" data-uid="${p.id}">
@@ -136,7 +141,64 @@ function renderChildDetail(child) {
 
     <div class="pd-section-title"><i class="fa-solid fa-file-pen"></i> Exam Results</div>
     <div>${renderResults(child.results)}</div>
+
+    <div class="pd-section-title"><i class="fa-solid fa-chart-simple"></i> Learning Activity</div>
+    ${renderActivity(child.activity?.stats)}
+
+    <div class="pd-section-title"><i class="fa-solid fa-trophy"></i> Achievements</div>
+    ${renderAchievements(child.activity?.earnedBadges)}
   `;
+}
+
+/* ---------- Learning Activity: streak + community/study activity counters ----------
+   Reuses the exact same .hub-streak-banner markup/classes the child sees on
+   their own Learning Hub (js/badges.js's renderBadgesTab) — same numbers,
+   same look, so nothing here can ever read as a "different" or unofficial
+   figure to a Guardian comparing notes with their child. */
+function renderActivity(stats) {
+  if (!stats) {
+    return `<div class="empty-state"><div class="icon"><i class="fa-solid fa-chart-simple"></i></div><p>Activity data isn't available right now</p></div>`;
+  }
+  const cards = [
+    { icon: "fa-book-open-reader", val: stats.completedLessonCount, label: "Lessons Completed" },
+    { icon: "fa-comments", val: stats.discussionPostCount, label: "Discussion Posts" },
+    { icon: "fa-brain", val: stats.flashcardReviewCount, label: "Flashcards Reviewed" },
+  ];
+  return `
+    <div class="hub-streak-banner">
+      <div class="hub-streak-flame"><i class="fa-solid fa-fire"></i></div>
+      <div>
+        <div class="hub-streak-count">${stats.streakCount}-day learning streak</div>
+        <div class="hub-streak-sub">Consecutive days with course, exam, or study activity.</div>
+      </div>
+    </div>
+    <div class="pd-activity-grid">${cards
+      .map(
+        (s) => `
+      <div class="stat-card card">
+        <i class="fa-solid ${s.icon}"></i>
+        <div><b>${s.val}</b><span>${s.label}</span></div>
+      </div>`
+      )
+      .join("")}</div>`;
+}
+
+/* ---------- Achievements: only badges actually earned (no locked spoilers) ---------- */
+function renderAchievements(earnedBadges) {
+  if (!earnedBadges || !earnedBadges.length) {
+    return `<div class="empty-state"><div class="icon"><i class="fa-solid fa-trophy"></i></div><p>No badges earned yet</p></div>`;
+  }
+  return `<div class="badge-grid">${earnedBadges
+    .map(
+      (b) => `
+    <div class="badge-card earned badge-${b.color}">
+      <div class="badge-card-icon"><i class="fa-solid ${b.icon}"></i></div>
+      <div class="badge-card-title">${escapeHtml(b.title)}</div>
+      <div class="badge-card-desc">${escapeHtml(b.desc)}</div>
+      <span class="badge-card-status"><i class="fa-solid fa-check"></i> Earned</span>
+    </div>`
+    )
+    .join("")}</div>`;
 }
 
 function renderStats(child) {

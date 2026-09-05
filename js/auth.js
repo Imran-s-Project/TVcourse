@@ -14,11 +14,13 @@ import {
   signInWithEmailAndPassword,
   sendPasswordResetEmail,
   updateProfile,
+  signOut,
   GoogleAuthProvider,
   FacebookAuthProvider,
   GithubAuthProvider,
   OAuthProvider,
   signInWithPopup,
+  getAdditionalUserInfo,
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import {
   doc,
@@ -49,6 +51,37 @@ function getDeviceId() {
     return id;
   } catch {
     return "dev_unknown";
+  }
+}
+
+/* ==========================================================================
+   Remembered account type — powers the "auto-recommend" Student/Guardian
+   tab on #/login. Every time a login *succeeds* (password or OAuth, and
+   only after the strict role check below has passed) we stamp which type
+   of account it actually was onto localStorage. The next time this same
+   browser opens #/login, bindLoginRoleToggle() reads it back and
+   pre-selects that tab instead of always defaulting to "Student" — a
+   Guardian who only ever uses the Guardian tab never has to click it again.
+   Purely a convenience default; it never bypasses the real check below,
+   it only decides which tab is highlighted before the person even types.
+   ========================================================================== */
+const LAST_ROLE_KEY = "tv_last_role";
+
+function getLastRole() {
+  try {
+    const v = localStorage.getItem(LAST_ROLE_KEY);
+    return v === "parent" ? "parent" : v === "student" ? "student" : null;
+  } catch {
+    return null;
+  }
+}
+
+function setLastRole(role) {
+  try {
+    localStorage.setItem(LAST_ROLE_KEY, role === "parent" ? "parent" : "student");
+  } catch {
+    // Storage unavailable (private browsing, etc.) — the toggle just falls
+    // back to its default "Student" state next time, nothing else breaks.
   }
 }
 
@@ -140,6 +173,35 @@ async function redirectIfAlreadyAuthed() {
     const profile = await getUserProfile(user.uid).catch(() => null);
     navigate(consumePostLoginRedirect() || defaultLandingHref(profile));
     return true;
+  }
+  return false;
+}
+
+/* ==========================================================================
+   Strict Student/Guardian separation — the tab picked on #/login is no
+   longer just a friendly label. If the account's real, permanent role
+   (set once at signup and never changed by this toggle) doesn't match the
+   tab someone tried to log in through, the sign-in is REJECTED outright:
+   we immediately sign the freshly-authenticated Firebase user back out
+   (both the password flow and every OAuth popup already fully authenticate
+   before this check runs, so undoing it is mandatory — otherwise a
+   mismatched session would sit there even though the UI shows an error)
+   and surface a clear, specific message telling them which tab to use.
+   Returns true if the login should proceed, false if it was blocked
+   (and already signed out + the error message already shown). ---------- */
+async function enforceStrictRoleOrReject(profile, selectedRole, errorEl) {
+  const actualRole = profile?.role === "parent" ? "parent" : "student";
+  if (actualRole === selectedRole) return true;
+
+  await signOut(auth).catch(() => {});
+  const message =
+    actualRole === "parent"
+      ? "This is a Guardian account. It can't log in from the Student tab — switch to \"Guardian\" above and try again."
+      : "This is a Student account. It can't log in from the Guardian tab — switch to \"Student\" above and try again.";
+  if (errorEl) {
+    errorEl.textContent = message;
+  } else {
+    toast(message, "error");
   }
   return false;
 }
@@ -265,12 +327,35 @@ function bindOAuthButtons() {
     btn.addEventListener("click", async () => {
       const originalHtml = btn.innerHTML;
       btn.disabled = true;
+      // Whichever tab is on-screen right now — #/login's or #/signup's —
+      // whichever exists is the one that applies; the other is always null.
+      const roleToggleInput = document.getElementById("login-role") || document.getElementById("signup-role");
+      const errorEl = document.getElementById("login-error") || document.getElementById("signup-error");
+      const selectedRole = roleToggleInput?.value === "parent" ? "parent" : "student";
       try {
         const cred = await signInWithPopup(auth, make());
-        await ensureUserDoc(cred.user);
+        const isNewAccount = !!getAdditionalUserInfo(cred)?.isNewUser;
+        // Brand-new account via OAuth: there's nothing to mismatch yet, so
+        // it's created AS the tab that was selected (exactly like a normal
+        // signup would) instead of silently defaulting to Student.
+        await ensureUserDoc(cred.user, isNewAccount ? { role: selectedRole } : {});
         await recordDeviceLogin(cred.user);
-        toast("Logged in successfully", "success");
         const profile = await getUserProfile(cred.user.uid).catch(() => null);
+
+        // Existing account logging back in through the wrong tab — reject
+        // it outright and sign back out, same as the password form below.
+        if (roleToggleInput && !isNewAccount) {
+          const ok = await enforceStrictRoleOrReject(profile, selectedRole, errorEl);
+          if (!ok) {
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+            return;
+          }
+        }
+
+        const actualRole = profile?.role === "parent" ? "parent" : "student";
+        if (roleToggleInput) setLastRole(actualRole);
+        toast(isNewAccount ? 'Account created! Welcome <i class="fa-solid fa-champagne-glasses"></i>' : "Logged in successfully", "success");
         const redirectTo = consumePostLoginRedirect();
         setTimeout(() => navigate(redirectTo || defaultLandingHref(profile)), 500);
       } catch (err) {
@@ -295,6 +380,8 @@ function bindOAuthButtons() {
 export async function initLoginPage() {
   if (await redirectIfAlreadyAuthed()) return;
 
+  bindLoginRoleToggle();
+
   const loginForm = document.getElementById("login-form");
   loginForm?.addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -303,14 +390,28 @@ export async function initLoginPage() {
     errorEl.textContent = "";
     const email = document.getElementById("login-email").value.trim();
     const password = document.getElementById("login-password").value;
+    const selectedRole = document.getElementById("login-role")?.value === "parent" ? "parent" : "student";
     btn.disabled = true;
     btn.innerHTML = `<span class="spinner"></span>`;
     try {
       const cred = await signInWithEmailAndPassword(auth, email, password);
       await ensureUserDoc(cred.user);
       await recordDeviceLogin(cred.user);
-      toast("Logged in successfully", "success");
       const profile = await getUserProfile(cred.user.uid).catch(() => null);
+      // Strict separation: the tab picked here MUST match the account's
+      // real, permanent role (set once at signup — this toggle never
+      // changes it). A mismatch is rejected outright and the freshly
+      // authenticated session is signed straight back out — a Guardian
+      // account can never end up inside the Student experience, and a
+      // Student account can never end up inside the Guardian Dashboard.
+      const ok = await enforceStrictRoleOrReject(profile, selectedRole, errorEl);
+      if (!ok) {
+        btn.disabled = false;
+        btn.textContent = "Log In";
+        return;
+      }
+      setLastRole(selectedRole);
+      toast("Logged in successfully", "success");
       const redirectTo = consumePostLoginRedirect();
       setTimeout(() => navigate(redirectTo || defaultLandingHref(profile)), 500);
     } catch (err) {
@@ -321,6 +422,58 @@ export async function initLoginPage() {
   });
 
   bindOAuthButtons();
+}
+
+/* Student/Guardian toggle on the login form — which heading/subtext shows,
+   what gets written to login-role, AND (unlike the plain cosmetic toggle
+   on signup) which tab is pre-selected when the page first loads. The
+   actual login still runs through one email+password form; the account's
+   real role (strictly enforced after auth succeeds, above) is what decides
+   whether it's allowed through — this toggle only decides which tab is
+   highlighted by default and which experience the copy above the form
+   describes. */
+function bindLoginRoleToggle() {
+  const toggle = document.getElementById("login-role-toggle");
+  const heading = document.getElementById("login-heading");
+  const subheading = document.getElementById("login-subheading");
+  const hint = document.getElementById("login-role-hint");
+  // No hidden input exists yet the first time this runs — create one so
+  // the submit handler above has somewhere to read the selection from.
+  let roleInput = document.getElementById("login-role");
+  if (!roleInput) {
+    roleInput = document.createElement("input");
+    roleInput.type = "hidden";
+    roleInput.id = "login-role";
+    roleInput.value = "student";
+    toggle?.appendChild(roleInput);
+  }
+  const copy = {
+    student: { heading: "Welcome Back", sub: "Pick up right where you left off" },
+    parent: { heading: "Guardian Login", sub: "Log in to view your child's progress" },
+  };
+
+  function selectRole(role, { recommended = false } = {}) {
+    toggle?.querySelectorAll(".account-type-btn").forEach((b) => b.classList.toggle("active", b.dataset.role === role));
+    roleInput.value = role;
+    if (heading) heading.textContent = copy[role].heading;
+    if (subheading) subheading.textContent = copy[role].sub;
+    if (hint) {
+      hint.textContent = recommended
+        ? `Recommended — you last logged in as ${role === "parent" ? "Guardian" : "Student"} on this device`
+        : "";
+      hint.classList.toggle("hidden", !recommended);
+    }
+  }
+
+  // Auto-recommend: pre-select whichever tab this browser last logged in
+  // as successfully, instead of always defaulting to Student. First-ever
+  // visit (nothing remembered yet) keeps the plain "Student" default.
+  const lastRole = getLastRole();
+  selectRole(lastRole || "student", { recommended: !!lastRole });
+
+  toggle?.querySelectorAll(".account-type-btn").forEach((btn) => {
+    btn.addEventListener("click", () => selectRole(btn.dataset.role === "parent" ? "parent" : "student"));
+  });
 }
 
 /* ── Public entry point — called by app.js's router every time #/signup
@@ -363,6 +516,7 @@ export async function initSignupPage() {
         });
       }
 
+      setLastRole(role);
       toast('Account created! Welcome <i class="fa-solid fa-champagne-glasses"></i>', "success");
       const redirectTo = consumePostLoginRedirect();
       setTimeout(() => navigate(redirectTo || defaultLandingHref({ role })), 600);
