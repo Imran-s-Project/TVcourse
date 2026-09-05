@@ -33,6 +33,31 @@ service cloud.firestore {
       return newCount == oldCount + 1 || newCount == oldCount - 1;
     }
 
+    /* ---------- একটা কুপন রিডিম (ব্যবহার) করার সময় আপডেটটা বৈধ কিনা যাচাই ----------
+       এখানেই আসল সুরক্ষা — ইউজার নিজে usedCount/usedByUsers ছাড়া আর কোনো ফিল্ড
+       (discount value/type/active/maxUses ইত্যাদি) কখনো বদলাতে পারবে না, আর
+       নিচের প্রতিটা শর্ত সত্যি হলে তবেই একটা রিডিম গ্রহণযোগ্য হবে:
+       ১) কুপনটা active থাকতে হবে,
+       ২) মেয়াদ থাকলে তা পার হয়ে যায়নি,
+       ৩) maxUses (০ মানে unlimited) থাকলে এখনো কোটা বাকি আছে,
+       ৪) এই ইউজার আগে কখনো এই কুপনটা ব্যবহার করেনি (usedByUsers এ নেই),
+       ৫) usedCount ঠিক ১ বাড়বে আর usedByUsers এ ঠিক নিজের uid-টাই যোগ হবে —
+          অন্য কারো uid জোর করে ঢোকানো বা সংখ্যা বেশি বাড়ানো যাবে না।
+       Race condition (একসাথে দুইজন শেষ স্লট ব্যবহার করার চেষ্টা করলে) Firestore
+       transaction নিজে থেকেই retry করে সবশেষ কমিটেড ডেটার বিপরীতে এই শর্তগুলো
+       আবার যাচাই করে, তাই maxUses কখনো ছাড়িয়ে যাবে না। */
+    function isValidCouponRedeem(oldC, newC) {
+      return newC.diff(oldC).affectedKeys().hasOnly(["usedCount", "usedByUsers"])
+        && oldC.active == true
+        && (!("expiresAt" in oldC) || oldC.expiresAt == null || request.time < oldC.expiresAt)
+        && (oldC.maxUses == 0 || oldC.usedCount < oldC.maxUses)
+        && !(request.auth.uid in oldC.usedByUsers)
+        && newC.usedCount == oldC.usedCount + 1
+        && newC.usedByUsers.size() == oldC.usedByUsers.size() + 1
+        && newC.usedByUsers.hasAll(oldC.usedByUsers)
+        && request.auth.uid in newC.usedByUsers;
+    }
+
     /* ---------- ইউজার প্রোফাইল ---------- */
     match /users/{uid} {
       allow read: if isSignedIn() && (request.auth.uid == uid || isAdmin());
@@ -164,6 +189,27 @@ service cloud.firestore {
         && request.resource.data.uid == resource.data.uid
         && request.resource.data.courseId == resource.data.courseId
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["used", "usedAt"]);
+
+      allow delete: if isAdmin();
+    }
+
+    /* ---------- ডিসকাউন্ট কুপন ---------- */
+    // ডকুমেন্ট আইডি = নিজেই কুপন কোড (যেমন coupons/EID50) — একই কোড দুইবার তৈরি হতে পারবে না।
+    // get (একটা নির্দিষ্ট কোড লুকআপ) সব সাইন-ইন ইউজার করতে পারবে — কুপন বক্সে কোড লিখে
+    // Apply করার সময় এটাই লাগে। কিন্তু list (পুরো তালিকা) শুধু অ্যাডমিন প্যানেল করতে পারবে,
+    // যাতে কেউ সব লাইভ কোড এক লিস্টে খুঁজে বের করতে না পারে।
+    match /coupons/{code} {
+      allow get: if isSignedIn();
+      allow list: if isAdmin();
+
+      allow create: if isAdmin()
+        && request.resource.data.code == code
+        && request.resource.data.usedCount == 0
+        && request.resource.data.usedByUsers == [];
+
+      // অ্যাডমিন যেকোনো ফিল্ড বদলাতে পারবে (এডিট/অ্যাক্টিভ-টগল)। সাধারণ সাইন-ইন
+      // ইউজার শুধু কেনার সময় isValidCouponRedeem()-এর শর্ত মেনে নিজের একটা রিডিম যোগ করতে পারবে।
+      allow update: if isAdmin() || (isSignedIn() && isValidCouponRedeem(resource.data, request.resource.data));
 
       allow delete: if isAdmin();
     }

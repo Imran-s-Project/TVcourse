@@ -63,6 +63,7 @@
         <button class="admin-nav-item" data-section="flashcards" data-label="Flashcards"><span><i class="fa-solid fa-clone"></i></span> Flashcards</button>
         <button class="admin-nav-item" data-section="discussion" data-label="Discussion"><span><i class="fa-solid fa-comments"></i></span> Discussion</button>
         <button class="admin-nav-item" data-section="purchases" data-label="Purchase Requests"><span><i class="fa-solid fa-money-bill-wave"></i></span> Purchase Requests <span class="nav-pending-badge hidden" id="nav-pending-badge">0</span></button>
+        <button class="admin-nav-item" data-section="coupons" data-label="Coupons"><span><i class="fa-solid fa-tags"></i></span> Coupons</button>
         <button class="admin-nav-item" data-section="users" data-label="Users"><span><i class="fa-solid fa-users"></i></span> Users</button>
       </nav>
       <a href="index.html" class="admin-sidebar-back"><i class="fa-solid fa-arrow-left"></i> Back to Website</a>
@@ -328,6 +329,21 @@
         <div class="card mt-24">
           <div class="table-wrap"><table class="data-table table-scroll-x" id="purchases-table">
             <thead><tr><th>User</th><th>Course</th><th>Payment</th><th>Amount</th><th>Status</th><th></th></tr></thead>
+            <tbody><tr><td colspan="6"><div class="loading-screen"><span class="spinner"></span></div></td></tr></tbody>
+          </table></div>
+        </div>
+      </section>
+
+      <!-- Coupons -->
+      <section class="admin-section" id="section-coupons">
+        <div class="admin-section-head">
+          <h1>Discount Coupons</h1>
+          <p class="muted">Create and manage coupon codes students can apply when buying a course</p>
+          <button class="btn btn-primary" id="add-coupon-btn-top">+ New Coupon</button>
+        </div>
+        <div class="card">
+          <div class="table-wrap"><table class="data-table table-scroll-x" id="coupons-table">
+            <thead><tr><th>Code</th><th>Discount</th><th>Applies To</th><th>Usage</th><th>Status</th><th></th></tr></thead>
             <tbody><tr><td colspan="6"><div class="loading-screen"><span class="spinner"></span></div></td></tr></tbody>
           </table></div>
         </div>
