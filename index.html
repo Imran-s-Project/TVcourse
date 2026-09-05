@@ -57,7 +57,6 @@
 <link rel="stylesheet" href="css/auth.css">
 <link rel="stylesheet" href="css/hub.css">
 <link rel="stylesheet" href="css/mycourses.css">
-<link rel="stylesheet" href="css/parent.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
@@ -249,16 +248,6 @@
        the old profile-page "My Courses" tab. -->
   <div id="page-mycourses" class="hidden">
     <div id="mycourses-page-content"></div>
-  <div data-footer></div>
-  </div>
-
-  <!-- ===== PARENT DASHBOARD PAGE (SPA rendered here) =====
-       Markup comes from js/page-parent.js's render(); behavior comes from
-       its initParentPage(), both wired together by the router in js/app.js.
-       Only reachable for accounts with users/{uid}.role === "parent" — see
-       homeRoute()'s redirect and initNav()'s role-based nav links. -->
-  <div id="page-parent" class="hidden">
-    <div id="parent-page-content"></div>
   <div data-footer></div>
   </div>
 
