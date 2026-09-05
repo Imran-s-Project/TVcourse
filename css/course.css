@@ -1,0 +1,628 @@
+.course-header { padding: 32px 0 22px; }
+.course-header-box {
+  max-width: 760px;
+  margin: 0 auto;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 28px 32px;
+  text-align: center;
+}
+.breadcrumb { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 8px; color: var(--text-muted); font-size: 0.85rem; margin-bottom: 16px; }
+.breadcrumb a { display: inline-flex; align-items: center; gap: 6px; color: var(--text-muted); transition: color .15s; }
+.breadcrumb a i { font-size: 0.78em; opacity: .85; }
+.breadcrumb a:hover { color: var(--accent-amber-soft); }
+.breadcrumb .crumb-sep { font-size: 0.55rem; opacity: .45; }
+.breadcrumb .crumb-current { color: var(--text-primary); font-weight: 600; max-width: 60vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.course-title-row { display: flex; align-items: center; justify-content: center; gap: 20px; flex-wrap: wrap; }
+.course-title-row h1 {
+  font-size: clamp(1.5rem, 4.4vw, 2.1rem);
+  line-height: 1.28;
+  letter-spacing: -0.01em;
+  font-weight: 800;
+}
+.course-title-row p { color: var(--text-muted); margin-top: 12px; line-height: 1.65; }
+.course-enroll-pill {
+  display: inline-flex; align-items: center; gap: 8px; margin-top: 14px;
+  background: var(--text-on-surface); color: #4BE3A5; font-size: 0.85rem; font-weight: 700;
+  padding: 7px 16px; border-radius: 999px;
+}
+.course-enroll-pill i { color: var(--accent-amber-soft); }
+.certificate-pill {
+  background: linear-gradient(135deg, #E8A33D, #d4881a); color: #14182B; font-weight: 800;
+  transition: transform 0.15s ease;
+}
+.certificate-pill:hover { transform: translateY(-1px); }
+.certificate-pill i { color: #14182B; }
+
+@media (max-width: 560px) {
+  .course-header { padding: 26px 0 20px; }
+  .course-header-box { padding: 22px 18px; border-radius: var(--radius-md); }
+  .breadcrumb { font-size: 0.8rem; margin-bottom: 14px; }
+  .breadcrumb .crumb-current { max-width: 55vw; }
+}
+
+.course-layout { display: grid; grid-template-columns: 1fr 320px; gap: 26px; padding: 24px 0 70px; align-items: start; }
+@media (max-width: 940px) { .course-layout { grid-template-columns: 1fr; } }
+
+/* ---------- মিডিয়া প্যানেল ---------- */
+.media-panel { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
+.video-frame { position: relative; width: 100%; aspect-ratio: 16/9; background: #000; }
+.video-frame iframe, .video-frame video { width: 100%; height: 100%; border: none; }
+.media-tabs { display: flex; gap: 4px; padding: 14px 18px 0; border-bottom: 1px solid var(--border); }
+.media-tab { padding: 10px 18px; border-radius: 10px 10px 0 0; font-weight: 600; font-size: 0.92rem; color: var(--text-muted); display: inline-flex; align-items: center; gap: 7px; }
+.media-tab.active { color: var(--text-primary); background: var(--bg-elevated-2); }
+.tab-count-badge {
+  display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; padding: 0 5px;
+  border-radius: 999px; background: var(--accent-amber); color: #201705; font-size: 0.68rem; font-weight: 800;
+}
+.media-body { padding: 20px; }
+.lesson-desc { color: var(--text-muted); line-height: 1.7; }
+
+/* যে লেসনটির নিজস্ব এক্সাম আছে, সেটির ভিডিও/স্লাইড ট্যাবের নিচে একটি ছোট্ট ব্যানার দেখায় */
+.lesson-exam-banner {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  background: linear-gradient(155deg, rgba(31,158,147,0.16), rgba(31,158,147,0.05));
+  border: 1px solid rgba(31,158,147,0.35); border-radius: var(--radius-md); padding: 12px 16px; margin-top: 16px;
+}
+.lesson-exam-banner .lb-text { display: flex; align-items: center; gap: 10px; font-size: 0.88rem; color: var(--text-primary); }
+.lesson-exam-banner .lb-text i { color: #5FD4C6; font-size: 1rem; }
+
+/* ---------- এক্সাম ট্যাব (কোর্স পেজ) ---------- */
+#exam-panel .exam-grid { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); padding: 0; }
+#exam-panel .exam-section-title {
+  display: flex; align-items: center; gap: 8px; font-size: 0.85rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.03em; color: var(--text-muted); margin: 22px 0 12px;
+}
+#exam-panel .exam-section-title:first-child { margin-top: 0; }
+.exam-lesson-tag { align-self: flex-start; font-size: 0.74rem; }
+
+/* Exam cards as embedded in the course page's own Exam tab — the dedicated
+   /exam section (exam/exam.css) has its own completely separate redesigned
+   card style; these only apply here, inside #exam-panel/.exam-grid. */
+.exam-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; padding: 28px 0 70px; }
+.exam-card { padding: 22px; display: flex; flex-direction: column; gap: 12px; }
+.exam-card h3 { font-size: 1.1rem; }
+.exam-card .meta-row { display: flex; gap: 16px; color: var(--text-muted); font-size: 0.85rem; }
+.exam-card .meta-row span { display: flex; align-items: center; gap: 6px; }
+.exam-card .result-pill { align-self: flex-start; }
+.exam-card-locked { opacity: 0.72; }
+.exam-card-locked h3 { color: var(--text-muted); }
+.exam-card-header-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.exam-countdown-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 9px; border-radius: 999px;
+  background: rgba(124, 92, 252, 0.12);
+  border: 1px solid rgba(124, 92, 252, 0.28);
+  color: var(--accent-amber-soft);
+  font-size: 0.72rem; font-weight: 700; letter-spacing: 0.02em;
+  white-space: nowrap; flex-shrink: 0;
+}
+.exam-countdown-chip i { font-size: 0.68rem; }
+
+/* ---------- স্লাইড ভিউয়ার ---------- */
+.slide-viewer { position: relative; }
+.slide-frame {
+  aspect-ratio: 16/10; background: var(--surface); border-radius: var(--radius-md); overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+}
+.slide-frame img { width: 100%; height: 100%; object-fit: contain; }
+.slide-controls { display: flex; align-items: center; justify-content: space-between; margin-top: 14px; }
+.slide-dots { display: flex; gap: 6px; }
+.slide-dots span { width: 7px; height: 7px; border-radius: 50%; background: var(--border-strong); }
+.slide-dots span.active { background: var(--accent-amber); width: 20px; border-radius: 4px; transition: all .2s; }
+.slide-empty { text-align: center; color: var(--text-muted); padding: 40px 0; }
+
+/* ---------- স্লাইড সাব-ট্যাব (পিডিএফ ↔ ছবি) ---------- */
+.slide-subtabs { display: flex; gap: 6px; margin-bottom: 14px; }
+.slide-subtab {
+  padding: 8px 16px; border-radius: 999px; font-size: 0.85rem; font-weight: 600;
+  background: var(--bg-elevated-2); color: var(--text-muted); border: 1px solid transparent; transition: all .15s;
+}
+.slide-subtab.active { color: var(--accent-amber-soft); border-color: rgba(124,92,252,0.3); background: rgba(124,92,252,0.1); }
+
+/* ---------- পিডিএফ ভিউয়ার (গুগল ড্রাইভ / সরাসরি লিংক) ---------- */
+.pdf-viewer {
+  background: var(--surface); border-radius: var(--radius-md); overflow: hidden;
+  height: min(78vh, 720px);
+}
+.pdf-viewer iframe { width: 100%; height: 100%; border: none; }
+@media (max-width: 640px) { .pdf-viewer { height: 62vh; } }
+
+/* ---------- লেসন সাইডবার ---------- */
+.lesson-sidebar { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 18px; position: sticky; top: 86px; }
+.lesson-sidebar h3 { font-size: 1rem; margin-bottom: 4px; }
+.lesson-sidebar .sub { color: var(--text-muted); font-size: 0.82rem; margin-bottom: 14px; }
+
+/* "এখন চলছে" কার্ড — সবসময় সবার উপরে স্থির থাকে, স্ক্রল হয় না */
+.now-playing-card {
+  background: linear-gradient(155deg, rgba(124,92,252,0.16), rgba(124,92,252,0.05));
+  border: 1px solid rgba(124,92,252,0.35); border-radius: var(--radius-md);
+  padding: 12px; margin-bottom: 14px;
+}
+.now-playing-badge {
+  display: inline-flex; align-items: center; gap: 7px; font-size: 0.72rem; font-weight: 700;
+  color: var(--accent-amber-soft); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 10px;
+}
+.now-playing-dot {
+  width: 7px; height: 7px; border-radius: 50%; background: var(--accent-amber);
+  animation: now-playing-pulse 1.7s ease-out infinite;
+}
+@keyframes now-playing-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+.now-playing-body { display: flex; gap: 12px; align-items: flex-start; }
+.now-playing-card .lesson-num { background: var(--accent-amber); color: #FFFFFF; }
+.now-playing-card .lesson-info h4 { color: var(--text-primary); }
+
+/* অটো-স্ক্রলিং "আপ নেক্সট" তালিকা — উপরের দিকে অনবরত চলতে থাকে, হাত/মাউস দিয়েও স্ক্রল করা যায় */
+.lesson-marquee {
+  max-height: min(48vh, 420px); overflow-y: auto; overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch; scrollbar-width: none; -ms-overflow-style: none;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 22px, #000 calc(100% - 22px), transparent 100%);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 22px, #000 calc(100% - 22px), transparent 100%);
+  cursor: grab;
+}
+.lesson-marquee::-webkit-scrollbar { display: none; }
+.lesson-marquee:active { cursor: grabbing; }
+.lesson-marquee.no-scroll { cursor: default; -webkit-mask-image: none; mask-image: none; }
+.lesson-marquee-track { display: flex; flex-direction: column; gap: 8px; padding: 8px 2px; }
+.lesson-marquee-empty { text-align: center; color: var(--text-muted); font-size: 0.85rem; padding: 24px 8px; }
+
+.lesson-item {
+  display: flex; gap: 12px; align-items: center; padding: 12px 10px; border-radius: 10px; cursor: pointer;
+  transition: background .18s, border-color .18s, transform .18s; border: 1px solid transparent;
+}
+.lesson-item:hover { background: var(--bg-elevated-2); border-color: var(--border); transform: translateX(-2px); }
+.lesson-num {
+  flex-shrink: 0; width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  font-size: 0.75rem; font-family: var(--font-utility); font-weight: 700; background: var(--bg-elevated-2); color: var(--text-muted);
+}
+.lesson-item.done .lesson-num { background: var(--accent-teal); color: #EFFAF8; }
+.lesson-info { min-width: 0; flex: 1; }
+.lesson-info h4 { font-size: 0.9rem; font-weight: 600; line-height: 1.4; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lesson-info span { display: inline-flex; align-items: center; gap: 5px; font-size: 0.76rem; color: var(--text-muted); margin-top: 2px; }
+.lesson-info span i { font-size: 0.7rem; opacity: 0.8; }
+.lesson-exam-flag { color: #5FD4C6 !important; opacity: 1 !important; }
+.lesson-play-hint {
+  flex-shrink: 0; width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  color: var(--accent-amber-soft); background: rgba(124,92,252,0.12); font-size: 0.68rem;
+  opacity: 0; transform: scale(0.7); transition: opacity .18s, transform .18s;
+}
+.lesson-item:hover .lesson-play-hint { opacity: 1; transform: scale(1); }
+
+.complete-bar { display: flex; align-items: center; justify-content: space-between; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border); }
+
+/* ---------- কোর্স স্ট্যাট রো — কতজন আছে / মেয়াদ / ক্লাস / পরীক্ষা সংখ্যা,
+   ডেসক্রিপশনের ঠিক উপরে। ফ্ল্যাট চিপ ডিজাইন — কোনো glow/box-shadow নেই। ---------- */
+/* ---------- কোর্স স্ট্যাট রো — কতজন আছে / মেয়াদ / লেকচার / পরীক্ষা সংখ্যা,
+   ডেসক্রিপশনের ঠিক উপরে, মাঝ বরাবর (centered)। ফ্ল্যাট চিপ ডিজাইন —
+   কোনো glow/box-shadow/নীলচে (blue/purple) রঙ নেই, শুধু নিউট্রাল টোন। ---------- */
+.course-stats-row {
+  display: flex; flex-wrap: wrap; justify-content: center; align-items: stretch;
+  gap: 10px; margin-bottom: 18px;
+}
+.course-stat-chip {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--bg-elevated-2); border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm); padding: 9px 16px;
+}
+.course-stat-chip i {
+  flex-shrink: 0; width: 34px; height: 34px; border-radius: 9px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--bg-elevated); color: var(--text-primary); font-size: 0.92rem;
+}
+.course-stat-chip strong { display: block; font-size: 0.94rem; font-weight: 800; color: var(--text-primary); line-height: 1.25; text-align: center; }
+.course-stat-chip span { display: block; font-size: 0.72rem; color: var(--text-muted); margin-top: 1px; text-align: center; }
+@media (max-width: 560px) {
+  .course-stats-row { gap: 8px; }
+  .course-stat-chip { padding: 8px 12px; gap: 8px; }
+  .course-stat-chip i { width: 30px; height: 30px; font-size: 0.82rem; }
+  .course-stat-chip strong { font-size: 0.86rem; }
+}
+
+.desc-block-label {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+  color: var(--text-muted); margin-bottom: 10px;
+}
+.desc-block-label i { color: var(--text-muted); font-size: 0.85em; }
+
+/* ---------- কোর্স ডেসক্রিপশন — "+ আরো পড়ুন" ক্ল্যাম্প ---------- */
+.desc-block { position: relative; }
+.desc-clamped { max-height: 220px; overflow: hidden; }
+.desc-expanded { max-height: none; }
+.desc-readmore-btn {
+  display: inline-block; margin-top: 10px; background: none; border: none; padding: 0;
+  color: var(--accent-amber-soft); font-weight: 700; font-size: 0.9rem; cursor: pointer; font-family: var(--font-utility);
+}
+.desc-readmore-btn:hover { text-decoration: underline; }
+
+/* ---------- কোর্স কেনার প্যানেল (লকড কোর্স) — রিডিজাইন, ফ্ল্যাট, কোনো গ্লো নেই ---------- */
+.buy-panel { text-align: center; position: static; top: auto; }
+.buy-panel-top { display: flex; flex-direction: column; align-items: center; }
+.buy-panel-sub { font-size: 0.88rem; margin: 6px 0 0; }
+.buy-panel-bottom { display: flex; flex-direction: column; gap: 12px; margin-top: 16px; }
+.buy-lock-icon {
+  width: 56px; height: 56px; border-radius: 50%; margin: 0 auto 12px;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(124,92,252,0.14); color: var(--accent-amber-soft); font-size: 1.4rem;
+}
+.buy-feature-row {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  background: var(--bg-elevated-2); border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm); padding: 10px 12px; font-size: 0.84rem; color: var(--text-muted);
+}
+.buy-feature-row i { color: var(--accent-green); }
+.buy-price-row { display: flex; align-items: baseline; justify-content: center; gap: 10px; }
+.buy-price-old { color: var(--text-muted); text-decoration: line-through; font-size: 0.95rem; }
+.buy-price-new { color: var(--accent-green); font-family: var(--font-display); font-weight: 800; font-size: 1.7rem; }
+.buy-cta-btn {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  background: var(--accent-green); border: 1.5px solid var(--accent-green); box-shadow: none;
+  font-size: 1.02rem; font-weight: 800;
+}
+.buy-cta-btn:hover { background: var(--accent-green-soft); border-color: var(--accent-green-soft); box-shadow: none; }
+.purchase-status-pill {
+  margin-top: 0; padding: 10px 12px; border-radius: var(--radius-sm); font-size: 0.82rem; text-align: left;
+  display: flex; align-items: flex-start; gap: 8px; line-height: 1.5;
+}
+.purchase-status-pill.pending { background: rgba(124,92,252,0.12); color: var(--accent-amber-soft); }
+.purchase-status-pill.approved { background: rgba(31,158,147,0.16); color: #5FD4C6; }
+
+/* ---------- ইতিমধ্যে কেনা হয়েছে — সতর্কতা পপআপ ---------- */
+.already-purchased-box { text-align: center; padding: 6px 4px 4px; }
+.already-purchased-box .buy-lock-icon { background: rgba(31,158,147,0.16); font-size: 1.6rem; }
+.already-purchased-box p { color: var(--text-muted); font-size: 0.9rem; line-height: 1.6; }
+.purchase-status-pill.rejected { background: rgba(225,95,82,0.14); color: #F0938A; }
+/* ---------- অ্যাক্সেস কোড পপ-আপ (কোর্স আনলক করার একমাত্র উপায়) ---------- */
+.access-modal-overlay .modal-box { max-width: 440px; padding: 18px; }
+.access-modal-close { position: absolute; top: 14px; right: 14px; z-index: 1; }
+.access-modal-surface {
+  text-align: center; padding: 34px 26px 30px; margin: 0;
+}
+.access-modal-title { font-size: 1.5rem; margin-bottom: 10px; }
+.access-modal-sub { color: var(--text-on-surface-muted); font-size: 0.95rem; margin-bottom: 24px; }
+.access-modal-input {
+  width: 100%; background: #FFFFFF; border: none; border-radius: 999px;
+  padding: 16px 22px; font-size: 1rem; text-align: center; color: var(--text-on-surface);
+  margin-bottom: 20px; box-shadow: 0 2px 10px rgba(20,15,50,0.08);
+}
+.access-modal-input::placeholder { color: var(--text-on-surface-muted); }
+.access-modal-input:focus { outline: 2px solid var(--accent-amber); }
+.access-modal-submit { padding: 15px 24px; font-size: 1.02rem; }
+.pay-numbers-box { display: flex; flex-direction: column; gap: 8px; }
+.pay-number-item {
+  display: flex; align-items: center; gap: 8px; background: var(--surface); color: var(--text-on-surface);
+  padding: 10px 12px; border-radius: var(--radius-sm); font-size: 0.88rem;
+}
+.pay-number-item i { color: var(--accent-teal); }
+
+
+/* ---------- "Coming Soon" — unlocked course with no lessons yet ----------
+   Spans the full .course-layout grid (both columns) instead of sitting in
+   just the media-panel slot, since there's no lesson sidebar to pair it
+   with. One of 4 variant classes (cs-scan / cs-sweep / cs-skeleton /
+   cs-typing) is applied at random by course.js on every load; each loops
+   forever (infinite keyframes) so nothing ever settles into a static frame.
+   Deliberately restrained: everything is border/text-muted/bg-elevated —
+   ONE accent color (--accent-amber-soft) is used, and only on the single
+   element that's actually in motion for that variant. No blur, no glow
+   blobs, no mixed hues. All decorative pieces are hidden by default and
+   only the active variant's selectors turn its own pieces on, so one
+   markup block serves all four. */
+.coming-soon-view {
+  grid-column: 1 / -1;
+  display: flex; flex-direction: column; align-items: center; text-align: center;
+  padding: 56px 20px 52px;
+}
+
+/* -- Frame: bordered square holding the ring/sweep/core icon -- */
+.cs-frame {
+  position: relative; width: 128px; height: 128px; margin-bottom: 22px;
+  border-radius: var(--radius-lg); border: 1px solid var(--border-strong);
+  background: var(--bg-elevated-2);
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden;
+}
+.cs-core {
+  position: relative; z-index: 2; width: 46px; height: 46px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center; font-size: 1.15rem;
+  background: var(--bg-elevated); border: 1px solid var(--border-strong); color: var(--text-primary);
+  animation: csCoreBeat 2.4s ease-in-out infinite;
+}
+@keyframes csCoreBeat { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
+
+/* Rotating ring — a single accent-colored arc on an otherwise neutral ring */
+.cs-ring {
+  position: absolute; inset: 18px; border-radius: 50%; display: none;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent-amber-soft);
+}
+
+/* Sweep — a single soft light bar passing through the frame */
+.cs-sweep { position: absolute; inset: 0; display: none; overflow: hidden; }
+.cs-sweep::after {
+  content: ""; position: absolute; top: 0; left: -60%; width: 45%; height: 100%;
+  background: linear-gradient(100deg, transparent, rgba(169,140,255,0.16), transparent);
+}
+
+/* -- Skeleton rows: mimics the lesson list that will appear once ready -- */
+.cs-skeleton { width: 100%; max-width: 300px; margin-bottom: 4px; display: none; }
+.cs-skel-row {
+  height: 12px; border-radius: 6px; margin-bottom: 10px;
+  background: var(--bg-elevated-2); border: 1px solid var(--border);
+  position: relative; overflow: hidden;
+}
+.cs-skel-row.short { width: 62%; }
+.cs-skel-row::after {
+  content: ""; position: absolute; inset: 0; transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(230,225,255,0.10), transparent);
+  animation: csSkelShimmer 1.8s ease-in-out infinite;
+}
+.cs-skel-row:nth-child(2)::after { animation-delay: 0.15s; }
+.cs-skel-row:nth-child(3)::after { animation-delay: 0.3s; }
+@keyframes csSkelShimmer { to { transform: translateX(100%); } }
+
+/* -- Variant: scan — a slow rotating ring around the core -- */
+.cs-scan .cs-ring { display: block; animation: csSpin 2.2s linear infinite; }
+@keyframes csSpin { to { transform: rotate(360deg); } }
+
+/* -- Variant: sweep — a light bar passing across the frame, on a loop -- */
+.cs-sweep .cs-sweep { display: block; }
+.cs-sweep .cs-sweep::after { animation: csSweepMove 2.6s ease-in-out infinite; }
+@keyframes csSweepMove { 0% { left: -60%; } 100% { left: 115%; } }
+
+/* -- Variant: skeleton — the lesson-list preview does the talking -- */
+.cs-skeleton .cs-skeleton { display: block; margin-top: 6px; }
+.cs-skeleton .cs-frame { margin-bottom: 18px; }
+.cs-skeleton .cs-ring { display: block; animation: csSpin 3s linear infinite; opacity: 0.6; }
+
+/* -- Variant: typing — a blinking status cursor, icon stays quietly still -- */
+.cs-typing .cs-status-text::after {
+  content: "|"; margin-left: 2px; color: var(--accent-amber-soft);
+  animation: csCaretBlink 1s step-end infinite;
+}
+@keyframes csCaretBlink { 50% { opacity: 0; } }
+
+.cs-title { font-family: var(--font-display); font-size: 1.55rem; font-weight: 700; margin: 4px 0 8px; color: var(--text-primary); }
+.cs-sub { color: var(--text-muted); font-size: 0.9rem; max-width: 400px; line-height: 1.6; margin: 0 auto; }
+.cs-status {
+  display: inline-flex; align-items: center; gap: 7px; margin-top: 16px;
+  font-size: 0.82rem; color: var(--text-muted); letter-spacing: 0.2px;
+}
+.cs-status-dot {
+  width: 6px; height: 6px; border-radius: 50%; background: var(--accent-amber-soft);
+  animation: csDotBlink 1.4s ease-in-out infinite;
+}
+@keyframes csDotBlink { 0%, 100% { opacity: 0.35; } 50% { opacity: 1; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .coming-soon-view * { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; }
+}
+
+/* ==========================================================================
+   PATCH v2 — Remove header box + add horizontal lesson strip + stronger UI
+   ========================================================================== */
+
+/* ── Hide the old header box above the player ── */
+.course-header,
+.course-header-box { display: none !important; }
+
+/* ── Media panel: clean flat border, no glow/shadow ── */
+.media-panel {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-strong);
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+/* ── Video frame: flat, no glow ring ── */
+.video-frame {
+  position: relative; width: 100%;
+  aspect-ratio: 16/9;
+  background: #000;
+}
+
+/* ── Course layout: full-width when no sidebar shown below player ── */
+.course-layout {
+  display: grid;
+  grid-template-columns: 1fr;   /* stack: player on top, strip below */
+  gap: 20px;
+  padding: 18px 0 70px;
+  align-items: start;
+}
+
+/* ── Lesson sidebar hidden — replaced by horizontal strip ── */
+.lesson-sidebar { display: none !important; }
+/* The buy/unlock panel reuses .lesson-sidebar for its base box styling but
+   must stay visible — it's not the lesson list the rule above is hiding. */
+.lesson-sidebar.buy-panel { display: flex !important; flex-direction: column; gap: 16px; }
+
+/* ═══════════════════════════════════════════════════════════
+   HORIZONTAL LESSON STRIP  (right → left, newest first)
+   Injected by JS below .media-panel as  .lesson-h-strip
+   ══════════════════════════════════════════════════════════ */
+.lesson-h-strip {
+  width: 100%;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-strong);
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.lesson-h-strip-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 20px 10px;
+  border-bottom: 1px solid var(--border);
+}
+.lesson-h-strip-title {
+  font-size: 0.85rem; font-weight: 700; letter-spacing: 0.04em;
+  text-transform: uppercase; color: var(--text-muted);
+  display: flex; align-items: center; gap: 8px;
+}
+.lesson-h-strip-title i { color: var(--accent-amber-soft); }
+.lesson-h-strip-count {
+  font-size: 0.76rem; font-weight: 700;
+  background: rgba(124,92,252,0.14);
+  color: var(--accent-amber-soft);
+  padding: 3px 10px; border-radius: 999px;
+}
+
+/* Scrollable track — auto-playing carousel, drag/swipe-able by mouse or touch */
+.lesson-h-track-wrap {
+  overflow-x: auto; overflow-y: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(124,92,252,0.35) transparent;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x; /* let horizontal swipes drive the carousel, not the page */
+  scroll-behavior: smooth;
+  padding: 14px 20px 16px;
+  /* fade edges */
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 24px, #000 calc(100% - 24px), transparent 100%);
+  mask-image: linear-gradient(to right, transparent 0, #000 24px, #000 calc(100% - 24px), transparent 100%);
+  cursor: grab;
+  user-select: none;
+}
+.lesson-h-track-wrap:active,
+.lesson-h-track-wrap.dragging { cursor: grabbing; scroll-behavior: auto; }
+.lesson-h-track-wrap::-webkit-scrollbar { height: 4px; }
+.lesson-h-track-wrap::-webkit-scrollbar-thumb {
+  background: rgba(124,92,252,0.35); border-radius: 999px;
+}
+
+.lesson-h-track {
+  display: flex;
+  flex-direction: row-reverse;   /* right-to-left: latest lesson appears first on right */
+  gap: 10px;
+  width: max-content;
+  padding-bottom: 2px;
+}
+
+/* Individual lesson card in strip — slides in from the left on render */
+.lesson-h-card {
+  flex-shrink: 0;
+  width: 210px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background: var(--bg-elevated-2, rgba(255,255,255,0.04));
+  cursor: pointer;
+  transition: background 0.18s, border-color 0.18s, transform 0.18s, box-shadow 0.18s;
+  position: relative;
+  overflow: hidden;
+  animation: lhCardIn 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes lhCardIn {
+  from { opacity: 0; transform: translateX(-28px) scale(0.96); }
+  to   { opacity: 1; transform: translateX(0) scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lesson-h-card { animation: none; }
+}
+.lesson-h-card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, #7C5CFC, #A98CFF);
+  opacity: 0; transition: opacity 0.18s;
+  border-radius: 10px 10px 0 0;
+}
+.lesson-h-card:hover {
+  background: rgba(124,92,252,0.1);
+  border-color: rgba(124,92,252,0.3);
+  transform: translateY(-2px);
+}
+.lesson-h-card:hover::before { opacity: 1; }
+
+.lesson-h-card.active {
+  background: rgba(124,92,252,0.16);
+  border-color: rgba(124,92,252,0.45);
+}
+.lesson-h-card.active::before { opacity: 1; }
+
+.lesson-h-card.done .lh-num { background: var(--accent-teal, #1F9E93); color: #EFFAF8; }
+
+/* Card internals */
+.lh-top { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.lh-num {
+  flex-shrink: 0; width: 24px; height: 24px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.7rem; font-weight: 700;
+  background: var(--bg-elevated-2); color: var(--text-muted);
+  font-family: var(--font-utility, monospace);
+  transition: background 0.18s, color 0.18s;
+}
+.lesson-h-card.active .lh-num {
+  background: var(--accent-amber, #7C5CFC);
+  color: #fff;
+}
+
+/* Now Playing badge */
+.lh-now {
+  display: none; align-items: center; gap: 5px;
+  font-size: 0.66rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.06em; color: var(--accent-amber-soft, #A98CFF);
+}
+.lesson-h-card.active .lh-now { display: inline-flex; }
+.lh-now-dot {
+  width: 5px; height: 5px; border-radius: 50%;
+  background: var(--accent-amber, #7C5CFC);
+  animation: lh-pulse 1.6s ease-out infinite;
+}
+@keyframes lh-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+.lh-title {
+  font-size: 0.88rem; font-weight: 600; line-height: 1.4;
+  color: var(--text-primary); margin-bottom: 6px;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.lh-meta {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 0.73rem; color: var(--text-muted);
+}
+.lh-meta i { font-size: 0.65rem; opacity: 0.75; }
+
+/* Play hint icon on right */
+.lh-play {
+  position: absolute; top: 12px; right: 12px;
+  width: 22px; height: 22px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(124,92,252,0.14);
+  color: var(--accent-amber-soft, #A98CFF); font-size: 0.6rem;
+  opacity: 0; transform: scale(0.65); transition: opacity 0.18s, transform 0.18s;
+}
+.lesson-h-card:hover .lh-play { opacity: 1; transform: scale(1); }
+
+/* ── Responsive: on mobile strip gets full width ── */
+@media (max-width: 940px) {
+  .course-layout { grid-template-columns: 1fr; }
+  .lesson-h-card { width: 180px; }
+}
+@media (max-width: 560px) {
+  .lesson-h-strip-header { padding: 12px 14px 8px; }
+  .lesson-h-track-wrap { padding: 10px 14px 12px; }
+  .lesson-h-card { width: 160px; padding: 10px 12px; }
+  .lh-title { font-size: 0.82rem; }
+}
+
+/* ==========================================================================
+   মোবাইলে "কোর্স কেনার" প্যানেল স্ক্রিনের নিচে ফিক্সড বটম-শীট হিসেবে দেখাবে
+   (ফ্ল্যাট ডিজাইন — শুধু উপরের বর্ডার, কোনো box-shadow/glow ব্যবহার হয়নি)
+   ========================================================================== */
+@media (max-width: 680px) {
+  .course-layout.has-buy-bar { padding-bottom: 250px; }
+  .has-buy-bar .buy-panel {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
+    width: 100%; margin: 0; max-width: 100%;
+    border-radius: 20px 20px 0 0;
+    border: 1.5px solid var(--border-strong); border-bottom: none;
+    padding: 16px 18px calc(14px + env(safe-area-inset-bottom));
+  }
+  .has-buy-bar .buy-panel-top { display: none; }
+  .has-buy-bar .buy-panel-bottom { margin-top: 0; }
+}

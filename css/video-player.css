@@ -1,0 +1,265 @@
+/* ==========================================================================
+   video-player.css — Ultra-modern cinematic player skin (v2)
+   - Stronger visual presence: deep gradient BG, glowing controls
+   - Lesson strip: horizontal scroll right-to-left (newer lessons first)
+   - Header box above player removed from layout (see course.css patch)
+   ========================================================================== */
+
+/* ===== PLAYER WRAPPER ===== */
+.cvp {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: #000;
+  overflow: hidden;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  outline: none;
+  border-radius: 0; /* sits inside .video-frame which clips it */
+}
+
+.cvp-media-wrap { position: absolute; inset: 0; }
+.cvp-media-wrap video,
+.cvp-media-wrap iframe,
+.cvp-media-wrap .cvp-yt-target {
+  width: 100%; height: 100%; border: none; display: block; background: #000;
+}
+.cvp-media-wrap .cvp-yt-target iframe { pointer-events: none; }
+
+.cvp-click-catcher { position: absolute; inset: 0; z-index: 2; cursor: pointer; }
+
+/* ===== CINEMATIC VIGNETTE overlay ===== */
+.cvp::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, transparent 48%, rgba(0,0,0,0.38) 100%);
+}
+
+/* ===== CENTER OVERLAY: big play + spinner ===== */
+.cvp-center-overlay {
+  position: absolute; inset: 0; z-index: 3;
+  display: flex; align-items: center; justify-content: center;
+  pointer-events: none;
+}
+.cvp-big-play {
+  pointer-events: auto;
+  width: 80px; height: 80px; border-radius: 50%;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  display: flex; align-items: center; justify-content: center;
+  transition: transform 0.14s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 0.2s ease;
+  position: relative;
+}
+
+/* Outer ring — frosted glass disc */
+.cvp-big-play::before {
+  content: '';
+  position: absolute; inset: 0; border-radius: 50%;
+  background: rgba(255,255,255,0.10);
+  border: 1.5px solid rgba(255,255,255,0.22);
+  backdrop-filter: blur(8px) brightness(0.9);
+  -webkit-backdrop-filter: blur(8px) brightness(0.9);
+  transition: background 0.14s ease, border-color 0.14s ease;
+}
+
+/* Inner filled circle — the real button face */
+.cvp-big-play::after {
+  content: '';
+  position: absolute; inset: 9px; border-radius: 50%;
+  background: rgba(255,255,255,0.95);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,1),
+    inset 0 -1px 0 rgba(0,0,0,0.08),
+    0 2px 8px rgba(0,0,0,0.32);
+  transition: background 0.14s ease, box-shadow 0.14s ease;
+}
+
+/* Play triangle — SVG-quality via clip-path */
+.cvp-big-play i {
+  position: relative; z-index: 1;
+  display: block;
+  width: 0; height: 0;
+  border: none;
+  /* Precise play triangle */
+  clip-path: polygon(18% 10%, 18% 90%, 90% 50%);
+  background: #1a1a2e;
+  width: 18px; height: 20px;
+  margin-left: 3px;
+  font-size: 0; /* hide Font Awesome, use shape instead */
+  transition: background 0.14s ease;
+}
+
+.cvp-big-play:hover { transform: scale(1.06); }
+.cvp-big-play:hover::before {
+  background: rgba(255,255,255,0.14);
+  border-color: rgba(255,255,255,0.32);
+}
+.cvp-big-play:hover::after {
+  background: #fff;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,1),
+    inset 0 -1px 0 rgba(0,0,0,0.10),
+    0 3px 12px rgba(0,0,0,0.38);
+}
+.cvp-big-play:active { transform: scale(0.97); }
+
+.cvp-big-play.cvp-hidden { opacity: 0; pointer-events: none; transform: scale(0.78); }
+
+.cvp-spinner { position: absolute; display: none; }
+.cvp-spinner.cvp-active { display: block; }
+.cvp-spinner .spinner {
+  width: 50px; height: 50px; border-radius: 50%;
+  border: 3px solid rgba(255,255,255,0.18); border-top-color: rgba(124,92,252,1);
+  display: block; animation: cvp-spin 0.75s linear infinite;
+}
+@keyframes cvp-spin { to { transform: rotate(360deg); } }
+
+/* ===== DOUBLE-TAP SEEK ZONES ===== */
+.cvp-tap-zones { position: absolute; inset: 0; z-index: 1; display: flex; pointer-events: none; }
+.cvp-tap-left, .cvp-tap-right { flex: 1; }
+
+.cvp-seek-flash {
+  position: absolute; top: 50%; transform: translateY(-50%) scale(0.8);
+  display: flex; flex-direction: column; align-items: center; gap: 5px;
+  width: 88px; height: 88px; border-radius: 50%;
+  background: rgba(0,0,0,0.48);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255,255,255,0.12);
+  color: #fff; font-size: 0.76rem; font-weight: 700;
+  justify-content: center;
+  opacity: 0; pointer-events: none; z-index: 4;
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+.cvp-seek-flash i { font-size: 1.2rem; color: rgba(124,92,252,0.95); }
+.cvp-seek-flash-left { left: 6%; }
+.cvp-seek-flash-right { right: 6%; }
+.cvp-seek-flash.cvp-show { opacity: 1; transform: translateY(-50%) scale(1); }
+
+/* ===== CONTROLS BAR ===== */
+.cvp-controls {
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 5;
+  padding: 42px 16px 12px;
+  background: linear-gradient(
+    to top,
+    rgba(0,0,0,0.92) 0%,
+    rgba(0,0,0,0.7) 40%,
+    rgba(0,0,0,0.3) 72%,
+    transparent 100%
+  );
+  opacity: 1; transform: translateY(0);
+  transition: opacity 0.28s ease, transform 0.28s ease;
+}
+.cvp.cvp-controls-hidden .cvp-controls { opacity: 0; transform: translateY(8px); pointer-events: none; }
+.cvp.cvp-controls-hidden { cursor: none; }
+.cvp.cvp-paused .cvp-controls { opacity: 1; transform: none; pointer-events: auto; }
+
+/* ===== PROGRESS BAR ===== */
+.cvp-progress {
+  position: relative; height: 20px; display: flex; align-items: center;
+  cursor: pointer; margin-bottom: 4px;
+}
+.cvp-progress-track {
+  position: relative; width: 100%; height: 3px; border-radius: 999px;
+  background: rgba(255,255,255,0.2); overflow: visible;
+  transition: height 0.14s ease;
+}
+.cvp-progress:hover .cvp-progress-track,
+.cvp-progress.cvp-dragging .cvp-progress-track { height: 5px; }
+
+.cvp-progress-buffered {
+  position: absolute; inset: 0; width: 0%;
+  background: rgba(255,255,255,0.32); border-radius: 999px;
+}
+.cvp-progress-played {
+  position: absolute; inset: 0; width: 0%;
+  background: linear-gradient(90deg, #A98CFF, #7C5CFC, #A98CFF);
+  background-size: 200% 100%;
+  border-radius: 999px;
+  animation: cvp-progress-shimmer 3s linear infinite;
+}
+@keyframes cvp-progress-shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: 0%   0; }
+}
+.cvp-progress-thumb {
+  position: absolute; top: 50%; left: 0%; width: 14px; height: 14px; border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(124,92,252,0.6), 0 2px 8px rgba(0,0,0,0.5);
+  transform: translate(-50%, -50%) scale(0);
+  transition: transform 0.14s ease;
+}
+.cvp-progress:hover .cvp-progress-thumb,
+.cvp-progress.cvp-dragging .cvp-progress-thumb { transform: translate(-50%, -50%) scale(1); }
+
+/* ===== CONTROL ROW ===== */
+.cvp-row { display: flex; align-items: center; gap: 2px; margin-top: 6px; }
+.cvp-btn {
+  background: transparent; border: none; color: rgba(255,255,255,0.88); cursor: pointer;
+  width: 38px; height: 38px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center; font-size: 1rem;
+  transition: background 0.15s ease, color 0.15s ease;
+  flex-shrink: 0;
+}
+.cvp-btn:hover { background: rgba(255,255,255,0.12); color: #fff; }
+.cvp-btn:disabled { opacity: 0.32; cursor: default; }
+.cvp-btn:disabled:hover { background: transparent; }
+
+/* Volume */
+.cvp-volume { display: flex; align-items: center; }
+.cvp-vol-range {
+  width: 0; opacity: 0; margin-left: 0;
+  transition: width 0.2s ease, opacity 0.2s ease, margin-left 0.2s ease;
+  accent-color: #7C5CFC;
+  height: 4px; cursor: pointer; border-radius: 999px;
+}
+.cvp-volume:hover .cvp-vol-range,
+.cvp-volume.cvp-vol-active .cvp-vol-range { width: 80px; opacity: 1; margin-left: 6px; }
+
+/* Time display */
+.cvp-time {
+  color: rgba(255,255,255,0.85); font-size: 0.78rem;
+  font-variant-numeric: tabular-nums; margin-left: 6px; white-space: nowrap;
+  letter-spacing: 0.02em;
+}
+.cvp-spacer { flex: 1; }
+
+/* Speed menu */
+.cvp-speed { position: relative; }
+.cvp-speed-btn { width: auto; padding: 0 10px; font-size: 0.8rem; font-weight: 700; letter-spacing: 0.04em; }
+.cvp-speed-menu {
+  position: absolute; bottom: 46px; right: 0; z-index: 6;
+  background: rgba(12,10,28,0.96);
+  border: 1px solid rgba(124,92,252,0.25);
+  border-radius: 12px; padding: 6px; min-width: 88px;
+  display: none; flex-direction: column;
+  box-shadow: 0 16px 48px rgba(0,0,0,0.65), 0 0 0 1px rgba(124,92,252,0.1);
+  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+}
+.cvp-speed-menu.cvp-open { display: flex; }
+.cvp-speed-option {
+  background: transparent; border: none; color: rgba(255,255,255,0.8); text-align: left;
+  padding: 8px 12px; border-radius: 7px; font-size: 0.82rem; cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+.cvp-speed-option:hover { background: rgba(124,92,252,0.18); color: #fff; }
+.cvp-speed-option.cvp-active { color: #A98CFF; font-weight: 700; }
+
+/* PiP hide when unsupported */
+.cvp-pip-btn.cvp-unsupported { display: none; }
+
+/* ===== MOBILE ===== */
+@media (max-width: 560px) {
+  .cvp-controls { padding: 32px 8px 8px; }
+  .cvp-row { gap: 0; }
+  .cvp-btn { width: 34px; height: 34px; font-size: 0.92rem; }
+  .cvp-time { font-size: 0.72rem; }
+  .cvp-vol-range { display: none; }
+  .cvp-big-play { width: 64px; height: 64px; }
+  .cvp-big-play::after { inset: 8px; }
+  .cvp-big-play i { width: 14px; height: 16px; }
+  .cvp-speed-btn { padding: 0 7px; font-size: 0.75rem; }
+}
