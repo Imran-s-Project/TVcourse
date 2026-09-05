@@ -1,34 +1,85 @@
-.profile-header { display: flex; align-items: center; gap: 22px; padding: 36px 0 10px; flex-wrap: wrap; }
-.admin-shortcut { margin-inline-start: auto; }
-.profile-meta { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 8px; font-size: 0.84rem; color: var(--text-muted); }
-.profile-meta span { display: inline-flex; align-items: center; gap: 6px; }
-.profile-meta .badge { font-size: 0.72rem; padding: 3px 10px; }
+/* ==========================================================================
+   প্রোফাইল পেজ — কভার + অ্যাভাটার হেডার, স্ট্যাট স্ট্রিপ, সেগমেন্টেড ট্যাব,
+   এবং একটি সঠিক "কানেক্টেড অ্যাকাউন্ট" গ্রিড (আগে যেটা একটা প্লেইন সরু লিস্ট
+   ছিল, এখন প্রতিটা প্রোভাইডার নিজের ব্র্যান্ড-কালার আইকনসহ একটা কার্ড)
+   ========================================================================== */
 
-/* ---------- দ্রুত পরিসংখ্যান ---------- */
-.profile-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin: 22px 0 6px; }
-@media (max-width: 640px) { .profile-stats { grid-template-columns: 1fr; } }
-.stat-card { display: flex; align-items: center; gap: 14px; padding: 18px 20px; }
-.stat-card i { font-size: 1.3rem; color: var(--accent-amber-soft); width: 40px; height: 40px; border-radius: 12px;
-  background: rgba(232,163,61,0.12); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.stat-card b { display: block; font-family: var(--font-display); font-size: 1.3rem; line-height: 1.2; }
-.stat-card span { display: block; font-size: 0.82rem; color: var(--text-muted); margin-top: 2px; }
+.profile-page { padding-top: 10px; }
+
+/* ---------- কভার + অ্যাভাটার হেডার কার্ড ---------- */
+.profile-card {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  margin-bottom: 22px;
+}
+.profile-cover {
+  height: 92px;
+  background:
+    radial-gradient(ellipse 420px 220px at 15% 0%, var(--bg-glow-2), transparent 70%),
+    radial-gradient(ellipse 360px 220px at 88% 40%, var(--bg-glow-1), transparent 70%),
+    linear-gradient(120deg, var(--bg-elevated-2), var(--bg-elevated));
+}
+.profile-header { display: flex; align-items: flex-end; gap: 20px; padding: 0 26px 22px; margin-top: -42px; flex-wrap: wrap; }
+.admin-shortcut { margin-inline-start: auto; margin-bottom: 6px; }
+
+.profile-avatar-wrap { position: relative; flex-shrink: 0; }
 .profile-avatar {
-  width: 84px; height: 84px; border-radius: 50%; overflow: hidden; border: 3px solid var(--accent-amber);
-  display: flex; align-items: center; justify-content: center; background: var(--bg-elevated-2);
-  font-family: var(--font-display); font-size: 2rem; color: var(--accent-amber-soft); flex-shrink: 0; position: relative;
+  width: 88px; height: 88px; border-radius: 50%; overflow: hidden;
+  border: 4px solid var(--bg-elevated); display: flex; align-items: center; justify-content: center;
+  background: var(--bg-elevated-2); font-family: var(--font-display); font-size: 2rem;
+  color: var(--accent-amber-soft); box-shadow: 0 8px 22px rgba(0,0,0,0.3);
 }
 .profile-avatar img { width: 100%; height: 100%; object-fit: cover; }
 .avatar-edit-btn {
-  position: absolute; bottom: -2px; right: -2px; width: 28px; height: 28px; border-radius: 50%;
-  background: var(--accent-amber); color: #201705; display: flex; align-items: center; justify-content: center; font-size: 0.8rem;
-  border: 2px solid var(--bg);
+  position: absolute; bottom: 0; right: 0; width: 30px; height: 30px; border-radius: 50%;
+  background: linear-gradient(155deg, var(--accent-amber-soft), var(--accent-amber)); color: #fff;
+  display: flex; align-items: center; justify-content: center; font-size: 0.78rem;
+  border: 3px solid var(--bg-elevated); cursor: pointer; transition: transform .15s ease;
 }
-.profile-name h1 { font-size: 1.5rem; }
-.profile-name p { color: var(--text-muted); margin-top: 4px; }
+.avatar-edit-btn:hover { transform: scale(1.08); }
 
-.tab-row { display: flex; gap: 6px; margin: 28px 0 24px; border-bottom: 1px solid var(--border); overflow-x: auto; }
-.tab-btn { padding: 12px 20px; font-weight: 600; color: var(--text-muted); border-bottom: 2px solid transparent; white-space: nowrap; }
-.tab-btn.active { color: var(--accent-amber-soft); border-color: var(--accent-amber); }
+.profile-name { padding-bottom: 3px; min-width: 0; }
+.profile-name h1 { font-size: 1.5rem; line-height: 1.25; }
+.profile-name p { color: var(--text-muted); margin-top: 3px; font-size: 0.9rem; }
+
+.profile-meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.meta-chip {
+  display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 999px;
+  background: var(--bg-elevated-2); border: 1px solid var(--border); font-size: 0.78rem; color: var(--text-muted);
+}
+.meta-chip i { color: var(--accent-amber-soft); font-size: 0.76rem; }
+.profile-meta .badge { font-size: 0.72rem; padding: 4px 12px; }
+
+@media (max-width: 560px) {
+  .profile-header { margin-top: -34px; padding: 0 16px 18px; }
+  .profile-avatar { width: 76px; height: 76px; }
+}
+
+/* ---------- দ্রুত পরিসংখ্যান — প্রতিটা স্ট্যাটের নিজস্ব রঙের আইকন-বক্স ---------- */
+.profile-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin: 0 0 26px; }
+@media (max-width: 640px) { .profile-stats { grid-template-columns: 1fr; } }
+.stat-card { display: flex; align-items: center; gap: 14px; padding: 18px 20px; }
+.stat-card i { font-size: 1.25rem; width: 42px; height: 42px; border-radius: 12px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+.stat-card:nth-child(1) i { color: var(--accent-amber-soft); background: rgba(124,92,252,0.14); }
+.stat-card:nth-child(2) i { color: #5FD4C6; background: rgba(31,158,147,0.16); }
+.stat-card:nth-child(3) i { color: var(--accent-green-soft); background: rgba(31,174,92,0.14); }
+.stat-card b { display: block; font-family: var(--font-display); font-size: 1.35rem; line-height: 1.2; }
+.stat-card span { display: block; font-size: 0.82rem; color: var(--text-muted); margin-top: 2px; }
+
+/* ---------- সেগমেন্টেড ট্যাব (আগের আন্ডারলাইন ট্যাবের বদলে একটা পিল-শেপ সুইচার) ---------- */
+.tab-row {
+  display: flex; gap: 4px; margin: 0 0 24px; padding: 5px;
+  background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 999px;
+  overflow-x: auto; width: fit-content; max-width: 100%;
+}
+.tab-btn {
+  padding: 10px 18px; font-weight: 600; font-size: 0.88rem; color: var(--text-muted);
+  border-radius: 999px; white-space: nowrap; transition: background .15s ease, color .15s ease;
+}
+.tab-btn.active { color: #fff; background: linear-gradient(155deg, var(--accent-amber-soft), var(--accent-amber)); }
+.tab-btn:not(.active):hover { color: var(--text-primary); }
 
 .tab-panel { padding-bottom: 70px; }
 
@@ -51,24 +102,82 @@
 .panel-title i { color: var(--accent-amber-soft); }
 .panel-desc { font-size: 0.86rem; margin-bottom: 18px; line-height: 1.6; }
 
+.settings-card { max-width: 520px; }
+.avatar-picker { display: flex; align-items: center; gap: 16px; margin-bottom: 22px; padding: 14px; background: var(--bg-elevated-2); border-radius: var(--radius-md); }
+.avatar-picker-preview {
+  width: 60px; height: 60px; border-radius: 50%; overflow: hidden; flex-shrink: 0;
+  background: var(--bg-elevated); border: 2px solid var(--border-strong);
+  display: flex; align-items: center; justify-content: center; font-family: var(--font-display);
+  font-size: 1.4rem; color: var(--accent-amber-soft);
+}
+.avatar-picker-preview img { width: 100%; height: 100%; object-fit: cover; }
+.avatar-picker-actions { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.avatar-picker-btn { cursor: pointer; width: fit-content; }
+.avatar-picker-hint { font-size: 0.76rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 220px; }
+
+#settings-bio-count { display: block; text-align: right; margin-top: 4px; }
+.settings-card textarea { resize: vertical; min-height: 64px; font-family: inherit; }
+
 .security-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; align-items: start; }
 @media (max-width: 860px) { .security-grid { grid-template-columns: 1fr; } }
 
-.danger-zone { border-color: rgba(225,95,82,0.35); }
+/* ---------- ডেঞ্জার জোন — একটাই কার্ড, দুইটা স্পষ্ট আলাদা অ্যাকশন
+   (Deactivate = reversible, Delete = irreversible)। সম্পূর্ণ ফ্ল্যাট —
+   কোনো box-shadow/glow ব্যবহার হয়নি, শুধু বর্ডার আর সলিড আইকন-ব্যাকগ্রাউন্ড। ---------- */
+.danger-zone { border-color: rgba(225,95,82,0.3); }
 .danger-zone .panel-title i { color: var(--accent-coral); }
 
-/* ---------- লিংকড অ্যাকাউন্ট (Google / Facebook / GitHub / Yahoo / Apple) ---------- */
+.danger-action { display: flex; align-items: flex-start; gap: 14px; padding: 4px 0; }
+.danger-action-icon {
+  width: 38px; height: 38px; border-radius: 10px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center; font-size: 0.95rem;
+}
+.danger-action-icon-amber { background: rgba(232,163,61,0.14); color: #E8A33D; }
+.danger-action-icon-coral { background: rgba(225,95,82,0.14); color: var(--accent-coral); }
+
+.danger-action-body { flex: 1; min-width: 0; }
+.danger-action-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 6px; }
+.danger-action-head h4 { font-size: 0.95rem; font-weight: 700; }
+.danger-action-body p { font-size: 0.85rem; line-height: 1.55; margin-bottom: 12px; }
+
+.danger-divider { height: 1px; background: var(--border); margin: 18px 0; }
+
+/* ---------- লিংকড অ্যাকাউন্ট — প্রতিটা প্রোভাইডার এখন নিজের ব্র্যান্ড-কালার
+   আইকনসহ একটা পরিষ্কার কার্ড, আগের মতো একটা সরু এলোমেলো লিস্ট নয় ---------- */
 .linked-accounts-card { margin-bottom: 22px; }
-.linked-accounts-list { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
-.linked-account-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 12px; border: 1px solid var(--border); border-radius: 10px; }
-.linked-account-info { display: flex; align-items: center; gap: 10px; min-width: 0; }
-.linked-provider-icon { width: 28px; height: 28px; border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: 0.9rem; background: var(--bg-elevated-2); color: var(--text-muted); flex-shrink: 0; }
-.linked-account-row[data-provider="google.com"] .linked-provider-icon { color: #EA4335; }
-.linked-account-row[data-provider="facebook.com"] .linked-provider-icon { color: #1877F2; }
-.linked-account-row[data-provider="github.com"] .linked-provider-icon { color: var(--text); }
-.linked-account-row[data-provider="yahoo.com"] .linked-provider-icon { color: #6001D2; }
-.linked-account-row[data-provider="apple.com"] .linked-provider-icon { color: var(--text); }
-.linked-account-info h4 { font-size: 0.85rem; font-weight: 600; }
-.linked-account-info .note-tag { font-weight: 400; font-size: 0.72rem; color: var(--text-muted); }
-.linked-status { font-size: 0.75rem; }
-.linked-status.is-connected { color: var(--accent-teal, #2fb894); }
+.linked-accounts-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; flex-wrap: wrap; }
+.connect-summary {
+  flex-shrink: 0; font-size: 0.78rem; font-weight: 700; color: #5FD4C6;
+  background: rgba(31,158,147,0.16); padding: 5px 12px; border-radius: 999px; white-space: nowrap;
+}
+
+.linked-accounts-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px; margin-top: 16px; }
+.connect-card {
+  display: flex; align-items: center; gap: 12px; padding: 14px;
+  border: 1px solid var(--border); border-radius: var(--radius-md);
+  background: var(--bg-elevated-2); transition: border-color .15s ease;
+}
+.connect-card[data-status="connected"] { border-color: rgba(31,158,147,0.4); }
+.connect-icon {
+  width: 40px; height: 40px; border-radius: 11px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center; font-size: 1.05rem; color: #fff;
+}
+.connect-card[data-provider="google.com"] .connect-icon { background: #EA4335; }
+.connect-card[data-provider="facebook.com"] .connect-icon { background: #1877F2; }
+.connect-card[data-provider="github.com"] .connect-icon { background: #24292F; }
+.connect-card[data-provider="yahoo.com"] .connect-icon { background: #6001D2; }
+.connect-card[data-provider="apple.com"] .connect-icon { background: #333333; }
+
+.connect-body { flex: 1; min-width: 0; }
+.connect-body h4 { font-size: 0.88rem; font-weight: 700; }
+.connect-body .note-tag { font-weight: 400; font-size: 0.72rem; color: var(--text-muted); }
+.connect-status { font-size: 0.75rem; color: var(--text-muted); display: flex; align-items: center; gap: 6px; margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.connect-status i { font-size: 0.5rem; color: var(--text-muted); }
+.connect-status.is-connected { color: #5FD4C6; }
+.connect-status.is-connected i { color: var(--accent-teal, #2fb894); }
+.connect-card .btn-sm { flex-shrink: 0; }
+
+@media (max-width: 420px) {
+  .connect-card { flex-wrap: wrap; }
+  .connect-card .btn-sm { width: 100%; }
+}
