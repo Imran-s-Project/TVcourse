@@ -92,13 +92,28 @@ export async function linkChildByCode(parentUid, rawCode) {
     throw new Error("This account is already linked.");
   }
 
-  await updateDoc(doc(db, "users", childUid), {
-    linkedParents: arrayUnion(parentUid),
-    lastVerifiedCode: code,
-  });
-  await updateDoc(doc(db, "users", parentUid), {
-    linkedChildren: arrayUnion(childUid),
-  });
+  try {
+    await updateDoc(doc(db, "users", childUid), {
+      linkedParents: arrayUnion(parentUid),
+      lastVerifiedCode: code,
+    });
+    await updateDoc(doc(db, "users", parentUid), {
+      linkedChildren: arrayUnion(childUid),
+    });
+  } catch (err) {
+    // A permission-denied here almost never means the code is wrong (that's
+    // already been checked above) — it means this project's live Firestore
+    // Security Rules don't yet match firestore.rules.txt (either they were
+    // never published, or an older version without the Guardian-linking
+    // clauses is still live). Say so plainly instead of a generic failure,
+    // since "try a different code" would send someone chasing the wrong fix.
+    if (err.code === "permission-denied") {
+      throw new Error(
+        "Linking was blocked by the database's security rules. Ask the site admin to publish the latest firestore.rules.txt in the Firebase Console (Firestore Database → Rules)."
+      );
+    }
+    throw err;
+  }
 
   return childUid;
 }
