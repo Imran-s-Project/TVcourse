@@ -28,16 +28,77 @@ service cloud.firestore {
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
     }
 
+    /* ---------- একটা like/unlike toggle বৈধ কিনা যাচাই (discussions + replies দুই জায়গাতেই ব্যবহৃত) ----------
+       শর্ত: (ক) শুধু request.auth.uid-টাই যোগ/বাদ হয়েছে, বাকি সব uid অপরিবর্তিত আছে,
+       (খ) লিস্টের সাইজ ঠিক ১ বেড়েছে (লাইক) বা ঠিক ১ কমেছে (আনলাইক)।
+       hasAll() ব্যবহার করে অর্ডার-independent ভাবে যাচাই করা হচ্ছে, তাই arrayUnion/arrayRemove
+       মাঝখান থেকে uid সরালেও (order বদলে গেলেও) সঠিকভাবে ধরা পড়ে। এভাবে কেউ নিজের uid ছাড়া
+       অন্য কারো লাইক জোর করে যোগ/মুছে দিতে পারবে না। */
+    function isValidLikeToggle(oldList, newList) {
+      let uid = request.auth.uid;
+      return (
+        (uid in newList && !(uid in oldList) &&
+          newList.size() == oldList.size() + 1 &&
+          newList.hasAll(oldList)) ||
+        (!(uid in newList) && uid in oldList &&
+          newList.size() == oldList.size() - 1 &&
+          oldList.hasAll(newList))
+      );
+    }
+
+    /* ---------- replyCount ঠিক ১ বেড়েছে (নতুন রিপ্লাই) বা ঠিক ১ কমেছে (রিপ্লাই ডিলিট) কিনা ---------- */
+    function isValidReplyCountStep(oldCount, newCount) {
+      return newCount == oldCount + 1 || newCount == oldCount - 1;
+    }
+
+    /* ---------- অভিভাবক ড্যাশবোর্ড: লিংক কোড যাচাই ----------
+       একজন অভিভাবক নিজেকে কোনো ছাত্রের users/{uid}.linkedParents লিস্টে যোগ করতে চাইলে
+       প্রমাণ দিতে হবে যে সে ছাত্রের বর্তমান-বৈধ লিংক কোডটা জানে — নাহলে শুধু কারো uid জানলেই
+       (যেমন ডিসকাশন পোস্ট থেকে) তার প্রোগ্রেস/রেজাল্ট দেখে ফেলা যেত। linkCodes/{code} কালেকশনে
+       list বন্ধ (নিচে দেখুন), তাই সঠিক কোড স্ট্রিং না জানলে এই get() কখনো মিলবে না। */
+    function isCodeValidFor(code, childUid) {
+      return code is string && code.size() > 0 &&
+        exists(/databases/$(database)/documents/linkCodes/$(code)) &&
+        get(/databases/$(database)/documents/linkCodes/$(code)).data.uid == childUid;
+    }
+
+    /* ---------- অভিভাবক ড্যাশবোর্ড: এই অভিভাবক কি childUid-এর সাথে লিংকড কিনা (results কালেকশনে ব্যবহৃত) ---------- */
+    function isLinkedParentOf(childUid) {
+      return isSignedIn() &&
+        get(/databases/$(database)/documents/users/$(childUid)).data.get("linkedParents", []).hasAny([request.auth.uid]);
+    }
+
     /* ---------- ইউজার প্রোফাইল ---------- */
     match /users/{uid} {
-      allow read: if isSignedIn() && (request.auth.uid == uid || isAdmin());
+      // নিজের প্রোফাইল, অ্যাডমিন, অথবা এই ছাত্রের সাথে লিংকড কোনো অভিভাবক (linkedParents লিস্টে
+      // যার uid আছে) — অভিভাবক ড্যাশবোর্ডে সন্তানের এনরোলড কোর্স/প্রোগ্রেস দেখানোর জন্য দরকার
+      allow read: if isSignedIn() && (
+        request.auth.uid == uid ||
+        isAdmin() ||
+        resource.data.get("linkedParents", []).hasAny([request.auth.uid])
+      );
 
       allow create: if isSignedIn() && request.auth.uid == uid &&
         request.resource.data.isAdmin == false;
 
       allow update: if isSignedIn() && (
         (request.auth.uid == uid && request.resource.data.isAdmin == resource.data.isAdmin) ||
-        isAdmin()
+        isAdmin() ||
+
+        /* ---------- অভিভাবক ড্যাশবোর্ড: একজন অভিভাবক নিজেকে এই ছাত্রের linkedParents-এ
+           যোগ/বাদ করছে (নিজের অ্যাকাউন্ট মালিক না হয়েও) ----------
+           - বাদ দেওয়া (unlink): কোনো প্রমাণ লাগে না, নিজেকে যেকোনো সময় সরিয়ে নিতে পারবে
+           - যোগ করা (link): অবশ্যই ছাত্রের বর্তমান-বৈধ লিংক কোড lastVerifiedCode ফিল্ডে
+             পাঠাতে হবে, isCodeValidFor() দিয়ে যাচাই হয় — শুধু uid জানলেই লিংক করা যাবে না */
+        (
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(["linkedParents", "lastVerifiedCode"]) &&
+          isValidLikeToggle(resource.data.get("linkedParents", []), request.resource.data.linkedParents) &&
+          (
+            !(request.auth.uid in request.resource.data.linkedParents) ||
+            (request.auth.uid in resource.data.get("linkedParents", [])) ||
+            isCodeValidFor(request.resource.data.get("lastVerifiedCode", ""), uid)
+          )
+        )
       );
 
       // নিজের অ্যাকাউন্ট নিজে ডিলিট করতে পারবে (প্রোফাইল পেজের "অ্যাকাউন্ট মুছে ফেলুন"), অ্যাডমিনও যে-কারো ডিলিট করতে পারবে
@@ -92,7 +153,10 @@ service cloud.firestore {
 
     /* ---------- পরীক্ষার ফলাফল ---------- */
     match /results/{resultId} {
-      allow read: if isSignedIn() && (resource.data.uid == request.auth.uid || isAdmin());
+      // নিজের রেজাল্ট, অ্যাডমিন, অথবা এই ছাত্রের সাথে লিংকড অভিভাবক
+      allow read: if isSignedIn() && (
+        resource.data.uid == request.auth.uid || isAdmin() || isLinkedParentOf(resource.data.uid)
+      );
       allow create: if isSignedIn() && request.resource.data.uid == request.auth.uid;
       allow update: if isSignedIn() && resource.data.uid == request.auth.uid &&
         request.resource.data.uid == resource.data.uid;
@@ -111,7 +175,7 @@ service cloud.firestore {
        শুধু অ্যাডমিন লিখতে/এডিট/ডিলিট করতে পারবে। যেকোনো লগইন করা ইউজার সবগুলো ডকুমেন্ট
        পড়তে পারবে (কোনটা আসলে দেখানো হবে তা client-side এ audience/enrolledCourses
        দিয়ে ফিল্টার হয় — js/notifications.js), তাই read এখানে খোলা রাখা নিরাপদ, কারণ
-       ভেতরের কোনো তথ্যই sensitive না (শুধু টাইটেল/মেসেজ/কোর্স-ট্যাগ/কাস্টম লিংক/পিন)।
+       ভেতরের কোনো তথ্যই sensitive না (শুধু টাইটেল/মেসেজ/কোর্স-ট্যাগ)।
        create/update এ স্ট্রং ভ্যালিডেশন: টাইটেল/মেসেজ খালি রাখা যাবে না,
        audience অবশ্যই "all" বা "enrolled" হতে হবে, courseIds/courseTitles অবশ্যই list হতে হবে। */
     match /notifications/{notifId} {
@@ -163,6 +227,22 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    /* ---------- অভিভাবক ড্যাশবোর্ড: চাইল্ড লিংক কোড ----------
+       ডকুমেন্ট আইডি = নিজেই কোড (যেমন linkCodes/AB12CD34EF)। ছাত্র তার প্রোফাইলের
+       "Family" ট্যাব থেকে নিজের জন্য এই কোড তৈরি করে, তারপর অভিভাবককে শেয়ার করে।
+       - get: exact কোড স্ট্রিং জানলেই পড়া যাবে (childUid বের করার জন্য)
+       - list: বন্ধ — নাহলে পুরো কালেকশন স্ক্যান করে সবার কোড দেখে ফেলা যেত
+       - create: শুধু নিজের জন্যই তৈরি করা যাবে (uid নিজের হতে হবে)
+       - একই কোড একাধিক অভিভাবক (যেমন বাবা-মা দুজনেই) ব্যবহার করতে পারবেন যতক্ষণ না
+         ছাত্র নিজে রিজেনারেট/ডিলিট করছে — তাই আলাদা "used" ফ্ল্যাগ নেই */
+    match /linkCodes/{code} {
+      allow get: if isSignedIn();
+      allow list: if false;
+      allow create: if isSignedIn() && request.resource.data.uid == request.auth.uid;
+      allow update: if false;
+      allow delete: if isAdmin() || (isSignedIn() && resource.data.uid == request.auth.uid);
+    }
+
     /* ---------- Learning Hub: স্পেসড-রিপিটিশন ফ্ল্যাশকার্ড (অ্যাডমিন তৈরি করে) ----------
        সব সাইন-ইন করা ইউজার পড়তে পারবে (কোন কার্ড আসলে দেখানো হবে তা client-side এ
        courseId/enrolledCourses দিয়ে ফিল্টার হয় — js/flashcards.js), শুধু অ্যাডমিন
@@ -172,27 +252,60 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    /* ---------- Learning Hub: ডিসকাশন থ্রেড ----------
-       যেকোনো লগইন করা ইউজার থ্রেড পড়তে/তৈরি করতে পারবে (নিজের uid দিয়েই),
-       শুধু replyCount/lastActivityAt বাড়ানোর জন্য আপডেট করা যাবে (রিপ্লাই দেওয়ার সময়),
-       বাকি ফিল্ড বদলানো যাবে না। ডিলিট শুধু অ্যাডমিন করতে পারবে (মডারেশন)। */
+    /* ---------- Learning Hub: ডিসকাশন থ্রেড (ফেসবুক-স্টাইল পোস্ট ফিড: like, নিজের পোস্ট/রিপ্লাই
+       edit ও delete, অ্যাডমিন-মডারেশন) ----------
+       - read: যেকোনো সাইন-ইন করা ইউজার
+       - create: নিজের uid দিয়েই, title/body খালি রাখা যাবে না, likedBy খালি লিস্ট আর
+         replyCount শূন্য দিয়েই শুরু হতে হবে (কেউ শুরু থেকেই ভুয়া লাইক/রিপ্লাই-সংখ্যা বসাতে পারবে না)
+       - update নিচের ৩টার একটার বাইরে যাবে না:
+           ১) কেউ রিপ্লাই করলে replyCount + lastActivityAt (ঠিক ১ বাড়বে)
+           ২) যেকোনো সাইন-ইন ইউজার likedBy টগল করলে — কিন্তু শুধু নিজের uid যোগ/বাদ দিতে পারবে,
+              isValidLikeToggle() দিয়ে যাচাই হয়
+           ৩) পোস্টের মালিক নিজে title/body/editedAt এডিট করলে (title/body খালি রাখা যাবে না)
+         এসবের বাইরে অ্যাডমিন করতে পারবে (মডারেশন/ঠিক করা দরকার হলে)
+       - delete: পোস্টের মালিক নিজে অথবা অ্যাডমিন */
     match /discussions/{threadId} {
       allow read: if isSignedIn();
 
       allow create: if isSignedIn()
         && request.resource.data.uid == request.auth.uid
         && request.resource.data.title is string && request.resource.data.title.size() > 0
-        && request.resource.data.body is string && request.resource.data.body.size() > 0;
+        && request.resource.data.body is string && request.resource.data.body.size() > 0
+        && request.resource.data.likedBy == []
+        && request.resource.data.replyCount == 0;
 
-      allow update: if isSignedIn()
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["replyCount", "lastActivityAt"]);
+      allow update: if isSignedIn() && (
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(["replyCount", "lastActivityAt"])
+          && isValidReplyCountStep(resource.data.replyCount, request.resource.data.replyCount)) ||
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(["likedBy"])
+          && isValidLikeToggle(resource.data.likedBy, request.resource.data.likedBy)) ||
+        (resource.data.uid == request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["title", "body", "editedAt"])
+          && request.resource.data.title is string && request.resource.data.title.size() > 0
+          && request.resource.data.body is string && request.resource.data.body.size() > 0) ||
+        isAdmin()
+      );
 
-      allow delete: if isAdmin();
+      allow delete: if isAdmin() || (isSignedIn() && resource.data.uid == request.auth.uid);
 
       match /replies/{replyId} {
         allow read: if isSignedIn();
-        allow create: if isSignedIn() && request.resource.data.uid == request.auth.uid;
-        allow delete: if isAdmin();
+
+        allow create: if isSignedIn()
+          && request.resource.data.uid == request.auth.uid
+          && request.resource.data.body is string && request.resource.data.body.size() > 0
+          && request.resource.data.likedBy == [];
+
+        allow update: if isSignedIn() && (
+          (request.resource.data.diff(resource.data).affectedKeys().hasOnly(["likedBy"])
+            && isValidLikeToggle(resource.data.likedBy, request.resource.data.likedBy)) ||
+          (resource.data.uid == request.auth.uid
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["body", "editedAt"])
+            && request.resource.data.body is string && request.resource.data.body.size() > 0) ||
+          isAdmin()
+        );
+
+        allow delete: if isAdmin() || (isSignedIn() && resource.data.uid == request.auth.uid);
       }
     }
   }
@@ -299,4 +412,34 @@ sw.js           — অফলাইন ক্যাশিং সার্ভি�
 - **`css/hub.css`** — উপরের সবগুলোর স্টাইল + "New" পিল অ্যানিমেশন
 
 > ⚠️ **জরুরি:** এই ফিচারগুলো কাজ করার আগে উপরের ধাপ ২-এর Firestore রুলসের **সম্পূর্ণ, হালনাগাদ ভার্সনটা** আবার Firebase Console → Firestore → Rules-এ পেস্ট করে Publish করতে হবে (নতুন `flashcards`, `discussions`, `discussions/{id}/replies`, ও `users/{uid}/flashcardProgress` রুলস যোগ হয়েছে) — নাহলে Hub পেজে Permission Denied এরর আসবে।
+
+## ১০. অভিভাবক ড্যাশবোর্ড (Parent Dashboard) — নতুন সংযোজন
+প্যারেন্ট নিজের সন্তানের কোর্স প্রোগ্রেস ও এক্সাম রেজাল্ট দেখতে পারবেন — সম্পূর্ণ read-only, আলাদা অ্যাকাউন্ট রোল দিয়ে। কোনো Cloud Function ছাড়াই শুধু Firestore Security Rules দিয়ে সুরক্ষিত।
+
+**কীভাবে কাজ করে (ছাত্র → অভিভাবক লিংকিং):**
+1. ছাত্র তার প্রোফাইলের নতুন **Family** ট্যাবে (`#/profile?tab=family`) গিয়ে একটা এলোমেলো ১০-ক্যারেক্টার **Family Link Code** দেখতে পাবে (প্রথমবার auto-generate হয়) এবং সেটা কপি করে অভিভাবককে শেয়ার করবে।
+2. অভিভাবক সাইন-আপের সময় "Parent / Guardian" অ্যাকাউন্ট টাইপ বেছে নিয়ে কোডটা দিতে পারবেন, অথবা পরে **Parent Dashboard**-এর (`#/parent`) "Add Child" বাটন থেকেও লিংক করতে পারবেন।
+3. একই কোড দিয়ে একাধিক অভিভাবক (যেমন বাবা ও মা দুজনেই) লিংক করতে পারবেন — ছাত্র নিজে থেকে রিজেনারেট না করা পর্যন্ত কোডটা সক্রিয় থাকে। রিজেনারেট করলে আগে থেকে লিংক থাকা অভিভাবকদের অ্যাক্সেস বাতিল হয় না, শুধু পুরনো কোড দিয়ে নতুন করে লিংক করা বন্ধ হয়ে যায়।
+4. যেকোনো পক্ষ (ছাত্র বা অভিভাবক) যেকোনো সময় Unlink করে দিতে পারবেন।
+
+**সিকিউরিটি ডিজাইন (গুরুত্বপূর্ণ):**
+সাইটে অনেক জায়গায় (যেমন ডিসকাশন পোস্ট) একজন ইউজারের `uid` এমনিতেই অন্যদের কাছে দৃশ্যমান। তাই "কেউ যদি একটা ছাত্রের `uid` জেনে ফেলে, সে কি নিজেকে জোর করে সেই ছাত্রের `linkedParents`-এ যোগ করে প্রোগ্রেস/রেজাল্ট দেখে ফেলতে পারবে?" — এই ঝুঁকিটা বন্ধ করতে Firestore Rules-এ একটা cryptographic-ধাঁচের প্রমাণ বসানো হয়েছে:
+- `linkCodes/{code}` কালেকশনে `list` একদম বন্ধ, শুধু exact কোড স্ট্রিং জানলেই `get` করা যাবে — তাই পুরো কালেকশন স্ক্যান করে কোনো ছাত্রের কোড অনুমান করা যায় না।
+- কোনো অভিভাবক নিজেকে একটা ছাত্রের `linkedParents` লিস্টে **যোগ** করতে চাইলে, ওই লেখার সাথে `lastVerifiedCode` ফিল্ডে সেই ছাত্রের বর্তমান-বৈধ কোডটা পাঠাতে হয় — রুল নিজে `get()` দিয়ে যাচাই করে যে কোডটা সত্যিই ওই ছাত্রের এবং এখনো সক্রিয়। শুধু `uid` জানাই যথেষ্ট নয়।
+- **বাদ দেওয়া (unlink)** কোনো প্রমাণ ছাড়াই যেকোনো সময় করা যায় — কেউ চাইলে যেকোনো মুহূর্তে সংযোগ ছিন্ন করতে পারবেন।
+- অভিভাবক শুধু `users/{childUid}` (এনরোলড কোর্স, প্রোগ্রেস) এবং `results` কালেকশনে ওই সন্তানের রেজাল্ট পড়তে পারবেন — লক করা ভিডিও/এক্সামে প্রবেশ, কোর্স কেনা, বা অন্য কোনো লেখার অনুমতি নেই।
+
+**নতুন/পরিবর্তিত ফাইল:**
+- **`js/parent-data.js`** — লিংক কোড generate/regenerate, লিংক/আনলিংক, সন্তানের কোর্স-প্রোগ্রেস + এক্সাম-রেজাল্ট ফেচ করার সব Firestore লজিক, একদম আলাদা ফাইলে (`exam/exam-data.js`-এর মতোই ডেটা-লেয়ার/UI-লেয়ার আলাদা রাখার নিয়ম মেনে)
+- **`js/page-parent.js`** + **`css/parent.css`** — `#/parent` রুটের সম্পূর্ণ ড্যাশবোর্ড UI (একাধিক সন্তান থাকলে সুইচার চিপ, স্ট্যাটস স্ট্রিপ, কোর্স-প্রোগ্রেস কার্ড, এক্সাম-রেজাল্ট লিস্ট) — সাইটের ফ্ল্যাট/strong ডিজাইন ভাষা অনুসরণ করে, কোনো glow/lighting ইফেক্ট নেই
+- **`js/page-profile.js`** + **`js/profile.js`** + **`css/profile.css`** — ছাত্রের প্রোফাইলে নতুন **Family** ট্যাব (কোড দেখা/কপি/রিজেনারেট, লিংকড গার্ডিয়ান লিস্ট ও আনলিংক)
+- **`js/page-signup.js`** + **`css/auth.css`** — সাইন-আপ ফর্মে Student/Parent অ্যাকাউন্ট-টাইপ টগল + ঐচ্ছিক চাইল্ড লিংক কোড ফিল্ড
+- **`js/auth.js`** — সাইন-আপে বেছে নেওয়া role সেভ করা, ঐচ্ছিক কোড দিয়ে সাথে সাথে লিংক করা, এবং লগইন/সাইন-আপ/OAuth — সব জায়গায় parent অ্যাকাউন্ট হলে `#/home`-এর বদলে সরাসরি `#/parent`-এ পাঠানো
+- **`js/app.js`** — নতুন `#/parent` রুট + page shell, এবং parent-role অ্যাকাউন্ট ভুলবশত `#/home`-এ গেলে অটো-রিডাইরেক্ট
+- **`js/utils.js`** — `initNav()`-এ parent role শনাক্ত হলে সম্পূর্ণ আলাদা, ছোট নেভিগেশন (শুধু Dashboard + Profile — My Courses/Exam/Hub লুকানো, যেহেতু এগুলো প্যারেন্টের জন্য প্রযোজ্য নয়)
+- **`index.html`** — নতুন `#page-parent` shell + `css/parent.css` লিংক
+- **`firestore.rules.txt`** (ধাপ ২-এ পূর্ণ আপডেটেড ভার্সন আছে) — `users/{uid}.linkedParents`/`linkedChildren`, নতুন `linkCodes/{code}` কালেকশন, এবং `results` কালেকশনে linked-parent read access
+
+> ⚠️ **জরুরি:** অন্য যেকোনো নতুন ফিচারের মতোই, এটাও কাজ করার আগে ধাপ ২-এর **সম্পূর্ণ Firestore রুলস** আবার Firebase Console → Firestore → Rules-এ পেস্ট করে Publish করতে হবে (নতুন `linkCodes` কালেকশন এবং `users`/`results` রুলসের পরিবর্তনসহ) — নাহলে Family ট্যাব বা Parent Dashboard কোনোটাই কাজ করবে না।
+
 

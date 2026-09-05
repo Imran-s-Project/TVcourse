@@ -33,16 +33,54 @@ service cloud.firestore {
       return newCount == oldCount + 1 || newCount == oldCount - 1;
     }
 
+    /* ---------- অভিভাবক ড্যাশবোর্ড: লিংক কোড যাচাই ----------
+       একজন অভিভাবক নিজেকে কোনো ছাত্রের users/{uid}.linkedParents লিস্টে যোগ করতে চাইলে
+       প্রমাণ দিতে হবে যে সে ছাত্রের বর্তমান-বৈধ লিংক কোডটা জানে — নাহলে শুধু কারো uid জানলেই
+       (যেমন ডিসকাশন পোস্ট থেকে) তার প্রোগ্রেস/রেজাল্ট দেখে ফেলা যেত। linkCodes/{code} কালেকশনে
+       list বন্ধ (নিচে দেখুন), তাই সঠিক কোড স্ট্রিং না জানলে এই get() কখনো মিলবে না। */
+    function isCodeValidFor(code, childUid) {
+      return code is string && code.size() > 0 &&
+        exists(/databases/$(database)/documents/linkCodes/$(code)) &&
+        get(/databases/$(database)/documents/linkCodes/$(code)).data.uid == childUid;
+    }
+
+    /* ---------- অভিভাবক ড্যাশবোর্ড: এই অভিভাবক কি childUid-এর সাথে লিংকড কিনা (results কালেকশনে ব্যবহৃত) ---------- */
+    function isLinkedParentOf(childUid) {
+      return isSignedIn() &&
+        get(/databases/$(database)/documents/users/$(childUid)).data.get("linkedParents", []).hasAny([request.auth.uid]);
+    }
+
     /* ---------- ইউজার প্রোফাইল ---------- */
     match /users/{uid} {
-      allow read: if isSignedIn() && (request.auth.uid == uid || isAdmin());
+      // নিজের প্রোফাইল, অ্যাডমিন, অথবা এই ছাত্রের সাথে লিংকড কোনো অভিভাবক (linkedParents লিস্টে
+      // যার uid আছে) — অভিভাবক ড্যাশবোর্ডে সন্তানের এনরোলড কোর্স/প্রোগ্রেস দেখানোর জন্য দরকার
+      allow read: if isSignedIn() && (
+        request.auth.uid == uid ||
+        isAdmin() ||
+        resource.data.get("linkedParents", []).hasAny([request.auth.uid])
+      );
 
       allow create: if isSignedIn() && request.auth.uid == uid &&
         request.resource.data.isAdmin == false;
 
       allow update: if isSignedIn() && (
         (request.auth.uid == uid && request.resource.data.isAdmin == resource.data.isAdmin) ||
-        isAdmin()
+        isAdmin() ||
+
+        /* ---------- অভিভাবক ড্যাশবোর্ড: একজন অভিভাবক নিজেকে এই ছাত্রের linkedParents-এ
+           যোগ/বাদ করছে (নিজের অ্যাকাউন্ট মালিক না হয়েও) ----------
+           - বাদ দেওয়া (unlink): কোনো প্রমাণ লাগে না, নিজেকে যেকোনো সময় সরিয়ে নিতে পারবে
+           - যোগ করা (link): অবশ্যই ছাত্রের বর্তমান-বৈধ লিংক কোড lastVerifiedCode ফিল্ডে
+             পাঠাতে হবে, isCodeValidFor() দিয়ে যাচাই হয় — শুধু uid জানলেই লিংক করা যাবে না */
+        (
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(["linkedParents", "lastVerifiedCode"]) &&
+          isValidLikeToggle(resource.data.get("linkedParents", []), request.resource.data.linkedParents) &&
+          (
+            !(request.auth.uid in request.resource.data.linkedParents) ||
+            (request.auth.uid in resource.data.get("linkedParents", [])) ||
+            isCodeValidFor(request.resource.data.get("lastVerifiedCode", ""), uid)
+          )
+        )
       );
 
       // নিজের অ্যাকাউন্ট নিজে ডিলিট করতে পারবে (প্রোফাইল পেজের "অ্যাকাউন্ট মুছে ফেলুন"), অ্যাডমিনও যে-কারো ডিলিট করতে পারবে
@@ -97,7 +135,10 @@ service cloud.firestore {
 
     /* ---------- পরীক্ষার ফলাফল ---------- */
     match /results/{resultId} {
-      allow read: if isSignedIn() && (resource.data.uid == request.auth.uid || isAdmin());
+      // নিজের রেজাল্ট, অ্যাডমিন, অথবা এই ছাত্রের সাথে লিংকড অভিভাবক
+      allow read: if isSignedIn() && (
+        resource.data.uid == request.auth.uid || isAdmin() || isLinkedParentOf(resource.data.uid)
+      );
       allow create: if isSignedIn() && request.resource.data.uid == request.auth.uid;
       allow update: if isSignedIn() && resource.data.uid == request.auth.uid &&
         request.resource.data.uid == resource.data.uid;
@@ -166,6 +207,22 @@ service cloud.firestore {
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["used", "usedAt"]);
 
       allow delete: if isAdmin();
+    }
+
+    /* ---------- অভিভাবক ড্যাশবোর্ড: চাইল্ড লিংক কোড ----------
+       ডকুমেন্ট আইডি = নিজেই কোড (যেমন linkCodes/AB12CD34EF)। ছাত্র তার প্রোফাইলের
+       "Family" ট্যাব থেকে নিজের জন্য এই কোড তৈরি করে, তারপর অভিভাবককে শেয়ার করে।
+       - get: exact কোড স্ট্রিং জানলেই পড়া যাবে (childUid বের করার জন্য)
+       - list: বন্ধ — নাহলে পুরো কালেকশন স্ক্যান করে সবার কোড দেখে ফেলা যেত
+       - create: শুধু নিজের জন্যই তৈরি করা যাবে (uid নিজের হতে হবে)
+       - একই কোড একাধিক অভিভাবক (যেমন বাবা-মা দুজনেই) ব্যবহার করতে পারবেন যতক্ষণ না
+         ছাত্র নিজে রিজেনারেট/ডিলিট করছে — তাই আলাদা "used" ফ্ল্যাগ নেই */
+    match /linkCodes/{code} {
+      allow get: if isSignedIn();
+      allow list: if false;
+      allow create: if isSignedIn() && request.resource.data.uid == request.auth.uid;
+      allow update: if false;
+      allow delete: if isAdmin() || (isSignedIn() && resource.data.uid == request.auth.uid);
     }
 
     /* ---------- Learning Hub: স্পেসড-রিপিটিশন ফ্ল্যাশকার্ড (অ্যাডমিন তৈরি করে) ----------
