@@ -20,6 +20,7 @@ import { loadExamsTable } from "./admin/exams.js";
 import { loadUsersTable } from "./admin/users.js";
 import { loadPaymentSettings, loadPurchasesTable } from "./admin/purchases.js";
 import { initLeaderboardSection } from "./admin/leaderboard.js";
+import { loadCouponsTable } from "./admin/coupons.js";
 
 initNav("admin");
 
@@ -46,6 +47,7 @@ async function init() {
   loadUsersTable();
   loadPaymentSettings();
   loadPurchasesTable();
+  loadCouponsTable();
   bindLessonsSection();
 }
 

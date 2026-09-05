@@ -18,6 +18,7 @@ import {
   orderBy,
   where,
   serverTimestamp,
+  runTransaction,
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 import { initNav, requireAuth, toast, escapeHtml, toBnDigits, getUserProfile, drivePreviewUrl, isDriveLink, openModal, closeModal, youTubeId, getExamAvailability, formatDateTime, getCoursePricing, getExamQuestionCount, generateCertificatePdf, formatTime } from "./utils.js";
 import { courseUrl, navigate } from "./router.js";
@@ -466,19 +467,35 @@ async function loadPurchaseStatus(myToken) {
 function openBuyModal(course) {
   const { price, discountPrice: discount, hasDiscount } = getCoursePricing(course);
   const payText = hasDiscount ? money(discount) : money(price);
-  // The amount is never read from the DOM on submit — it's taken straight
-  // from this fixed value, computed the same way the price badge itself is
-  // computed. That's what makes it un-editable no matter what happens to
-  // the input on screen (devtools included).
-  const fixedAmount = hasDiscount ? discount : price;
+  // The BASE amount (before any coupon) is never read from the DOM on
+  // submit — it's taken straight from this fixed value, computed the same
+  // way the price badge itself is computed. A coupon can only ever
+  // subtract from this fixed base, and the final amount that actually gets
+  // sent to Firestore is re-derived from appliedCoupon (server-validated
+  // again inside the transaction below) — never from anything editable on
+  // screen (devtools included).
+  const baseAmount = hasDiscount ? discount : price;
   // A phone number already saved on the profile (via the mandatory
   // first-login gate in utils.js) is locked here too — same number every
   // time, every course, no retyping and no editing.
   const lockedPhone = (userProfile?.phone || "").trim();
 
+  // Coupon state for this modal instance only.
+  let appliedCoupon = null; // { code, type: "percent"|"fixed", value }
+
+  function discountAmountFor(coupon) {
+    if (!coupon) return 0;
+    const raw = coupon.type === "percent" ? Math.round((baseAmount * coupon.value) / 100) : coupon.value;
+    // Never let a coupon make the course free — keep at least ৳1 payable.
+    return Math.max(0, Math.min(raw, baseAmount - 1));
+  }
+  function finalAmount() {
+    return baseAmount - discountAmountFor(appliedCoupon);
+  }
+
   const overlay = openModal(`
     <div class="modal-head"><h3>Buy Course</h3><button class="modal-close-btn" data-modal-close><i class="fa-solid fa-xmark"></i></button></div>
-    <p class="muted" style="font-size:0.9rem; margin-bottom:14px;">Choose a payment method below, send <b>${payText}</b> to the number shown, then fill out the form. An access code will be sent to your email once approved.</p>
+    <p class="muted" style="font-size:0.9rem; margin-bottom:14px;">Choose a payment method below, send <b id="pf-pay-text">${payText}</b> to the number shown, then fill out the form. An access code will be sent to your email once approved.</p>
     <form id="purchase-form" class="mt-16">
       <div class="admin-grid">
         <div class="field"><label>Your Name</label><input type="text" id="pf-name" required value="${escapeHtml(userProfile?.displayName || "")}"></div>
@@ -501,11 +518,21 @@ function openBuyModal(course) {
         </select>
       </div>
       <div id="pay-numbers-box" class="pay-numbers-box mb-16"><div class="loading-screen" style="min-height:40px;"><span class="spinner"></span></div></div>
+
+      <div class="field">
+        <label>Discount Coupon (optional)</label>
+        <div class="coupon-row">
+          <input type="text" id="pf-coupon" placeholder="Enter coupon code" autocomplete="off" style="text-transform:uppercase;letter-spacing:0.5px;">
+          <button type="button" class="btn btn-outline btn-sm" id="pf-coupon-btn" data-mode="apply">Apply</button>
+        </div>
+        <div id="pf-coupon-msg" class="coupon-msg"></div>
+      </div>
+
       <div class="admin-grid">
         <div class="field"><label>Sender Number</label><input type="tel" id="pf-sender" required placeholder="01XXXXXXXXX"></div>
         <div class="field locked-field">
           <label>Amount Sent</label>
-          <input type="number" id="pf-amount" required min="1" value="${fixedAmount}" readonly tabindex="-1">
+          <input type="number" id="pf-amount" required min="1" value="${baseAmount}" readonly tabindex="-1">
           <span class="field-lock-note"><i class="fa-solid fa-lock"></i> Fixed price — cannot be changed</span>
         </div>
       </div>
@@ -513,6 +540,11 @@ function openBuyModal(course) {
       <button type="submit" class="btn btn-primary btn-block" id="purchase-submit-btn">Send Request</button>
     </form>
   `);
+
+  function refreshAmountUI() {
+    overlay.querySelector("#pf-amount").value = finalAmount();
+    overlay.querySelector("#pf-pay-text").textContent = money(finalAmount());
+  }
 
   let paymentNumbers = {};
   loadPaymentNumbers(overlay).then((numbersMap) => {
@@ -522,6 +554,57 @@ function openBuyModal(course) {
 
   overlay.querySelector("#pf-method").addEventListener("change", () => {
     renderSelectedPayNumber(overlay, paymentNumbers);
+  });
+
+  const couponInput = overlay.querySelector("#pf-coupon");
+  const couponBtn = overlay.querySelector("#pf-coupon-btn");
+  const couponMsg = overlay.querySelector("#pf-coupon-msg");
+
+  couponBtn.addEventListener("click", async () => {
+    if (couponBtn.dataset.mode === "remove") {
+      appliedCoupon = null;
+      couponInput.value = "";
+      couponInput.readOnly = false;
+      couponMsg.textContent = "";
+      couponMsg.className = "coupon-msg";
+      couponBtn.textContent = "Apply";
+      couponBtn.dataset.mode = "apply";
+      refreshAmountUI();
+      return;
+    }
+    const code = couponInput.value.trim().toUpperCase().replace(/\s+/g, "");
+    if (!code) return;
+    couponBtn.disabled = true;
+    couponBtn.innerHTML = `<span class="spinner"></span>`;
+    try {
+      const snap = await getDoc(doc(db, "coupons", code));
+      if (!snap.exists()) throw new Error("This coupon code doesn't exist");
+      const c = snap.data();
+      if (!c.active) throw new Error("This coupon isn't active anymore");
+      if (c.expiresAt?.toMillis && Date.now() > c.expiresAt.toMillis()) throw new Error("This coupon has expired");
+      if (c.maxUses > 0 && (c.usedCount || 0) >= c.maxUses) throw new Error("This coupon has reached its usage limit");
+      if ((c.usedByUsers || []).includes(currentUser.uid)) throw new Error("You've already used this coupon");
+      if (c.scope === "specific" && Array.isArray(c.courseIds) && c.courseIds.length && !c.courseIds.includes(courseId)) {
+        throw new Error("This coupon isn't valid for this course");
+      }
+      appliedCoupon = { code, type: c.type === "fixed" ? "fixed" : "percent", value: Number(c.value) || 0 };
+      refreshAmountUI();
+      couponMsg.innerHTML = `<i class="fa-solid fa-circle-check"></i> Coupon applied — you saved ৳${discountAmountFor(appliedCoupon)}`;
+      couponMsg.className = "coupon-msg success";
+      couponInput.value = code;
+      couponInput.readOnly = true;
+      couponBtn.textContent = "Remove";
+      couponBtn.dataset.mode = "remove";
+    } catch (err) {
+      appliedCoupon = null;
+      refreshAmountUI();
+      couponMsg.innerHTML = `<i class="fa-solid fa-circle-exclamation"></i> ${escapeHtml(err.message || "Could not apply this coupon")}`;
+      couponMsg.className = "coupon-msg error";
+      couponBtn.textContent = "Apply";
+      couponBtn.dataset.mode = "apply";
+    } finally {
+      couponBtn.disabled = false;
+    }
   });
 
   overlay.querySelector("#purchase-form").addEventListener("submit", async (e) => {
@@ -542,7 +625,7 @@ function openBuyModal(course) {
         await updateDoc(doc(db, "users", currentUser.uid), { phone: phoneInput }).catch(() => {});
         if (userProfile) userProfile.phone = phoneInput;
       }
-      await addDoc(collection(db, "purchaseRequests"), {
+      const basePayload = {
         uid: currentUser.uid,
         userEmail: currentUser.email || "",
         userName: overlay.querySelector("#pf-name").value.trim(),
@@ -551,17 +634,55 @@ function openBuyModal(course) {
         courseTitle: course.title,
         paymentMethod: overlay.querySelector("#pf-method").value,
         senderNumber: overlay.querySelector("#pf-sender").value.trim(),
-        amount: fixedAmount,
         transactionId: overlay.querySelector("#pf-txn").value.trim(),
         status: "pending",
         accessCode: "",
         createdAt: serverTimestamp(),
-      });
+      };
+
+      if (appliedCoupon) {
+        // Re-validated fresh, inside a transaction, at the moment of
+        // submit — not just trusted from when "Apply" was clicked. This is
+        // what stops two people racing the last slot of a limited coupon,
+        // or a coupon expiring/getting deactivated in between.
+        const couponRef = doc(db, "coupons", appliedCoupon.code);
+        const newReqRef = doc(collection(db, "purchaseRequests"));
+        await runTransaction(db, async (tx) => {
+          const cSnap = await tx.get(couponRef);
+          if (!cSnap.exists()) throw new Error("This coupon is no longer available");
+          const c = cSnap.data();
+          if (!c.active) throw new Error("This coupon isn't active anymore");
+          if (c.expiresAt?.toMillis && Date.now() > c.expiresAt.toMillis()) throw new Error("This coupon has expired");
+          if (c.maxUses > 0 && (c.usedCount || 0) >= c.maxUses) throw new Error("This coupon has reached its usage limit");
+          const usedBy = c.usedByUsers || [];
+          if (usedBy.includes(currentUser.uid)) throw new Error("You've already used this coupon");
+          const finalAmt = finalAmount();
+          tx.set(newReqRef, {
+            ...basePayload,
+            amount: finalAmt,
+            originalAmount: baseAmount,
+            couponCode: appliedCoupon.code,
+            discountAmount: baseAmount - finalAmt,
+          });
+          tx.update(couponRef, {
+            usedCount: (c.usedCount || 0) + 1,
+            usedByUsers: [...usedBy, currentUser.uid],
+          });
+        });
+      } else {
+        await addDoc(collection(db, "purchaseRequests"), {
+          ...basePayload,
+          amount: baseAmount,
+          originalAmount: baseAmount,
+          couponCode: "",
+          discountAmount: 0,
+        });
+      }
       toast("Request sent! Please wait for approval", "success");
       closeModal();
       loadPurchaseStatus();
     } catch (err) {
-      toast("Could not send the request, please try again", "error");
+      toast(err.message || "Could not send the request, please try again", "error");
       btn.disabled = false;
       btn.textContent = "Send Request";
     }
