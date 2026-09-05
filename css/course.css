@@ -292,6 +292,13 @@
 .access-modal-input::placeholder { color: var(--text-on-surface-muted); }
 .access-modal-input:focus { outline: 2px solid var(--accent-amber); }
 .access-modal-submit { padding: 15px 24px; font-size: 1.02rem; }
+/* ---------- ডিসকাউন্ট কুপন বক্স (Buy Course মডালের ভেতরে) ---------- */
+.coupon-row { display: flex; gap: 8px; }
+.coupon-row input { flex: 1; }
+.coupon-row .btn { flex-shrink: 0; white-space: nowrap; }
+.coupon-msg { font-size: 0.82rem; margin-top: 6px; display: flex; align-items: center; gap: 6px; min-height: 1.1em; }
+.coupon-msg.success { color: var(--accent-green); }
+.coupon-msg.error { color: #F0938A; }
 .pay-numbers-box { display: flex; flex-direction: column; gap: 8px; }
 .pay-number-item {
   display: flex; align-items: center; gap: 8px; background: var(--surface); color: var(--text-on-surface);

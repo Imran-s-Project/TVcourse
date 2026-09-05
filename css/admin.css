@@ -614,6 +614,10 @@
   border-radius: var(--radius-sm); padding: 12px 14px; display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
 }
 .gen-code-result code { font-family: var(--font-utility); font-size: 0.95rem; letter-spacing: 0.5px; color: var(--accent-amber-soft); font-weight: 700; }
+.coupon-code-pill {
+  font-family: var(--font-utility); font-size: 0.85rem; letter-spacing: 0.6px; font-weight: 700;
+  color: var(--accent-amber-soft); background: rgba(124,92,252,0.14); padding: 3px 10px; border-radius: 6px;
+}
 
 /* Generate Access Code — the one and only way to grant a user course access,
    so it gets top billing above the rest of the user-detail cards */
